@@ -18,7 +18,7 @@ const FEATURES = [
 
 export default function HomePage() {
   return (
-    <div className="relative overflow-hidden">
+    <div className="relative z-10 overflow-hidden">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
         <Logo />
         <nav className="flex items-center gap-3">

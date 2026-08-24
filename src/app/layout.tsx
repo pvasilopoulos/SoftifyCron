@@ -33,7 +33,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${outfit.variable} ${fraunces.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col text-ink">{children}</body>
+      <body className="min-h-full flex flex-col text-ink">
+        <div className="noise" aria-hidden="true" />
+        {children}
+      </body>
     </html>
   );
 }

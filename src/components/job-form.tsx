@@ -122,7 +122,7 @@ export function JobForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
+    <form onSubmit={onSubmit} className="relative z-10 grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
       <div className="space-y-4">
         <label className="block">
           <span className="field-label">Name</span>

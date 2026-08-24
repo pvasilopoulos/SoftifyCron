@@ -1,55 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useActionState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { loginAction, registerAction } from "@/app/actions/auth";
 
 type Mode = "login" | "register";
 
 export function AuthForm({ mode }: { mode: Mode }) {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-
-  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setPending(true);
-    setError(null);
-    const form = new FormData(event.currentTarget);
-    const payload =
-      mode === "login"
-        ? {
-            email: String(form.get("email") ?? ""),
-            password: String(form.get("password") ?? ""),
-          }
-        : {
-            name: String(form.get("name") ?? ""),
-            email: String(form.get("email") ?? ""),
-            password: String(form.get("password") ?? ""),
-            organization: String(form.get("organization") ?? ""),
-          };
-
-    const response = await fetch(
-      mode === "login" ? "/api/auth/login" : "/api/auth/register",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      },
-    );
-    const data = await response.json().catch(() => ({}));
-    setPending(false);
-    if (!response.ok) {
-      setError(data.error ?? "Something went wrong");
-      return;
-    }
-    router.push("/dashboard");
-    router.refresh();
-  }
+  const action = mode === "login" ? loginAction : registerAction;
+  const [state, formAction, pending] = useActionState(action, null);
 
   return (
-    <div className="flex min-h-screen flex-col px-6 py-8">
+    <div className="relative z-10 flex min-h-screen flex-col px-6 py-8">
       <Link href="/">
         <Logo />
       </Link>
@@ -65,22 +28,34 @@ export function AuthForm({ mode }: { mode: Mode }) {
             ? "Every job you touch stays inside your tenant."
             : "Registration creates your tenant, owner account, and empty job board."}
         </p>
-        <form className="mt-8 space-y-4" onSubmit={onSubmit}>
+        <form className="mt-8 space-y-4" action={formAction}>
           {mode === "register" ? (
             <>
               <label className="block">
                 <span className="field-label">Your name</span>
-                <input className="field" name="name" required minLength={2} />
+                <input className="field" name="name" autoComplete="name" required minLength={2} />
               </label>
               <label className="block">
                 <span className="field-label">Organization</span>
-                <input className="field" name="organization" required minLength={2} />
+                <input
+                  className="field"
+                  name="organization"
+                  autoComplete="organization"
+                  required
+                  minLength={2}
+                />
               </label>
             </>
           ) : null}
           <label className="block">
             <span className="field-label">Email</span>
-            <input className="field" type="email" name="email" required />
+            <input
+              className="field"
+              type="email"
+              name="email"
+              autoComplete="email"
+              required
+            />
           </label>
           <label className="block">
             <span className="field-label">Password</span>
@@ -88,11 +63,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
               className="field"
               type="password"
               name="password"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
               required
               minLength={mode === "register" ? 8 : 1}
             />
           </label>
-          {error ? <p className="text-sm text-rose">{error}</p> : null}
+          {state?.error ? <p className="text-sm text-rose">{state.error}</p> : null}
           <button className="btn btn-gold w-full" type="submit" disabled={pending}>
             {pending
               ? "Working…"

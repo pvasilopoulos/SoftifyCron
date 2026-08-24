@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { SessionPayload } from "@/lib/session";
 import { Logo } from "@/components/logo";
+import { logoutAction } from "@/app/actions/auth";
 
 const NAV = [
   { href: "/dashboard", label: "Overview" },
@@ -20,16 +21,9 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
-
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/");
-    router.refresh();
-  }
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
+    <div className="relative z-10 min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
       <aside className="border-b border-line bg-bg-elev/80 px-5 py-5 lg:border-b-0 lg:border-r lg:px-6 lg:py-8">
         <Link href="/dashboard">
           <Logo />
@@ -60,13 +54,14 @@ export function AppShell({
         <div className="mt-8 hidden border-t border-line pt-6 lg:block">
           <p className="truncate text-sm text-ink">{session.name}</p>
           <p className="truncate text-xs text-ink-dim">{session.email}</p>
-          <button
-            type="button"
-            onClick={logout}
-            className="mt-4 text-xs uppercase tracking-[0.16em] text-ink-dim hover:text-gold"
-          >
-            Sign out
-          </button>
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="mt-4 text-xs uppercase tracking-[0.16em] text-ink-dim hover:text-gold"
+            >
+              Sign out
+            </button>
+          </form>
         </div>
       </aside>
       <div className="min-w-0">
@@ -74,13 +69,14 @@ export function AppShell({
           <p className="text-sm text-ink-dim">
             Tenant-scoped scheduler · {session.role.toLowerCase()}
           </p>
-          <button
-            type="button"
-            onClick={logout}
-            className="text-xs uppercase tracking-[0.16em] text-ink-dim hover:text-gold lg:hidden"
-          >
-            Sign out
-          </button>
+          <form action={logoutAction} className="lg:hidden">
+            <button
+              type="submit"
+              className="text-xs uppercase tracking-[0.16em] text-ink-dim hover:text-gold"
+            >
+              Sign out
+            </button>
+          </form>
         </header>
         <main className="px-5 py-8 lg:px-10 lg:py-10">{children}</main>
       </div>
