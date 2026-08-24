@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CronExpressionParser } from "cron-parser";
 import cronstrue from "cronstrue";
@@ -20,7 +20,7 @@ type JobFormValues = {
   enabled: boolean;
 };
 
-const EMPTY: JobFormValues = {
+const DEFAULTS: JobFormValues = {
   name: "",
   description: "",
   cronExpr: "*/5 * * * *",
@@ -58,18 +58,19 @@ export function JobForm({
   jobId?: string;
 }) {
   const router = useRouter();
-  const [values, setValues] = useState<JobFormValues>({ ...EMPTY, ...initial });
+  const cronRef = useRef<HTMLInputElement>(null);
+  const values = { ...DEFAULTS, ...initial };
+  const [cronExpr, setCronExpr] = useState(values.cronExpr);
+  const [timezone, setTimezone] = useState(values.timezone);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   const preview = useMemo(() => {
     try {
-      const human = cronstrue.toString(values.cronExpr, {
-        use24HourTimeFormat: true,
-      });
-      const expression = CronExpressionParser.parse(values.cronExpr, {
+      const human = cronstrue.toString(cronExpr, { use24HourTimeFormat: true });
+      const expression = CronExpressionParser.parse(cronExpr, {
         currentDate: new Date(),
-        tz: values.timezone,
+        tz: timezone,
       });
       const next = Array.from({ length: 4 }, () => expression.next().toDate());
       return { human, next, error: null as string | null };
@@ -80,29 +81,31 @@ export function JobForm({
         error: err instanceof Error ? err.message : "Invalid cron expression",
       };
     }
-  }, [values.cronExpr, values.timezone]);
+  }, [cronExpr, timezone]);
 
-  function update<K extends keyof JobFormValues>(key: K, value: JobFormValues[K]) {
-    setValues((current) => ({ ...current, [key]: value }));
+  function applyPreset(value: string) {
+    if (cronRef.current) cronRef.current.value = value;
+    setCronExpr(value);
   }
 
-  async function onSubmit(event: React.FormEvent) {
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
     setError(null);
+    const form = new FormData(event.currentTarget);
     try {
-      const headers = parseHeaders(values.headers);
+      const headers = parseHeaders(String(form.get("headers") ?? ""));
       const payload = {
-        name: values.name,
-        description: values.description || null,
-        cronExpr: values.cronExpr,
-        timezone: values.timezone,
-        method: values.method,
-        url: values.url,
+        name: String(form.get("name") ?? "").trim(),
+        description: String(form.get("description") ?? "") || null,
+        cronExpr: String(form.get("cronExpr") ?? "").trim(),
+        timezone: String(form.get("timezone") ?? timezone),
+        method: String(form.get("method") ?? "GET"),
+        url: String(form.get("url") ?? "").trim(),
         headers,
-        body: values.body || null,
-        timeoutMs: Number(values.timeoutMs),
-        enabled: values.enabled,
+        body: String(form.get("body") ?? "") || null,
+        timeoutMs: Number(form.get("timeoutMs") ?? 30000),
+        enabled: form.get("enabled") === "on",
       };
       const response = await fetch(jobId ? `/api/jobs/${jobId}` : "/api/jobs", {
         method: jobId ? "PUT" : "POST",
@@ -126,37 +129,35 @@ export function JobForm({
       <div className="space-y-4">
         <label className="block">
           <span className="field-label">Name</span>
-          <input
-            className="field"
-            value={values.name}
-            onChange={(e) => update("name", e.target.value)}
-            required
-          />
+          <input className="field" name="name" defaultValue={values.name} required />
         </label>
         <label className="block">
           <span className="field-label">Description</span>
           <textarea
             className="field min-h-24"
-            value={values.description}
-            onChange={(e) => update("description", e.target.value)}
+            name="description"
+            defaultValue={values.description}
           />
         </label>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
             <span className="field-label">Cron expression</span>
             <input
+              ref={cronRef}
               className="field mono"
-              value={values.cronExpr}
-              onChange={(e) => update("cronExpr", e.target.value)}
+              name="cronExpr"
+              defaultValue={values.cronExpr}
               required
+              onInput={(event) => setCronExpr(event.currentTarget.value)}
             />
           </label>
           <label className="block">
             <span className="field-label">Timezone</span>
             <select
               className="field"
-              value={values.timezone}
-              onChange={(e) => update("timezone", e.target.value)}
+              name="timezone"
+              defaultValue={values.timezone}
+              onChange={(event) => setTimezone(event.currentTarget.value)}
             >
               {TIMEZONES.map((zone) => (
                 <option key={zone} value={zone}>
@@ -166,13 +167,32 @@ export function JobForm({
             </select>
           </label>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="sr-only" htmlFor="cron-preset">
+            Cron preset
+          </label>
+          <select
+            id="cron-preset"
+            className="field max-w-xs py-1"
+            defaultValue=""
+            onChange={(event) => {
+              if (event.currentTarget.value) applyPreset(event.currentTarget.value);
+              event.currentTarget.selectedIndex = 0;
+            }}
+          >
+            <option value="">Apply a preset…</option>
+            {CRON_PRESETS.map((preset) => (
+              <option key={preset.value} value={preset.value}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
           {CRON_PRESETS.map((preset) => (
             <button
               key={preset.value}
               type="button"
               className="rounded-full border border-line px-3 py-1 text-xs text-ink-dim hover:border-gold hover:text-gold"
-              onClick={() => update("cronExpr", preset.value)}
+              onClick={() => applyPreset(preset.value)}
             >
               {preset.label}
             </button>
@@ -181,13 +201,7 @@ export function JobForm({
         <div className="grid gap-4 sm:grid-cols-[140px_1fr]">
           <label className="block">
             <span className="field-label">Method</span>
-            <select
-              className="field"
-              value={values.method}
-              onChange={(e) =>
-                update("method", e.target.value as JobFormValues["method"])
-              }
-            >
+            <select className="field" name="method" defaultValue={values.method}>
               {HTTP_METHODS.map((method) => (
                 <option key={method}>{method}</option>
               ))}
@@ -195,30 +209,21 @@ export function JobForm({
           </label>
           <label className="block">
             <span className="field-label">URL</span>
-            <input
-              className="field mono"
-              value={values.url}
-              onChange={(e) => update("url", e.target.value)}
-              required
-            />
+            <input className="field mono" name="url" defaultValue={values.url} required />
           </label>
         </div>
         <label className="block">
           <span className="field-label">Headers JSON</span>
           <textarea
             className="field min-h-24 mono"
+            name="headers"
             placeholder='{"Authorization":"Bearer …"}'
-            value={values.headers}
-            onChange={(e) => update("headers", e.target.value)}
+            defaultValue={values.headers}
           />
         </label>
         <label className="block">
           <span className="field-label">Body</span>
-          <textarea
-            className="field min-h-28 mono"
-            value={values.body}
-            onChange={(e) => update("body", e.target.value)}
-          />
+          <textarea className="field min-h-28 mono" name="body" defaultValue={values.body} />
         </label>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
@@ -226,18 +231,14 @@ export function JobForm({
             <input
               className="field"
               type="number"
+              name="timeoutMs"
               min={1000}
               max={120000}
-              value={values.timeoutMs}
-              onChange={(e) => update("timeoutMs", Number(e.target.value))}
+              defaultValue={values.timeoutMs}
             />
           </label>
           <label className="flex items-end gap-3 pb-2">
-            <input
-              type="checkbox"
-              checked={values.enabled}
-              onChange={(e) => update("enabled", e.target.checked)}
-            />
+            <input type="checkbox" name="enabled" defaultChecked={values.enabled} />
             <span>Enabled — worker will fire this job</span>
           </label>
         </div>
@@ -258,7 +259,7 @@ export function JobForm({
             {preview.next.map((date) => (
               <li key={date.toISOString()} className="mono">
                 {date.toLocaleString("en-GB", {
-                  timeZone: values.timezone,
+                  timeZone: timezone,
                   hour12: false,
                 })}
               </li>
