@@ -42,7 +42,11 @@ export function JobForm({
   const [state, formAction, pending] = useActionState(saveJobAction, null);
 
   return (
-    <form action={formAction} className="relative z-10 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+    <form
+      action={formAction}
+      autoComplete="off"
+      className="relative z-10 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]"
+    >
       {jobId ? <input type="hidden" name="jobId" value={jobId} /> : null}
       <div className="space-y-4">
         <label className="block">
