@@ -7,11 +7,14 @@ export const metadata = { title: "Edit job" };
 
 export default async function EditJobPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const session = await requireSession();
   const { id } = await params;
+  const { error } = await searchParams;
   const job = await getJobForTenant(session.tid, id);
   if (!job) notFound();
 
@@ -28,6 +31,7 @@ export default async function EditJobPage({
       </div>
       <JobForm
         jobId={job.id}
+        error={error}
         initial={{
           name: job.name,
           description: job.description ?? "",

@@ -1,9 +1,7 @@
-"use client";
-
-import { useActionState, useEffect, useState } from "react";
 import { saveJobAction } from "@/app/actions/jobs";
 import { CRON_PRESETS, HTTP_METHODS } from "@/lib/constants";
-import { TIMEZONES } from "@/lib/format";
+import { TIMEZONES, formatAbsolute } from "@/lib/format";
+import { describeCron, previewRuns } from "@/lib/cron";
 
 type JobFormValues = {
   name: string;
@@ -34,36 +32,24 @@ const DEFAULTS: JobFormValues = {
 export function JobForm({
   initial,
   jobId,
+  error,
 }: {
   initial?: Partial<JobFormValues>;
   jobId?: string;
+  error?: string;
 }) {
   const values = { ...DEFAULTS, ...initial };
-  const [state, formAction, pending] = useActionState(saveJobAction, null);
-  const [cronExpr, setCronExpr] = useState(values.cronExpr);
-  const [timezone, setTimezone] = useState(values.timezone);
-  const [human, setHuman] = useState("Every 5 minutes");
-  const [nextRuns, setNextRuns] = useState<string[]>([]);
-
-  useEffect(() => {
-    const handle = window.setTimeout(async () => {
-      const response = await fetch(
-        `/api/cron/preview?expr=${encodeURIComponent(cronExpr)}&tz=${encodeURIComponent(timezone)}`,
-      );
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setHuman("Fix the expression");
-        setNextRuns([]);
-        return;
-      }
-      setHuman(data.human ?? "");
-      setNextRuns(Array.isArray(data.next) ? data.next : []);
-    }, 250);
-    return () => window.clearTimeout(handle);
-  }, [cronExpr, timezone]);
+  let upcoming: Date[] = [];
+  let human = values.cronExpr;
+  try {
+    human = describeCron(values.cronExpr);
+    upcoming = previewRuns(values.cronExpr, values.timezone, 4);
+  } catch {
+    human = values.cronExpr;
+  }
 
   return (
-    <form action={formAction} className="relative z-10 grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
+    <form action={saveJobAction} className="relative z-10 grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
       {jobId ? <input type="hidden" name="jobId" value={jobId} /> : null}
       <div className="space-y-4">
         <label className="block">
@@ -83,7 +69,6 @@ export function JobForm({
               list="cron-presets"
               defaultValue={values.cronExpr}
               required
-              onInput={(event) => setCronExpr(event.currentTarget.value)}
             />
             <datalist id="cron-presets">
               {CRON_PRESETS.map((preset) => (
@@ -93,12 +78,7 @@ export function JobForm({
           </label>
           <label className="block">
             <span className="field-label">Timezone</span>
-            <select
-              className="field"
-              name="timezone"
-              defaultValue={values.timezone}
-              onChange={(event) => setTimezone(event.currentTarget.value)}
-            >
+            <select className="field" name="timezone" defaultValue={values.timezone}>
               {TIMEZONES.map((zone) => (
                 <option key={zone} value={zone}>
                   {zone}
@@ -108,8 +88,8 @@ export function JobForm({
           </label>
         </div>
         <p className="text-xs text-ink-dim">
-          Tip: pick from the cron suggestions or type a 5-field expression such as{" "}
-          <span className="mono">*/15 * * * *</span>
+          Standard 5-field cron. Examples: <span className="mono">*/15 * * * *</span> every 15
+          minutes, <span className="mono">0 9 * * 1-5</span> weekdays at 09:00.
         </p>
         <div className="grid gap-4 sm:grid-cols-[140px_1fr]">
           <label className="block">
@@ -155,24 +135,25 @@ export function JobForm({
             <span>Enabled — worker will fire this job</span>
           </label>
         </div>
-        {state?.error ? <p className="text-sm text-rose">{state.error}</p> : null}
-        <button className="btn btn-gold" type="submit" disabled={pending}>
-          {pending ? "Saving…" : jobId ? "Save job" : "Create job"}
+        {error ? <p className="text-sm text-rose">{error}</p> : null}
+        <button className="btn btn-gold" type="submit">
+          {jobId ? "Save job" : "Create job"}
         </button>
       </div>
       <aside className="card h-fit p-6">
-        <p className="text-xs uppercase tracking-[0.18em] text-gold">Schedule</p>
+        <p className="text-xs uppercase tracking-[0.18em] text-gold">Current expression</p>
         <p className="mt-3 font-display text-2xl italic">{human}</p>
         <ol className="mt-5 space-y-2 text-sm text-ink-dim">
-          {nextRuns.map((iso) => (
-            <li key={iso} className="mono">
-              {new Date(iso).toLocaleString("en-GB", {
-                timeZone: timezone,
-                hour12: false,
-              })}
+          {upcoming.map((date) => (
+            <li key={date.toISOString()} className="mono">
+              {formatAbsolute(date, values.timezone)}
             </li>
           ))}
         </ol>
+        <p className="mt-4 text-xs text-ink-dim">
+          Preview is for the saved/default expression. After you create the job, the detail page
+          shows the live upcoming times.
+        </p>
       </aside>
     </form>
   );
