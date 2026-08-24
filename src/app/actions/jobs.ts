@@ -22,19 +22,16 @@ function readHeaders(raw: string) {
   return out;
 }
 
-function fail(jobId: string, message: string): never {
-  const path = jobId ? `/jobs/${jobId}/edit` : "/jobs/new";
-  redirect(`${path}?error=${encodeURIComponent(message)}`);
-}
-
-export async function saveJobAction(formData: FormData) {
-  const jobId = String(formData.get("jobId") ?? "");
+export async function saveJobAction(
+  _prev: { error: string } | null,
+  formData: FormData,
+) {
   const session = await requireSession();
   let headers: Record<string, string> | null = null;
   try {
     headers = readHeaders(String(formData.get("headers") ?? ""));
   } catch (error) {
-    fail(jobId, error instanceof Error ? error.message : "Invalid headers");
+    return { error: error instanceof Error ? error.message : "Invalid headers" };
   }
 
   const parsed = jobInputSchema.safeParse({
@@ -50,17 +47,18 @@ export async function saveJobAction(formData: FormData) {
     enabled: formData.get("enabled") === "on",
   });
   if (!parsed.success) {
-    fail(jobId, parsed.error.issues[0]?.message ?? "Invalid input");
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
+  const jobId = String(formData.get("jobId") ?? "");
   let job;
   try {
     job = jobId
       ? await updateJob(session.tid, jobId, parsed.data)
       : await createJob(session.tid, parsed.data);
   } catch (error) {
-    fail(jobId, error instanceof Error ? error.message : "Could not save job");
+    return { error: error instanceof Error ? error.message : "Could not save job" };
   }
-  if (!job) fail(jobId, "Job not found");
+  if (!job) return { error: "Job not found" };
   redirect(`/jobs/${job.id}`);
 }

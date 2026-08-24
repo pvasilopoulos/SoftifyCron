@@ -1,7 +1,9 @@
+"use client";
+
+import { useActionState } from "react";
 import { saveJobAction } from "@/app/actions/jobs";
-import { CRON_PRESETS, HTTP_METHODS } from "@/lib/constants";
-import { TIMEZONES, formatAbsolute } from "@/lib/format";
-import { describeCron, previewRuns } from "@/lib/cron";
+import { HTTP_METHODS } from "@/lib/constants";
+import { TIMEZONES } from "@/lib/format";
 
 type JobFormValues = {
   name: string;
@@ -32,24 +34,15 @@ const DEFAULTS: JobFormValues = {
 export function JobForm({
   initial,
   jobId,
-  error,
 }: {
   initial?: Partial<JobFormValues>;
   jobId?: string;
-  error?: string;
 }) {
   const values = { ...DEFAULTS, ...initial };
-  let upcoming: Date[] = [];
-  let human = values.cronExpr;
-  try {
-    human = describeCron(values.cronExpr);
-    upcoming = previewRuns(values.cronExpr, values.timezone, 4);
-  } catch {
-    human = values.cronExpr;
-  }
+  const [state, formAction, pending] = useActionState(saveJobAction, null);
 
   return (
-    <form action={saveJobAction} className="relative z-10 grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
+    <form action={formAction} className="relative z-10 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
       {jobId ? <input type="hidden" name="jobId" value={jobId} /> : null}
       <div className="space-y-4">
         <label className="block">
@@ -60,37 +53,24 @@ export function JobForm({
           <span className="field-label">Description</span>
           <textarea className="field min-h-24" name="description" defaultValue={values.description} />
         </label>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block">
-            <span className="field-label">Cron expression</span>
-            <input
-              className="field mono"
-              name="cronExpr"
-              list="cron-presets"
-              defaultValue={values.cronExpr}
-              required
-            />
-            <datalist id="cron-presets">
-              {CRON_PRESETS.map((preset) => (
-                <option key={preset.value} value={preset.value} label={preset.label} />
-              ))}
-            </datalist>
-          </label>
-          <label className="block">
-            <span className="field-label">Timezone</span>
-            <select className="field" name="timezone" defaultValue={values.timezone}>
-              {TIMEZONES.map((zone) => (
-                <option key={zone} value={zone}>
-                  {zone}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <p className="text-xs text-ink-dim">
-          Standard 5-field cron. Examples: <span className="mono">*/15 * * * *</span> every 15
-          minutes, <span className="mono">0 9 * * 1-5</span> weekdays at 09:00.
-        </p>
+        <label className="block">
+          <span className="field-label">Cron expression</span>
+          <input className="field mono" name="cronExpr" defaultValue={values.cronExpr} required />
+          <span className="mt-2 block text-xs text-ink-dim">
+            5-field cron, for example <span className="mono">*/15 * * * *</span> or{" "}
+            <span className="mono">0 9 * * 1-5</span>
+          </span>
+        </label>
+        <label className="block">
+          <span className="field-label">Timezone</span>
+          <select className="field" name="timezone" defaultValue={values.timezone}>
+            {TIMEZONES.map((zone) => (
+              <option key={zone} value={zone}>
+                {zone}
+              </option>
+            ))}
+          </select>
+        </label>
         <div className="grid gap-4 sm:grid-cols-[140px_1fr]">
           <label className="block">
             <span className="field-label">Method</span>
@@ -135,24 +115,16 @@ export function JobForm({
             <span>Enabled — worker will fire this job</span>
           </label>
         </div>
-        {error ? <p className="text-sm text-rose">{error}</p> : null}
-        <button className="btn btn-gold" type="submit">
-          {jobId ? "Save job" : "Create job"}
+        {state?.error ? <p className="text-sm text-rose">{state.error}</p> : null}
+        <button className="btn btn-gold" type="submit" disabled={pending}>
+          {pending ? "Saving…" : jobId ? "Save job" : "Create job"}
         </button>
       </div>
       <aside className="card h-fit p-6">
-        <p className="text-xs uppercase tracking-[0.18em] text-gold">Current expression</p>
-        <p className="mt-3 font-display text-2xl italic">{human}</p>
-        <ol className="mt-5 space-y-2 text-sm text-ink-dim">
-          {upcoming.map((date) => (
-            <li key={date.toISOString()} className="mono">
-              {formatAbsolute(date, values.timezone)}
-            </li>
-          ))}
-        </ol>
-        <p className="mt-4 text-xs text-ink-dim">
-          Preview is for the saved/default expression. After you create the job, the detail page
-          shows the live upcoming times.
+        <p className="text-xs uppercase tracking-[0.18em] text-gold">How it runs</p>
+        <p className="mt-3 text-sm leading-6 text-ink-dim">
+          SoftifyCron stores this job on your tenant row in MySQL. The worker claims due jobs and
+          sends the HTTP request. Open the job after saving to see the next fire times and run log.
         </p>
       </aside>
     </form>

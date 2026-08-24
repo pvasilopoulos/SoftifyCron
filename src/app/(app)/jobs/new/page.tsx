@@ -3,13 +3,8 @@ import { requireSession } from "@/lib/session";
 
 export const metadata = { title: "New job" };
 
-export default async function NewJobPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
+export default async function NewJobPage() {
   const session = await requireSession();
-  const { error } = await searchParams;
   return (
     <div className="space-y-8">
       <div>
@@ -20,7 +15,7 @@ export default async function NewJobPage({
           The worker will only execute it inside {session.tname}.
         </p>
       </div>
-      <JobForm error={error} />
+      <JobForm />
     </div>
   );
 }
