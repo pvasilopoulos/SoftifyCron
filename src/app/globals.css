@@ -137,7 +137,43 @@ input[type="checkbox"] { accent-color: var(--gold); }
 .btn-ghost:hover { background: var(--bg-mute); }
 .btn-danger { background: transparent; border-color: color-mix(in srgb, var(--rose) 45%, transparent); color: var(--rose); }
 .btn-danger:hover { background: color-mix(in srgb, var(--rose) 8%, transparent); }
-.btn:disabled { opacity: 0.5; }
+.btn-sm { min-height: 32px; padding: 0.25rem 0.65rem; font-size: 0.8rem; }
+.rail-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  margin-top: 0.35rem;
+  padding-right: 0.15rem;
+}
+.rail-group + .rail-group { margin-top: 0.95rem; }
+.rail-group-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  font-weight: 500;
+  padding: 0 0.65rem 0.4rem;
+}
+.nav-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: flex-end;
+}
+.nav-sheet {
+  width: 100%;
+  max-height: min(82dvh, 36rem);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  background: var(--bg-elev);
+  border-radius: calc(var(--radius) + 0.35rem) calc(var(--radius) + 0.35rem) 0 0;
+  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  box-shadow: 0 -18px 40px -28px rgba(0, 0, 0, 0.45);
+}
 .card {
   background: var(--card);
   border: 1px solid var(--line);

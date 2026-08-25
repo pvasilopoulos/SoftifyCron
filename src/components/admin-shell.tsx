@@ -42,27 +42,35 @@ export function AdminShell({
           platform
           intent="manage"
         />
-        <nav className="mt-6 flex flex-col gap-1">
-          {NAV.map((item) => {
-            const active = item.match(pathname);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`rail-link${active ? " is-on" : ""}`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="mt-4 space-y-2">
-          <Link href="/admin/tenants/new" className="btn btn-gold w-full">
-            New tenant
-          </Link>
-          <Link href="/admin/users/new" className="btn btn-ghost w-full">
-            New user
-          </Link>
+        <div className="rail-scroll">
+          <nav className="mt-5" aria-label="Platform">
+            <section className="rail-group">
+              <p className="rail-group-label">Manage</p>
+              <div className="flex flex-col gap-0.5">
+                {NAV.map((item) => {
+                  const active = item.match(pathname);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`rail-link${active ? " is-on" : ""}`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          </nav>
+          <div className="mt-5 space-y-2">
+            <p className="rail-group-label">Create</p>
+            <Link href="/admin/tenants/new" className="btn btn-gold w-full">
+              New tenant
+            </Link>
+            <Link href="/admin/users/new" className="btn btn-ghost w-full">
+              New user
+            </Link>
+          </div>
         </div>
         <div className="mt-auto border-t border-line pt-4">
           <div className="flex items-start gap-2">

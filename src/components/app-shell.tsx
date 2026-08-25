@@ -8,15 +8,9 @@ import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TenantSwitcher, type WorkspaceChoice } from "@/components/tenant-switcher";
 import { SignOutButton } from "@/components/sign-out-button";
-
-const NAV = [
-  { href: "/dashboard", label: "Home", icon: HomeIcon },
-  { href: "/jobs", label: "Jobs", icon: JobsIcon },
-  { href: "/runs", label: "Runs", icon: RunsIcon },
-  { href: "/settings#people", label: "People", icon: PeopleIcon },
-  { href: "/settings#roles", label: "Roles", icon: RolesIcon },
-  { href: "/settings#workspace", label: "Settings", icon: SettingsIcon },
-];
+import { MobileNav } from "@/components/mobile-nav";
+import { NAV_ICONS } from "@/components/nav-icons";
+import { groupedNav, isNavActive, navForSession, type NavItem } from "@/lib/nav";
 
 function useHash() {
   return useSyncExternalStore(
@@ -33,69 +27,37 @@ function useHash() {
   );
 }
 
-function TenantsIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="3.5" y="4.5" width="7" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.7" />
-      <rect x="13.5" y="4.5" width="7" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.7" />
-      <rect x="3.5" y="13.5" width="7" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.7" />
-      <rect x="13.5" y="13.5" width="7" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.7" />
-    </svg>
-  );
-}
-function HomeIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z" stroke="currentColor" strokeWidth="1.7" />
-    </svg>
-  );
-}
-function JobsIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="4" y="5" width="16" height="14" rx="3" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M8 9h8M8 13h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-function RunsIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M12 8v5l3 2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-function PeopleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M4 18.5c.6-3 2.6-4.5 5-4.5s4.4 1.5 5 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      <circle cx="17" cy="9" r="2.2" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M16.2 14.2c1.7.3 3 1.5 3.4 3.3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-function RolesIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="8" cy="8" r="2.4" stroke="currentColor" strokeWidth="1.7" />
-      <circle cx="16" cy="8" r="2.4" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M4.5 18c.5-2.6 2.2-4 4.5-4s4 1.4 4.5 4M13.2 14.2c.4-.1.8-.2 1.3-.2 2.3 0 4 1.4 4.5 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-function SettingsIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M12 4.5v2M12 17.5v2M4.5 12h2M17.5 12h2M6.4 6.4l1.4 1.4M16.2 16.2l1.4 1.4M17.6 6.4 16.2 7.8M7.8 16.2 6.4 17.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function openPalette() {
   window.dispatchEvent(new Event("sc-open-palette"));
+}
+
+function NavLink({
+  item,
+  pathname,
+  hash,
+}: {
+  item: NavItem;
+  pathname: string;
+  hash: string;
+}) {
+  const Icon = NAV_ICONS[item.id];
+  const active = isNavActive(pathname, hash, item);
+  const [, itemHash] = item.href.split("#");
+  return (
+    <Link
+      href={item.href}
+      className={`rail-link${active ? " is-on" : ""}`}
+      onClick={() => {
+        if (!itemHash) return;
+        window.setTimeout(() => {
+          window.dispatchEvent(new HashChangeEvent("hashchange"));
+        }, 0);
+      }}
+    >
+      <Icon />
+      {item.label}
+    </Link>
+  );
 }
 
 export function AppShell({
@@ -111,9 +73,31 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const hash = useHash();
-  const nav = session.platform
-    ? [{ href: "/admin", label: "Tenants", icon: TenantsIcon }, ...NAV]
-    : NAV;
+  const items = navForSession(session.platform);
+  const groups = groupedNav(items);
+
+  const extras = (
+    <>
+      {canCreateJob ? (
+        <Link href="/jobs/new" className="btn btn-gold w-full">
+          New job
+        </Link>
+      ) : null}
+      {session.platform ? (
+        <Link href="/admin/tenants/new" className="btn btn-ghost w-full">
+          New tenant
+        </Link>
+      ) : null}
+      <button type="button" className="rail-link w-full" onClick={openPalette}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.7" />
+          <path d="M16 16l4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+        Search
+        <span className="ml-auto text-[10px] tracking-[0.14em] text-ink-dim">⌘K</span>
+      </button>
+    </>
+  );
 
   return (
     <div className="app-frame">
@@ -128,53 +112,23 @@ export function AppShell({
           workspaces={workspaces}
           platform={session.platform}
         />
-        <nav className="mt-6 flex flex-col gap-1">
-          {nav.map((item) => {
-            const [path, itemHash] = item.href.split("#");
-            const active = itemHash
-              ? pathname === "/settings" &&
-                (hash === `#${itemHash}` || (itemHash === "people" && hash === ""))
-              : path === "/dashboard"
-                ? pathname === "/dashboard"
-                : pathname === path || pathname.startsWith(`${path}/`);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`rail-link${active ? " is-on" : ""}`}
-                onClick={() => {
-                  if (!itemHash) return;
-                  window.setTimeout(() => {
-                    window.dispatchEvent(new HashChangeEvent("hashchange"));
-                  }, 0);
-                }}
-              >
-                <Icon />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="mt-4 space-y-2">
-          {canCreateJob ? (
-            <Link href="/jobs/new" className="btn btn-gold w-full">
-              New job
-            </Link>
-          ) : null}
-          {session.platform ? (
-            <Link href="/admin/tenants/new" className="btn btn-ghost w-full">
-              New tenant
-            </Link>
-          ) : null}
-          <button type="button" className="rail-link w-full" onClick={openPalette}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.7" />
-              <path d="M16 16l4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-            </svg>
-            Search
-            <span className="ml-auto text-[10px] tracking-[0.14em] text-ink-dim">⌘K</span>
-          </button>
+        <div className="rail-scroll">
+          <nav className="mt-5" aria-label="Workspace">
+            {groups.map((group) => (
+              <section key={group.id} className="rail-group">
+                <p className="rail-group-label">{group.label}</p>
+                <div className="flex flex-col gap-0.5">
+                  {group.items.map((item) => (
+                    <NavLink key={item.id} item={item} pathname={pathname} hash={hash} />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </nav>
+          <div className="mt-5 space-y-2">
+            <p className="rail-group-label">Actions</p>
+            {extras}
+          </div>
         </div>
         <div className="mt-auto border-t border-line pt-4">
           <div className="flex items-start gap-2">
@@ -224,24 +178,26 @@ export function AppShell({
         <main className="px-4 py-6 lg:px-10 lg:py-10">{children}</main>
       </div>
 
-      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-bg-elev/95 px-2 pt-2 backdrop-blur-xl lg:hidden">
-        {NAV.filter((item) => !item.href.includes("#")).map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex min-h-12 flex-col items-center justify-center gap-1 text-[11px] ${
-                active ? "text-gold" : "text-ink-dim"
-              }`}
-            >
-              <Icon />
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
+      <MobileNav
+        items={items}
+        extra={
+          <div className="space-y-2">
+            {canCreateJob ? (
+              <Link href="/jobs/new" className="btn btn-gold w-full">
+                New job
+              </Link>
+            ) : null}
+            {session.platform ? (
+              <Link href="/admin/tenants/new" className="btn btn-ghost w-full">
+                New tenant
+              </Link>
+            ) : null}
+            <button type="button" className="btn btn-ghost w-full" onClick={openPalette}>
+              Search
+            </button>
+          </div>
+        }
+      />
     </div>
   );
 }

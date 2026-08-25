@@ -1,0 +1,108 @@
+export type NavId =
+  | "tenants"
+  | "home"
+  | "jobs"
+  | "runs"
+  | "people"
+  | "roles"
+  | "settings";
+
+export type NavGroupId = "platform" | "workspace" | "team" | "account";
+
+export type NavItem = {
+  id: NavId;
+  href: string;
+  label: string;
+  group: NavGroupId;
+};
+
+export const NAV_ITEMS: NavItem[] = [
+  { id: "tenants", href: "/admin", label: "Tenants", group: "platform" },
+  { id: "home", href: "/dashboard", label: "Home", group: "workspace" },
+  { id: "jobs", href: "/jobs", label: "Jobs", group: "workspace" },
+  { id: "runs", href: "/runs", label: "Runs", group: "workspace" },
+  { id: "people", href: "/settings#people", label: "People", group: "team" },
+  { id: "roles", href: "/settings#roles", label: "Roles", group: "team" },
+  { id: "settings", href: "/settings#workspace", label: "Settings", group: "account" },
+];
+
+export const NAV_GROUPS: { id: NavGroupId; label: string }[] = [
+  { id: "platform", label: "Platform" },
+  { id: "workspace", label: "Workspace" },
+  { id: "team", label: "Team" },
+  { id: "account", label: "Account" },
+];
+
+export const FOOTER_NAV_KEY = "sc-footer-nav";
+export const FOOTER_PIN_COUNT = 3;
+export const DEFAULT_FOOTER_NAV: NavId[] = ["home", "jobs", "runs"];
+
+export function navForSession(platform: boolean): NavItem[] {
+  return NAV_ITEMS.filter((item) => item.group !== "platform" || platform);
+}
+
+export function groupedNav(items: NavItem[]) {
+  return NAV_GROUPS.map((group) => ({
+    ...group,
+    items: items.filter((item) => item.group === group.id),
+  })).filter((group) => group.items.length > 0);
+}
+
+export function fillFooterNav(ids: NavId[], allowed: NavId[]): NavId[] {
+  const allowedSet = new Set(allowed);
+  const next: NavId[] = [];
+  for (const id of ids) {
+    if (allowedSet.has(id) && !next.includes(id)) next.push(id);
+    if (next.length === FOOTER_PIN_COUNT) return next;
+  }
+  for (const id of DEFAULT_FOOTER_NAV) {
+    if (allowedSet.has(id) && !next.includes(id)) next.push(id);
+    if (next.length === FOOTER_PIN_COUNT) return next;
+  }
+  for (const id of allowed) {
+    if (!next.includes(id)) next.push(id);
+    if (next.length === FOOTER_PIN_COUNT) return next;
+  }
+  return next;
+}
+
+export function parseFooterNav(raw: string | null, allowed: NavId[]): NavId[] {
+  if (!raw) return fillFooterNav(DEFAULT_FOOTER_NAV, allowed);
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return fillFooterNav(DEFAULT_FOOTER_NAV, allowed);
+    const ids = parsed.filter((id): id is NavId =>
+      typeof id === "string" && allowed.includes(id as NavId),
+    );
+    return fillFooterNav(ids, allowed);
+  } catch {
+    return fillFooterNav(DEFAULT_FOOTER_NAV, allowed);
+  }
+}
+
+export function readFooterNav(allowed: NavId[]): NavId[] {
+  try {
+    return parseFooterNav(localStorage.getItem(FOOTER_NAV_KEY), allowed);
+  } catch {
+    return fillFooterNav(DEFAULT_FOOTER_NAV, allowed);
+  }
+}
+
+export function persistFooterNav(ids: NavId[]) {
+  localStorage.setItem(FOOTER_NAV_KEY, JSON.stringify(ids.slice(0, FOOTER_PIN_COUNT)));
+  window.dispatchEvent(new Event("sc-appearance"));
+}
+
+export function isNavActive(pathname: string, hash: string, item: NavItem) {
+  const [path, itemHash] = item.href.split("#");
+  if (itemHash) {
+    const current = hash.replace("#", "") || "people";
+    if (item.id === "settings") {
+      return pathname === "/settings" && current !== "people" && current !== "roles";
+    }
+    return pathname === "/settings" && current === itemHash;
+  }
+  if (path === "/dashboard") return pathname === "/dashboard";
+  if (path === "/admin") return pathname === "/admin" || pathname.startsWith("/admin/tenants");
+  return pathname === path || pathname.startsWith(`${path}/`);
+}

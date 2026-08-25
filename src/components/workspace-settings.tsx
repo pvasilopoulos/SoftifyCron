@@ -44,6 +44,7 @@ export function WorkspaceSettings({
   canManageSecrets,
   canEditJobs,
   actorRole,
+  platform = false,
 }: {
   tenant: { name: string; slug: string; timezone: string };
   members: Parameters<typeof PeopleBoard>[0]["members"];
@@ -57,6 +58,7 @@ export function WorkspaceSettings({
   canManageSecrets: boolean;
   canEditJobs: boolean;
   actorRole: string;
+  platform?: boolean;
 }) {
   const tab = useSyncExternalStore(subscribeHash, tabFromHash, () => "people");
 
@@ -124,7 +126,7 @@ export function WorkspaceSettings({
         </div>
       ) : null}
 
-      {tab === "appearance" ? <AppearancePanel /> : null}
+      {tab === "appearance" ? <AppearancePanel platform={platform} /> : null}
     </div>
   );
 }

@@ -42,6 +42,7 @@ export default async function SettingsPage() {
       canManageSecrets={canManageSecrets}
       canEditJobs={canEditJobs}
       actorRole={session.role}
+      platform={session.platform}
     />
   );
 }
