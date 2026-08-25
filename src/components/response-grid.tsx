@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "@/components/toaster";
 import {
   applyGridQuery,
@@ -751,10 +752,9 @@ export function ResponseGridView({
                         return (
                         <td
                           key={col}
-                          title={changed ? undefined : value}
                           aria-label={cell?.changed ? diffHoverText(cell) : undefined}
                           className={changed ? "is-changed" : diffActive ? "is-same" : undefined}
-                          onMouseEnter={
+                          onMouseOver={
                             changed && cell ? (event) => showTip(event, cell.previous, cell.value) : undefined
                           }
                           onMouseMove={
@@ -764,6 +764,14 @@ export function ResponseGridView({
                           onDoubleClick={() => copyText(value, view.columns[col] ?? "Cell")}
                         >
                           {value || "—"}
+                          {changed && cell ? (
+                            <span className="grid-cell-tip">
+                              <span className="grid-hover-k">Was</span>
+                              <span className="grid-hover-v">{cell.previous || "—"}</span>
+                              <span className="grid-hover-k">Now</span>
+                              <span className="grid-hover-v">{cell.value || "—"}</span>
+                            </span>
+                          ) : null}
                         </td>
                         );
                       })}
@@ -832,20 +840,23 @@ export function ResponseGridView({
           </div>
         </div>
       ) : null}
-      {hover ? (
-        <div
-          className="grid-hover-tip"
-          style={{
-            left: Math.min(hover.x + 14, typeof window === "undefined" ? hover.x : window.innerWidth - 260),
-            top: Math.min(hover.y + 16, typeof window === "undefined" ? hover.y : window.innerHeight - 130),
-          }}
-        >
-          <p className="grid-hover-k">Was</p>
-          <p className="grid-hover-v">{hover.prev}</p>
-          <p className="grid-hover-k">Now</p>
-          <p className="grid-hover-v">{hover.next}</p>
-        </div>
-      ) : null}
+      {hover
+        ? createPortal(
+            <div
+              className="grid-hover-tip"
+              style={{
+                left: Math.min(hover.x + 16, window.innerWidth - 240),
+                top: Math.min(hover.y + 18, window.innerHeight - 140),
+              }}
+            >
+              <p className="grid-hover-k">Was</p>
+              <p className="grid-hover-v">{hover.prev}</p>
+              <p className="grid-hover-k">Now</p>
+              <p className="grid-hover-v">{hover.next}</p>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
