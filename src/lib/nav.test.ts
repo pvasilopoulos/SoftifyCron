@@ -3,8 +3,10 @@ import {
   fillFooterNav,
   groupedNav,
   isNavActive,
+  isRailGroupExpanded,
   navForSession,
   parseFooterNav,
+  parseRailGroups,
 } from "./nav";
 
 describe("navForSession", () => {
@@ -50,6 +52,26 @@ describe("fillFooterNav", () => {
     expect(fillFooterNav(["home", "jobs", "runs", "people"], ["home", "jobs", "runs", "people"])).toHaveLength(
       3,
     );
+  });
+});
+
+describe("parseRailGroups", () => {
+  it("defaults to empty (all expanded)", () => {
+    expect(parseRailGroups(null)).toEqual({});
+    expect(isRailGroupExpanded("team", {})).toBe(true);
+  });
+
+  it("reads explicit true/false flags", () => {
+    const stored = parseRailGroups(JSON.stringify({ team: false, workspace: true }));
+    expect(isRailGroupExpanded("team", stored)).toBe(false);
+    expect(isRailGroupExpanded("workspace", stored)).toBe(true);
+    expect(isRailGroupExpanded("account", stored)).toBe(true);
+  });
+
+  it("ignores invalid payloads", () => {
+    expect(parseRailGroups("nope")).toEqual({});
+    expect(parseRailGroups(JSON.stringify(["team"]))).toEqual({});
+    expect(parseRailGroups(JSON.stringify({ team: "no" }))).toEqual({});
   });
 });
 

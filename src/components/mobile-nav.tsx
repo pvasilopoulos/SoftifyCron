@@ -13,6 +13,7 @@ import {
   type NavItem,
 } from "@/lib/nav";
 import { MoreIcon, NAV_ICONS } from "@/components/nav-icons";
+import { RailGroup } from "@/components/rail-group";
 
 function subscribeAppearance(onChange: () => void) {
   window.addEventListener("sc-appearance", onChange);
@@ -113,8 +114,7 @@ export function MobileNav({
             </div>
             <div className="mt-4 space-y-5">
               {groups.map((group) => (
-                <section key={group.id}>
-                  <p className="rail-group-label">{group.label}</p>
+                <RailGroup key={group.id} id={group.id} label={group.label}>
                   <div className="grid grid-cols-2 gap-2">
                     {group.items.map((item) => {
                       const Icon = NAV_ICONS[item.id];
@@ -132,7 +132,7 @@ export function MobileNav({
                       );
                     })}
                   </div>
-                </section>
+                </RailGroup>
               ))}
               {extra ? <section className="space-y-2">{extra}</section> : null}
             </div>

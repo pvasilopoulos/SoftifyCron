@@ -6,6 +6,7 @@ import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SignOutButton } from "@/components/sign-out-button";
 import { TenantSwitcher, type WorkspaceChoice } from "@/components/tenant-switcher";
+import { RailGroup } from "@/components/rail-group";
 import type { SessionPayload } from "@/lib/session-token";
 
 const NAV = [
@@ -44,8 +45,7 @@ export function AdminShell({
         />
         <div className="rail-scroll">
           <nav className="mt-5" aria-label="Platform">
-            <section className="rail-group">
-              <p className="rail-group-label">Manage</p>
+            <RailGroup id="admin-manage" label="Manage">
               <div className="flex flex-col gap-0.5">
                 {NAV.map((item) => {
                   const active = item.match(pathname);
@@ -60,17 +60,18 @@ export function AdminShell({
                   );
                 })}
               </div>
-            </section>
+            </RailGroup>
+            <RailGroup id="admin-create" label="Create">
+              <div className="space-y-2">
+                <Link href="/admin/tenants/new" className="btn btn-gold w-full">
+                  New tenant
+                </Link>
+                <Link href="/admin/users/new" className="btn btn-ghost w-full">
+                  New user
+                </Link>
+              </div>
+            </RailGroup>
           </nav>
-          <div className="mt-5 space-y-2">
-            <p className="rail-group-label">Create</p>
-            <Link href="/admin/tenants/new" className="btn btn-gold w-full">
-              New tenant
-            </Link>
-            <Link href="/admin/users/new" className="btn btn-ghost w-full">
-              New user
-            </Link>
-          </div>
         </div>
         <div className="mt-auto border-t border-line pt-4">
           <div className="flex items-start gap-2">

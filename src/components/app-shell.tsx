@@ -10,6 +10,7 @@ import { TenantSwitcher, type WorkspaceChoice } from "@/components/tenant-switch
 import { SignOutButton } from "@/components/sign-out-button";
 import { MobileNav } from "@/components/mobile-nav";
 import { NAV_ICONS } from "@/components/nav-icons";
+import { RailGroup } from "@/components/rail-group";
 import { groupedNav, isNavActive, navForSession, type NavItem } from "@/lib/nav";
 
 function useHash() {
@@ -115,20 +116,18 @@ export function AppShell({
         <div className="rail-scroll">
           <nav className="mt-5" aria-label="Workspace">
             {groups.map((group) => (
-              <section key={group.id} className="rail-group">
-                <p className="rail-group-label">{group.label}</p>
+              <RailGroup key={group.id} id={group.id} label={group.label}>
                 <div className="flex flex-col gap-0.5">
                   {group.items.map((item) => (
                     <NavLink key={item.id} item={item} pathname={pathname} hash={hash} />
                   ))}
                 </div>
-              </section>
+              </RailGroup>
             ))}
+            <RailGroup id="actions" label="Actions">
+              <div className="space-y-2">{extras}</div>
+            </RailGroup>
           </nav>
-          <div className="mt-5 space-y-2">
-            <p className="rail-group-label">Actions</p>
-            {extras}
-          </div>
         </div>
         <div className="mt-auto border-t border-line pt-4">
           <div className="flex items-start gap-2">

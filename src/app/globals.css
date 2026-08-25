@@ -147,12 +147,30 @@ input[type="checkbox"] { accent-color: var(--gold); }
 }
 .rail-group + .rail-group { margin-top: 0.95rem; }
 .rail-group-label {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
   font-size: 0.65rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-dim);
   font-weight: 500;
-  padding: 0 0.65rem 0.4rem;
+  padding: 0.15rem 0.45rem 0.4rem 0.65rem;
+}
+.rail-group-label:hover { color: var(--ink); }
+.rail-group-chevron {
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: transform 0.15s ease;
+}
+.rail-group.is-collapsed .rail-group-chevron {
+  transform: rotate(-90deg);
 }
 .nav-sheet-backdrop {
   position: fixed;
