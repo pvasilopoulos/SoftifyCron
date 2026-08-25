@@ -21,6 +21,7 @@ type Job = {
   timezone: string;
   enabled: boolean;
   keepResponse: boolean;
+  responseBoard?: boolean;
   nextRunAt: Date | string | null;
   lastRunAt: Date | string | null;
   lastStatus: string | null;
@@ -263,6 +264,7 @@ export function JobsBoard({
                             name={job.name}
                             enabled={job.enabled}
                             keepResponse={job.keepResponse}
+                            responseBoard={job.responseBoard}
                             access={access}
                           />
                         </div>
@@ -350,6 +352,7 @@ export function JobsBoard({
                             name={job.name}
                             enabled={job.enabled}
                             keepResponse={job.keepResponse}
+                            responseBoard={job.responseBoard}
                             access={access}
                           />
                         </td>

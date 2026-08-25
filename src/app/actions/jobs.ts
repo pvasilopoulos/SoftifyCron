@@ -58,7 +58,8 @@ export async function saveJobAction(
     notifyTelegramOn: formData.getAll("notifyTelegramOn").map(String),
     notifyWebhookOn: formData.getAll("notifyWebhookOn").map(String),
     notifySlackOn: formData.getAll("notifySlackOn").map(String),
-    keepResponse: formData.get("keepResponse") === "on",
+    keepResponse: formData.get("keepResponse") === "on" || formData.get("responseBoard") === "on",
+    responseBoard: formData.get("responseBoard") === "on",
     pauseAfter: Number(formData.get("pauseAfter") ?? 0),
     enabled: formData.get("enabled") === "on",
   });

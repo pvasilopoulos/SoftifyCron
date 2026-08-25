@@ -33,6 +33,7 @@ export async function exportJobs(tenantId: string) {
       notifyWebhookOn: job.notifyWebhookOn,
       notifySlackOn: job.notifySlackOn,
       keepResponse: job.keepResponse,
+      responseBoard: job.responseBoard,
       pauseAfter: job.pauseAfter,
       enabled: false,
     })),

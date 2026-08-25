@@ -87,7 +87,14 @@ export default async function JobDetailPage({
               </span>
             ))}
             {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
-            {job.keepResponse ? (
+            {job.responseBoard ? (
+              <Link
+                href={`/responses?job=${job.id}`}
+                className="rounded-full bg-gold/15 px-2.5 py-1 text-gold-2"
+              >
+                Response board
+              </Link>
+            ) : job.keepResponse ? (
               <Link
                 href={`/jobs/${job.id}/response`}
                 className="rounded-full bg-gold/15 px-2.5 py-1 text-gold-2"
@@ -109,6 +116,7 @@ export default async function JobDetailPage({
             enabled={job.enabled}
             access={access}
             keepResponse={job.keepResponse}
+            responseBoard={job.responseBoard}
             curl={buildCurl(job)}
           />
         </div>

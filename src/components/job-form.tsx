@@ -37,6 +37,7 @@ type JobFormValues = {
   notifyWebhookOn: string;
   notifySlackOn: string;
   keepResponse: boolean;
+  responseBoard: boolean;
   pauseAfter: number;
   enabled: boolean;
 };
@@ -62,6 +63,7 @@ const DEFAULTS: JobFormValues = {
   notifyWebhookOn: DEFAULT_NOTIFY_WEBHOOK_ON,
   notifySlackOn: DEFAULT_NOTIFY_SLACK_ON,
   keepResponse: false,
+  responseBoard: false,
   pauseAfter: 0,
   enabled: true,
 };
@@ -201,8 +203,12 @@ export function JobForm({
           <span>Armed — worker will fire this job</span>
         </label>
         <label className="flex min-h-12 items-center gap-3">
-          <input type="checkbox" name="keepResponse" defaultChecked={values.keepResponse} />
-          <span>Keep last response — adds View response to the job menu</span>
+          <input type="checkbox" name="keepResponse" defaultChecked={values.keepResponse || values.responseBoard} />
+          <span>Keep last response — stores bodies on each run</span>
+        </label>
+        <label className="flex min-h-12 items-center gap-3">
+          <input type="checkbox" name="responseBoard" defaultChecked={values.responseBoard} />
+          <span>Response board — adds a tab on Responses and shows a detailed grid</span>
         </label>
         <label className="block">
           <span className="field-label">Auto-pause after N failures</span>
@@ -244,7 +250,7 @@ export function JobForm({
           Put secrets in headers as <span className="mono text-gold-2">{"{{SECRET:API_TOKEN}}"}</span>.
         </p>
         <p className="mt-4 text-sm text-ink-dim">
-          Response bodies are stored only when Keep last response is on, so tokens in payloads stay out of MySQL by default.
+          Response bodies are stored only when Keep last response is on. Response board pins the job as a tab on Responses and renders JSON, CSV, or HTML tables as a grid.
         </p>
         <p className="mt-4 text-sm text-ink-dim">
           Skip next jumps over one fire. Auto-pause stops a flapping job after N failures so it stops paging you.

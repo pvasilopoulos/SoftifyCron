@@ -55,12 +55,14 @@ export function JobMenu({
   name,
   enabled,
   keepResponse,
+  responseBoard = false,
   access,
 }: {
   jobId: string;
   name: string;
   enabled: boolean;
   keepResponse: boolean;
+  responseBoard?: boolean;
   access: JobAccess;
 }) {
   const router = useRouter();
@@ -128,13 +130,16 @@ export function JobMenu({
             Open
           </Item>
           {keepResponse ? (
-            <Item href={`/jobs/${jobId}/response`} onClick={() => setOpen(false)}>
+            <Item
+              href={responseBoard ? `/responses?job=${jobId}` : `/jobs/${jobId}/response`}
+              onClick={() => setOpen(false)}
+            >
               <Icon>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                   <path d="M4 7h16M4 12h10M4 17h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                 </svg>
               </Icon>
-              View response
+              {responseBoard ? "Response board" : "View response"}
             </Item>
           ) : null}
           {access.run ? (

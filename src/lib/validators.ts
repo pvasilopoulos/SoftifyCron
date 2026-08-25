@@ -110,6 +110,7 @@ export const jobInputSchema = z.object({
   notifyWebhookOn: notifyListSchema,
   notifySlackOn: notifyListSchema,
   keepResponse: z.boolean().default(false),
+  responseBoard: z.boolean().default(false),
   pauseAfter: intField(0, 0, 100),
   enabled: z.boolean().default(true),
 });

@@ -90,5 +90,8 @@ describe("isNavActive", () => {
     expect(isNavActive("/jobs/abc", "", { id: "jobs", href: "/jobs", label: "Jobs", group: "workspace" })).toBe(
       true,
     );
+    expect(
+      isNavActive("/responses", "", { id: "responses", href: "/responses", label: "Responses", group: "workspace" }),
+    ).toBe(true);
   });
 });

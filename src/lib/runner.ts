@@ -6,13 +6,7 @@ import { resolveSecrets } from "@/lib/secrets";
 import { notifyJob } from "@/lib/notify";
 import { recordWorkerHeartbeat } from "@/lib/heartbeat";
 import { decodeHttpBody } from "@/lib/decode";
-
-const MAX_BODY = 32_768;
-
-function truncate(text: string, max = MAX_BODY) {
-  if (text.length <= max) return text;
-  return `${text.slice(0, max)}\n… truncated`;
-}
+import { fitMysqlLongText, readBodyBytes } from "@/lib/response-body";
 
 function headerRecord(value: Prisma.JsonValue | null): Record<string, string> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -68,11 +62,24 @@ async function performRequest(job: CronJob) {
     { method, headers, body: canHaveBody ? body || undefined : undefined },
     job.timeoutMs,
   );
-  const buffer = new Uint8Array(await response.arrayBuffer());
+  if (!job.keepResponse) {
+    try {
+      await response.body?.cancel();
+    } catch {
+      /* ignore */
+    }
+    return {
+      httpStatus: response.status,
+      responseBody: null,
+      encoding: null,
+      ok: response.ok,
+    };
+  }
+  const buffer = await readBodyBytes(response);
   const decoded = decodeHttpBody(buffer, response.headers.get("content-type"));
   return {
     httpStatus: response.status,
-    responseBody: truncate(decoded.text),
+    responseBody: fitMysqlLongText(decoded.text),
     encoding: decoded.encoding,
     ok: response.ok,
   };

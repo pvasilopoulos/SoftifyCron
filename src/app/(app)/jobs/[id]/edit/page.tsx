@@ -56,6 +56,7 @@ export default async function EditJobPage({
           notifyWebhookOn: job.notifyWebhookOn,
           notifySlackOn: job.notifySlackOn,
           keepResponse: job.keepResponse,
+          responseBoard: job.responseBoard,
           pauseAfter: job.pauseAfter,
           enabled: job.enabled,
         }}

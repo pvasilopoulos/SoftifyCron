@@ -344,6 +344,7 @@ details > summary::-webkit-details-marker { display: none; }
   background: color-mix(in srgb, var(--bg-mute) 70%, transparent);
   backdrop-filter: blur(12px);
 }
+.ws-tabs a,
 .ws-tabs button {
   min-height: 38px;
   min-width: 0;
@@ -357,6 +358,10 @@ details > summary::-webkit-details-marker { display: none; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 @media (min-width: 640px) {
   .ws-tabs {
@@ -365,12 +370,14 @@ details > summary::-webkit-details-marker { display: none; }
     width: fit-content;
     border-radius: 999px;
   }
+  .ws-tabs a,
   .ws-tabs button {
     padding: 0.3rem 0.9rem;
     border-radius: 999px;
     font-size: 0.82rem;
   }
 }
+.ws-tabs a.is-on,
 .ws-tabs button.is-on {
   background: color-mix(in srgb, var(--bg-elev) 90%, transparent);
   color: var(--ink);
@@ -460,6 +467,35 @@ details > summary::-webkit-details-marker { display: none; }
 .table-wrap table {
   width: 100%;
   min-width: 720px;
+}
+.data-grid {
+  min-width: 640px;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+  font-size: 0.8125rem;
+}
+.data-grid th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  background: var(--bg-mute);
+  border-bottom: 1px solid var(--line);
+}
+.data-grid td {
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  max-width: 18rem;
+  overflow-wrap: anywhere;
+}
+.data-grid tbody tr:hover td {
+  background: color-mix(in srgb, var(--gold) 7%, transparent);
 }
 .break-any {
   overflow-wrap: anywhere;

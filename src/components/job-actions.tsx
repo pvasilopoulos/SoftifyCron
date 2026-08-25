@@ -20,6 +20,7 @@ export function JobActions({
   enabled,
   access,
   keepResponse,
+  responseBoard = false,
   curl,
 }: {
   jobId: string;
@@ -27,6 +28,7 @@ export function JobActions({
   enabled: boolean;
   access: JobAccess;
   keepResponse: boolean;
+  responseBoard?: boolean;
   curl?: string;
 }) {
   const router = useRouter();
@@ -84,8 +86,11 @@ export function JobActions({
         </button>
       ) : null}
       {keepResponse ? (
-        <Link href={`/jobs/${jobId}/response`} className="btn btn-ghost">
-          View response
+        <Link
+          href={responseBoard ? `/responses?job=${jobId}` : `/jobs/${jobId}/response`}
+          className="btn btn-ghost"
+        >
+          {responseBoard ? "Response board" : "View response"}
         </Link>
       ) : null}
       {curl ? (

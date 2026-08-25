@@ -176,6 +176,7 @@ model CronJob {
   notifyWebhookOn      String     @default("failure,timeout,blocked,pause") @db.VarChar(120)
   notifySlackOn        String     @default("") @db.VarChar(120)
   keepResponse         Boolean    @default(false)
+  responseBoard        Boolean    @default(false)
   pauseAfter           Int        @default(0)
   consecutiveFailures  Int        @default(0)
   lastStatus           RunStatus?
@@ -206,8 +207,8 @@ model JobRun {
   finishedAt   DateTime?
   httpStatus   Int?
   durationMs   Int?
-  responseBody String?    @db.MediumText
-  responseCharset String? @db.VarChar(40)
+  responseBody    String?    @db.LongText
+  responseCharset String?    @db.VarChar(40)
   error        String?    @db.Text
   job          CronJob    @relation(fields: [jobId], references: [id], onDelete: Cascade)
   tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)

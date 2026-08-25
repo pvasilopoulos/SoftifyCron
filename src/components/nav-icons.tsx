@@ -31,6 +31,14 @@ export function RunsIcon() {
     </svg>
   );
 }
+export function ResponsesIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="4" y="5" width="16" height="14" rx="3" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M7 9h4M7 12h10M7 15h7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
 export function PeopleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -82,6 +90,7 @@ export const NAV_ICONS = {
   home: HomeIcon,
   jobs: JobsIcon,
   runs: RunsIcon,
+  responses: ResponsesIcon,
   people: PeopleIcon,
   roles: RolesIcon,
   settings: SettingsIcon,

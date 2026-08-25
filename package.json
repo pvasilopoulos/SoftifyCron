@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently -n web,worker -c cyan,magenta \"next dev\" \"tsx watch src/worker/index.ts\"",
-    "dev:web": "next dev",
+    "dev": "concurrently -n web,worker -c cyan,magenta \"next dev --hostname 0.0.0.0 --port 3000\" \"tsx watch src/worker/index.ts\"",
+    "dev:web": "next dev --hostname 0.0.0.0 --port 3000",
     "dev:worker": "tsx watch src/worker/index.ts",
     "build": "prisma generate && next build",
     "deploy": "prisma generate && prisma migrate deploy && next build",

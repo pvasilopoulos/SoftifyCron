@@ -4,6 +4,7 @@ export type NavId =
   | "home"
   | "jobs"
   | "runs"
+  | "responses"
   | "people"
   | "roles"
   | "settings";
@@ -23,6 +24,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "home", href: "/dashboard", label: "Home", group: "workspace" },
   { id: "jobs", href: "/jobs", label: "Jobs", group: "workspace" },
   { id: "runs", href: "/runs", label: "Runs", group: "workspace" },
+  { id: "responses", href: "/responses", label: "Responses", group: "workspace" },
   { id: "people", href: "/settings#people", label: "People", group: "team" },
   { id: "roles", href: "/settings#roles", label: "Roles", group: "team" },
   { id: "settings", href: "/settings#workspace", label: "Settings", group: "account" },
@@ -143,6 +145,9 @@ export function isNavActive(pathname: string, hash: string, item: NavItem) {
   if (path === "/admin") return pathname === "/admin" || pathname.startsWith("/admin/tenants");
   if (path === "/admin/monitor") {
     return pathname === "/admin/monitor" || pathname.startsWith("/admin/runs");
+  }
+  if (path === "/responses") {
+    return pathname === "/responses" || pathname.startsWith("/responses/");
   }
   return pathname === path || pathname.startsWith(`${path}/`);
 }
