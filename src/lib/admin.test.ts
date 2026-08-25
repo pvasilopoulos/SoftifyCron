@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertOwnerProvision } from "./admin-rules";
+import { assertCanDeletePlatformUser, assertOwnerProvision } from "./admin-rules";
 
 describe("assertOwnerProvision", () => {
   it("rejects platform admins as tenant owners", () => {
@@ -22,6 +22,41 @@ describe("assertOwnerProvision", () => {
     expect(() => assertOwnerProvision({ mode: "create", existing: null })).not.toThrow();
     expect(() =>
       assertOwnerProvision({ mode: "attach", existing: { platformRole: "USER" } }),
+    ).not.toThrow();
+  });
+});
+
+describe("assertCanDeletePlatformUser", () => {
+  it("blocks deleting a platform admin", () => {
+    expect(() =>
+      assertCanDeletePlatformUser({ platformRole: "SUPERADMIN", memberships: [] }),
+    ).toThrow(/cannot be deleted/);
+  });
+
+  it("blocks deleting the last owner of a tenant", () => {
+    expect(() =>
+      assertCanDeletePlatformUser({
+        platformRole: "USER",
+        memberships: [{ role: "OWNER", tenantName: "Aurora", ownerCount: 1 }],
+      }),
+    ).toThrow(/Aurora/);
+  });
+
+  it("lets a member or extra owner be deleted", () => {
+    expect(() =>
+      assertCanDeletePlatformUser({
+        platformRole: "USER",
+        memberships: [
+          { role: "MEMBER", tenantName: "Aurora", ownerCount: 1 },
+          { role: "OWNER", tenantName: "Helios", ownerCount: 2 },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it("lets a user with no tenant be deleted", () => {
+    expect(() =>
+      assertCanDeletePlatformUser({ platformRole: "USER", memberships: [] }),
     ).not.toThrow();
   });
 });

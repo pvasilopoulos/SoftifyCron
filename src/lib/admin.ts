@@ -2,8 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, uniqueSlug } from "@/lib/auth";
 import { ensureDefaultGroups } from "@/lib/groups";
 import { ensureDefaultRoles } from "@/lib/roles";
-import { provisionTenantPerson } from "@/lib/members";
-import { assertOwnerProvision } from "./admin-rules";
+import { changeMemberRole, provisionTenantPerson } from "@/lib/members";
+import { assertCanDeletePlatformUser, assertOwnerProvision } from "./admin-rules";
 
 export { assertOwnerProvision };
 
@@ -112,6 +112,11 @@ export async function getCustomer(tenantId: string) {
   });
 }
 
+const userMembershipInclude = {
+  tenant: { select: { id: true, name: true, slug: true } },
+  roleRef: { select: { key: true, name: true } },
+} as const;
+
 export async function listPlatformUsers(q?: string) {
   const needle = q?.trim();
   return prisma.user.findMany({
@@ -128,7 +133,7 @@ export async function listPlatformUsers(q?: string) {
     },
     include: {
       memberships: {
-        include: { tenant: { select: { id: true, name: true, slug: true } } },
+        include: userMembershipInclude,
         orderBy: { createdAt: "asc" },
       },
     },
@@ -141,10 +146,17 @@ export async function getPlatformUser(userId: string) {
     where: { id: userId, platformRole: "USER" },
     include: {
       memberships: {
-        include: { tenant: { select: { id: true, name: true, slug: true } } },
+        include: userMembershipInclude,
         orderBy: { createdAt: "asc" },
       },
     },
+  });
+}
+
+export async function listRoleOptions() {
+  return prisma.tenantRole.findMany({
+    select: { tenantId: true, key: true, name: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
 }
 
@@ -161,4 +173,102 @@ export async function createPlatformUser(input: {
     password: input.password,
     roleKey: input.role,
   });
+}
+
+export async function updatePlatformUser(
+  userId: string,
+  input: { name: string; email: string; password?: string },
+) {
+  const user = await prisma.user.findFirst({
+    where: { id: userId, platformRole: "USER" },
+    select: { id: true },
+  });
+  if (!user) throw new Error("User not found");
+  const email = input.email.trim().toLowerCase();
+  const taken = await prisma.user.findFirst({
+    where: { email, NOT: { id: userId } },
+    select: { id: true },
+  });
+  if (taken) throw new Error("That email is already in use");
+  return prisma.user.update({
+    where: { id: userId },
+    data: {
+      name: input.name.trim(),
+      email,
+      ...(input.password ? { passwordHash: await hashPassword(input.password) } : {}),
+    },
+  });
+}
+
+export async function setPlatformUserRole(
+  userId: string,
+  input: { membershipId?: string; tenantId?: string; role: string },
+) {
+  const user = await getPlatformUser(userId);
+  if (!user) throw new Error("User not found");
+  const actor = {
+    sub: userId,
+    role: "OWNER" as const,
+    platform: true,
+    grants: "",
+    rolePerms: "",
+  };
+
+  if (input.membershipId) {
+    const membership = user.memberships.find((row) => row.id === input.membershipId);
+    if (!membership) throw new Error("Membership not found");
+    const updated = await changeMemberRole(
+      membership.tenantId,
+      membership.id,
+      actor,
+      input.role,
+    );
+    if (!updated) throw new Error("Could not change role");
+    return updated;
+  }
+
+  if (!input.tenantId) throw new Error("Select a tenant");
+  if (user.memberships.some((row) => row.tenantId === input.tenantId)) {
+    throw new Error("That person is already in this workspace");
+  }
+  return provisionTenantPerson(input.tenantId, {
+    email: user.email,
+    roleKey: input.role,
+  });
+}
+
+export async function deletePlatformUser(userId: string) {
+  const user = await prisma.user.findFirst({
+    where: { id: userId },
+    include: {
+      memberships: { include: { tenant: { select: { id: true, name: true } } } },
+    },
+  });
+  if (!user || user.platformRole !== "USER") throw new Error("User not found");
+
+  const ownerTenantIds = [
+    ...new Set(
+      user.memberships.filter((row) => row.role === "OWNER").map((row) => row.tenantId),
+    ),
+  ];
+  const counts = ownerTenantIds.length
+    ? await prisma.membership.groupBy({
+        by: ["tenantId"],
+        where: { tenantId: { in: ownerTenantIds }, role: "OWNER" },
+        _count: { _all: true },
+      })
+    : [];
+  const countMap = new Map(counts.map((row) => [row.tenantId, row._count._all]));
+
+  assertCanDeletePlatformUser({
+    platformRole: user.platformRole,
+    memberships: user.memberships.map((row) => ({
+      role: row.role,
+      tenantName: row.tenant.name,
+      ownerCount: countMap.get(row.tenantId) ?? 0,
+    })),
+  });
+
+  await prisma.user.delete({ where: { id: userId } });
+  return true;
 }

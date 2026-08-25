@@ -12,3 +12,20 @@ export function assertOwnerProvision(input: {
     throw new Error("An account with that email already exists. Attach it instead.");
   }
 }
+
+export function assertCanDeletePlatformUser(input: {
+  platformRole: string;
+  memberships: { role: string; tenantName: string; ownerCount: number }[];
+}) {
+  if (input.platformRole === "SUPERADMIN") {
+    throw new Error("Platform admins cannot be deleted from the customer list");
+  }
+  const blocked = input.memberships.find(
+    (row) => row.role === "OWNER" && row.ownerCount <= 1,
+  );
+  if (blocked) {
+    throw new Error(
+      `Transfer ownership of ${blocked.tenantName} before deleting this user`,
+    );
+  }
+}

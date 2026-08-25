@@ -108,6 +108,30 @@ export const platformInviteSchema = z.object({
   role: z.string().trim().min(1).max(40).default("MEMBER"),
 });
 
+export const platformUserUpdateSchema = z.object({
+  userId: z.string().min(1),
+  name: z.string().trim().min(2).max(80),
+  email: z.email().max(160),
+  password: z.string().min(8).max(128).optional().or(z.literal("")),
+});
+
+export const platformUserRoleSchema = z
+  .object({
+    userId: z.string().min(1),
+    membershipId: z.string().optional().or(z.literal("")),
+    tenantId: z.string().optional().or(z.literal("")),
+    role: z.string().trim().min(1).max(40),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.membershipId && !value.tenantId) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Select a tenant",
+        path: ["tenantId"],
+      });
+    }
+  });
+
 export const tenantRoleInputSchema = z.object({
   name: z.string().trim().min(2).max(60),
   description: z.string().trim().max(240).optional().or(z.literal("")),

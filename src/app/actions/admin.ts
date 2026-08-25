@@ -2,9 +2,24 @@
 
 import { redirect } from "next/navigation";
 import { requirePlatformAdmin, requireSession, setSessionCookie, signSession } from "@/lib/session";
-import { createCustomer, createPlatformUser, deleteCustomer, getCustomer, updateCustomer } from "@/lib/admin";
+import {
+  createCustomer,
+  createPlatformUser,
+  deleteCustomer,
+  deletePlatformUser,
+  getCustomer,
+  setPlatformUserRole,
+  updateCustomer,
+  updatePlatformUser,
+} from "@/lib/admin";
 import { getWorkspaceForUser } from "@/lib/members";
-import { customerCreateSchema, platformPersonSchema, tenantUpdateSchema } from "@/lib/validators";
+import { customerCreateSchema, platformPersonSchema, platformUserRoleSchema, platformUserUpdateSchema, tenantUpdateSchema } from "@/lib/validators";
+
+function safeAdminUserPath(next: string, userId: string) {
+  if (next === "/admin/users") return next;
+  if (next === `/admin/users/${userId}`) return next;
+  return `/admin/users/${userId}`;
+}
 
 export async function enterCustomerAction(formData: FormData) {
   const session = await requirePlatformAdmin();
@@ -157,6 +172,78 @@ export async function createPlatformUserAction(
     return { error: error instanceof Error ? error.message : "Could not create user" };
   }
   redirect(`/admin/tenants/${parsed.data.tenantId}`);
+}
+
+export async function updatePlatformUserAction(
+  _prev: { error: string } | null,
+  formData: FormData,
+) {
+  await requirePlatformAdmin();
+  const parsed = platformUserUpdateSchema.safeParse({
+    userId: formData.get("userId"),
+    name: formData.get("name"),
+    email: formData.get("email"),
+    password: String(formData.get("password") ?? ""),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+  try {
+    await updatePlatformUser(parsed.data.userId, {
+      name: parsed.data.name,
+      email: parsed.data.email,
+      password: parsed.data.password || undefined,
+    });
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not save user" };
+  }
+  const next = safeAdminUserPath(String(formData.get("next") ?? ""), parsed.data.userId);
+  redirect(next);
+}
+
+export async function updatePlatformUserRoleAction(
+  _prev: { error: string } | null,
+  formData: FormData,
+) {
+  await requirePlatformAdmin();
+  const parsed = platformUserRoleSchema.safeParse({
+    userId: formData.get("userId"),
+    membershipId: String(formData.get("membershipId") ?? ""),
+    tenantId: String(formData.get("tenantId") ?? ""),
+    role: formData.get("role") || "MEMBER",
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+  try {
+    await setPlatformUserRole(parsed.data.userId, {
+      membershipId: parsed.data.membershipId || undefined,
+      tenantId: parsed.data.tenantId || undefined,
+      role: parsed.data.role,
+    });
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not change role" };
+  }
+  const next = safeAdminUserPath(String(formData.get("next") ?? ""), parsed.data.userId);
+  redirect(next);
+}
+
+export async function deletePlatformUserAction(formData: FormData) {
+  await requirePlatformAdmin();
+  const userId = String(formData.get("userId") ?? "");
+  const fromList = String(formData.get("next") ?? "") === "/admin/users";
+  try {
+    await deletePlatformUser(userId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not delete user";
+    if (fromList) {
+      redirect(`/admin/users?error=${encodeURIComponent(message)}`);
+    }
+    redirect(
+      `/admin/users/${encodeURIComponent(userId)}?error=${encodeURIComponent(message)}`,
+    );
+  }
+  redirect("/admin/users");
 }
 
 export async function deleteCustomerAction(formData: FormData) {
