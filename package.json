@@ -7,6 +7,7 @@
     "dev:web": "next dev",
     "dev:worker": "tsx watch src/worker/index.ts",
     "build": "prisma generate && next build",
+    "deploy": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",

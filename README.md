@@ -17,7 +17,7 @@ cp .env.example .env
 # set AUTH_SECRET to a long random string
 docker compose up -d mysql
 npm install
-npx prisma migrate deploy
+npm run db:migrate
 npm run db:seed
 npm run dev
 ```
@@ -50,7 +50,21 @@ Demo login:
 | --- | --- |
 | `npm run dev` | Web + worker |
 | `npm run worker` | Scheduler only |
-| `npx prisma migrate deploy` | Apply SQL migrations |
+| `npm run db:migrate` | Apply SQL migrations |
+| `npm run deploy` | Migrate + production build (Plesk) |
 | `npm test` | Unit tests (cron + SSRF + secrets) |
 | `npm run lint` | ESLint |
 | `npm run build` | Production build |
+
+## Plesk (cron.softify.gr)
+
+Plesk **Run Node.js script** executes `npm run <name>`. Type only the script name (`deploy`, `db:migrate`, `build`). Do not type `npx` or `npm run` — that becomes `npm run npx` and fails.
+
+After every Git pull of `main`:
+
+1. **NPM Install** and wait until it finishes
+2. Run script: **`deploy`** (applies migrations, then `next build`)
+3. Confirm the application startup file is **`server.js`**
+4. **Restart App**
+
+Do not cron `npm run worker` (it loops forever). Use the existing Fetch-a-URL tick instead.
