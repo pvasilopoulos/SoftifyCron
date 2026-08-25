@@ -48,6 +48,7 @@ export type ResponseJobTab = {
   timezone: string;
   lastStatus: string | null;
   gridViews?: unknown;
+  gridWatches?: unknown;
 };
 
 export function ResponsesBoard({
@@ -82,14 +83,19 @@ export function ResponsesBoard({
     () => runs.find((run) => run.id === runId) ?? runs[0] ?? null,
     [runId, runs],
   );
-  const grid = useMemo(
-    () => parseResponseGrid(selectedRun?.responseBody),
-    [selectedRun?.responseBody],
-  );
   const previousRun = useMemo(() => {
     const index = runs.findIndex((run) => run.id === selectedRun?.id);
     return index >= 0 ? (runs[index + 1] ?? null) : null;
   }, [runs, selectedRun?.id]);
+  const [compareId, setCompareId] = useState(previousRun?.id ?? "");
+  const compareRun = useMemo(() => {
+    if (compareId) return runs.find((run) => run.id === compareId) ?? previousRun;
+    return previousRun;
+  }, [compareId, previousRun, runs]);
+  const grid = useMemo(
+    () => parseResponseGrid(selectedRun?.responseBody),
+    [selectedRun?.responseBody],
+  );
   const needle = query.trim().toLowerCase();
   const visibleCatalog = needle
     ? catalog.filter(
@@ -238,7 +244,12 @@ export function ResponsesBoard({
               <select
                 className="field"
                 value={selectedRun?.id ?? ""}
-                onChange={(event) => setRunId(event.target.value)}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setRunId(next);
+                  const index = runs.findIndex((run) => run.id === next);
+                  setCompareId(index >= 0 ? (runs[index + 1]?.id ?? "") : "");
+                }}
               >
                 {runs.map((run) => (
                   <option key={run.id} value={run.id}>
@@ -247,6 +258,25 @@ export function ResponsesBoard({
                     {run.httpStatus != null ? ` · ${run.httpStatus}` : ""}
                   </option>
                 ))}
+              </select>
+            </label>
+            <label className="block sm:min-w-64">
+              <span className="field-label">Compare with</span>
+              <select
+                className="field"
+                value={compareRun?.id ?? ""}
+                onChange={(event) => setCompareId(event.target.value)}
+              >
+                <option value="">Previous capture</option>
+                {runs
+                  .filter((run) => run.id !== selectedRun?.id)
+                  .map((run) => (
+                    <option key={run.id} value={run.id}>
+                      {new Date(run.startedAt).toISOString().replace("T", " ").slice(0, 19)} ·{" "}
+                      {run.status.toLowerCase()}
+                      {run.httpStatus != null ? ` · ${run.httpStatus}` : ""}
+                    </option>
+                  ))}
               </select>
             </label>
           </div>
@@ -260,10 +290,11 @@ export function ResponsesBoard({
               key={`${selectedId}-${selectedRun.id}`}
               grid={grid}
               raw={selectedRun?.responseBody}
-              previousRaw={previousRun?.responseBody}
+              previousRaw={compareRun?.responseBody}
               storageKey={selectedId ?? "responses"}
               jobId={selectedId ?? undefined}
               savedViews={tabs.find((tab) => tab.id === selectedId)?.gridViews}
+              savedWatches={tabs.find((tab) => tab.id === selectedId)?.gridWatches}
             />
           </div>
         </div>

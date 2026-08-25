@@ -4,6 +4,7 @@ import { Logo } from "@/components/logo";
 import { StatusPill } from "@/components/status-pill";
 import { formatAbsolute, formatDateTime } from "@/lib/format";
 import { jobStatusStats, statusStats } from "@/lib/status-stats";
+import { StatusSubscribe } from "@/components/status-subscribe";
 
 export const revalidate = 30;
 
@@ -100,6 +101,7 @@ export default async function PublicStatusPage({
           ))
         )}
       </ul>
+      <StatusSubscribe slug={slug} />
       <p className="mt-8 text-center text-xs text-ink-dim">Powered by SoftifyCron</p>
     </main>
   );

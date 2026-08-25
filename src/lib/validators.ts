@@ -60,6 +60,8 @@ export const tenantNotifySchema = z.object({
   maintMuteOnly: z.boolean().optional(),
   digestEnabled: z.boolean().optional(),
   digestHour: z.string().max(5).optional(),
+  oncallEnabled: z.boolean().optional(),
+  oncallRoster: z.string().max(2000).optional(),
 });
 
 export const notifyTestSchema = z.object({
@@ -142,6 +144,7 @@ export const jobInputSchema = z.object({
   activeHoursStart: z.string().max(5).optional().default(""),
   activeHoursEnd: z.string().max(5).optional().default(""),
   notes: z.string().max(4000).optional().default(""),
+  sloFailPerDay: intField(0, 0, 100),
 });
 
 export const groupInputSchema = z.object({

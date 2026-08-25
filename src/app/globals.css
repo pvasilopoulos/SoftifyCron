@@ -1232,3 +1232,28 @@ tr.row-hover:hover { background: color-mix(in srgb, var(--gold) 7%, transparent)
     transition: none;
   }
 }
+
+.spark {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 16px;
+  vertical-align: middle;
+}
+.spark-bar {
+  width: 3px;
+  border-radius: 1px;
+  background: var(--line);
+}
+.spark-ok {
+  height: 14px;
+  background: var(--sage);
+}
+.spark-bad {
+  height: 14px;
+  background: var(--rose);
+}
+.spark-empty {
+  height: 6px;
+  opacity: 0.45;
+}

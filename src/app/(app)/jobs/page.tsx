@@ -4,6 +4,8 @@ import { listJobs } from "@/lib/jobs";
 import { listGroups } from "@/lib/groups";
 import { jobAccess, JOB_TYPES } from "@/lib/acl";
 import { JobsBoard } from "@/components/jobs-board";
+import { weekSparks } from "@/lib/spark-data";
+import { prisma } from "@/lib/prisma";
 import type { JobType } from "@prisma/client";
 
 export const metadata = { title: "Jobs" };
@@ -27,7 +29,7 @@ export default async function JobsPage({
     : "";
   const access = jobAccess(session);
 
-  const [jobs, groups] = await Promise.all([
+  const [jobs, groups, tenant] = await Promise.all([
     listJobs(session.tid, {
       q: q || undefined,
       groupId: group || undefined,
@@ -35,7 +37,15 @@ export default async function JobsPage({
       state: (state as "armed" | "paused" | "failing") || undefined,
     }),
     listGroups(session.tid),
+    prisma.tenant.findUnique({ where: { id: session.tid }, select: { timezone: true } }),
   ]);
+  const sparkMap = await weekSparks(
+    session.tid,
+    jobs.map((job) => job.id),
+    7,
+    tenant?.timezone ?? "Europe/Athens",
+  );
+  const sparks = Object.fromEntries(sparkMap);
 
   return (
     <div className="space-y-6">
@@ -56,6 +66,7 @@ export default async function JobsPage({
         groups={groups}
         access={access}
         query={{ q, group, type, state: state ?? "" }}
+        sparks={sparks}
       />
 
       {access.edit ? (

@@ -42,6 +42,8 @@ export type NotifySettings = {
   maintMuteOnly: boolean;
   digestEnabled: boolean;
   digestHour: string;
+  oncallEnabled: boolean;
+  oncallRoster: string;
   signingSecret?: string;
 };
 
@@ -107,6 +109,8 @@ export function NotificationsPanel({
         maintMuteOnly: form.get("maintMuteOnly") === "on",
         digestEnabled: form.get("digestEnabled") === "on",
         digestHour: String(form.get("digestHour") ?? "08:00"),
+        oncallEnabled: form.get("oncallEnabled") === "on",
+        oncallRoster: String(form.get("oncallRoster") ?? ""),
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -530,6 +534,27 @@ export function NotificationsPanel({
         <label className="mt-4 block max-w-xs">
           <span className="field-label">Hour</span>
           <input className="field" type="time" name="digestHour" defaultValue={initial.digestHour} disabled={!canEdit} />
+        </label>
+      </section>
+
+      <section className="card p-5 sm:p-6">
+        <h2 className="font-display text-2xl">On-call rotation</h2>
+        <p className="mt-1 text-sm text-ink-dim">
+          Weekly roster in this workspace timezone, Monday start. The current person is prepended to alert and digest emails.
+        </p>
+        <label className="mt-5 flex min-h-12 items-center gap-3">
+          <input type="checkbox" name="oncallEnabled" defaultChecked={initial.oncallEnabled} disabled={!canEdit} />
+          <span className="text-sm">Enable weekly on-call rotation</span>
+        </label>
+        <label className="mt-4 block">
+          <span className="field-label">Roster emails</span>
+          <textarea
+            className="field min-h-20"
+            name="oncallRoster"
+            defaultValue={initial.oncallRoster}
+            disabled={!canEdit}
+            placeholder="alice@example.com, bob@example.com"
+          />
         </label>
       </section>
 

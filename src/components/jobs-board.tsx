@@ -7,7 +7,10 @@ import { describeCron } from "@/lib/cron";
 import { RelativeTime } from "@/components/relative-time";
 import { StatusPill } from "@/components/status-pill";
 import { JobMenu } from "@/components/job-menu";
+import { Sparkline } from "@/components/sparkline";
 import type { JobAccess } from "@/lib/acl";
+import { chainHint } from "@/lib/job-chain";
+import type { SparkDay } from "@/lib/sparkline";
 
 type Group = { id: string; name: string; color: string; slug: string };
 type Job = {
@@ -26,6 +29,8 @@ type Job = {
   lastRunAt: Date | string | null;
   lastStatus: string | null;
   snoozeUntil?: Date | string | null;
+  followUpJobId?: string | null;
+  dependsOnJobId?: string | null;
   group: Group | null;
 };
 
@@ -68,16 +73,19 @@ export function JobsBoard({
   groups,
   access,
   query,
+  sparks = {},
 }: {
   jobs: Job[];
   groups: Group[];
   access: JobAccess;
   query: { q: string; group: string; type: string; state: string };
+  sparks?: Record<string, SparkDay[]>;
 }) {
   const canSelect = access.edit || access.run || access.delete;
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
+  const names = useMemo(() => new Map(jobs.map((job) => [job.id, job.name])), [jobs]);
   const [q, setQ] = useState(query.q);
 
   function apply(next: Partial<typeof query>) {
@@ -278,12 +286,14 @@ export function JobsBoard({
                             {job.enabled ? "armed" : "paused"}
                           </span>
                           {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
+                          <Sparkline days={sparks[job.id]} />
                           {job.snoozeUntil && new Date(job.snoozeUntil).getTime() > Date.now() ? (
                             <span className="text-gold-2">snoozed</span>
                           ) : null}
                         </div>
                         <p className="mt-2 text-xs text-ink-dim">
                           Next <RelativeTime value={job.nextRunAt} timeZone={job.timezone} />
+                          {chainHint(job, names) ? ` · ${chainHint(job, names)}` : ""}
                         </p>
                       </div>
                     </div>
@@ -348,10 +358,14 @@ export function JobsBoard({
                               {job.enabled ? "armed" : "paused"}
                             </span>
                             {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
+                            <Sparkline days={sparks[job.id]} />
                             {job.snoozeUntil && new Date(job.snoozeUntil).getTime() > Date.now() ? (
                               <span className="text-gold-2">snoozed</span>
                             ) : null}
                           </div>
+                          {chainHint(job, names) ? (
+                            <p className="mt-1 text-xs text-ink-dim">{chainHint(job, names)}</p>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <JobMenu

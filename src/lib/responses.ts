@@ -11,6 +11,7 @@ export async function listResponseBoardJobs(tenantId: string) {
       lastStatus: true,
       lastRunAt: true,
       gridViews: true,
+      gridWatches: true,
     },
     orderBy: { name: "asc" },
   });

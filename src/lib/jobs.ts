@@ -7,11 +7,14 @@ import { nextAllowedFire } from "@/lib/schedule-policy";
 import { setEventMute } from "@/lib/event-mutes";
 import { NOTIFY_EVENTS } from "@/lib/notify-events";
 import { parseGridViews, type GridView } from "@/lib/grid-views";
-import type { JobInput } from "@/lib/validators";
-import type { JobType, Prisma, RunStatus } from "@prisma/client";
+import { parseGridWatches, type GridWatch } from "@/lib/grid-watch";
+import { jobInputSchema, type JobInput } from "@/lib/validators";
+import type { CronJob, JobType, Prisma, RunStatus } from "@prisma/client";
 
 export type { GridView };
 export { parseGridViews };
+export type { GridWatch };
+export { parseGridWatches };
 
 async function resolvePeerJobId(
   tenantId: string,
@@ -100,17 +103,19 @@ export async function createJob(tenantId: string, input: JobInput) {
       activeHoursStart: data.activeHoursStart ?? "",
       activeHoursEnd: data.activeHoursEnd ?? "",
       notes: data.notes?.trim() || null,
+      sloFailPerDay: data.sloFailPerDay,
     },
   });
 }
 
-export async function updateJob(tenantId: string, jobId: string, input: JobInput) {
+export async function updateJob(tenantId: string, jobId: string, input: JobInput, actor = "system") {
   const data = applyTypeDefaults(input);
   validateCron(data.cronExpr, data.timezone);
   await assertSafeUrl(data.url);
   if (data.notifyUrl) await assertSafeUrl(data.notifyUrl);
   const existing = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
   if (!existing) return null;
+  await writeJobRevision(existing, actor);
   const groupId = await resolveGroupId(tenantId, data);
   const [followUpJobId, dependsOnJobId] = await Promise.all([
     resolvePeerJobId(tenantId, data.followUpJobId, jobId),
@@ -158,6 +163,7 @@ export async function updateJob(tenantId: string, jobId: string, input: JobInput
       activeHoursStart: data.activeHoursStart ?? "",
       activeHoursEnd: data.activeHoursEnd ?? "",
       notes: data.notes?.trim() || null,
+      sloFailPerDay: data.sloFailPerDay,
       enabled: data.enabled,
       nextRunAt,
       lockedUntil: data.enabled ? existing.lockedUntil : null,
@@ -270,6 +276,8 @@ export async function duplicateJob(tenantId: string, jobId: string) {
       activeHoursStart: job.activeHoursStart,
       activeHoursEnd: job.activeHoursEnd,
       notes: job.notes,
+      sloFailPerDay: job.sloFailPerDay,
+      gridWatches: job.gridWatches ?? undefined,
       nextRunAt: null,
     },
   });
@@ -404,7 +412,7 @@ export async function deleteJobGridView(tenantId: string, jobId: string, viewId:
 export async function listJobOptions(tenantId: string) {
   return prisma.cronJob.findMany({
     where: { tenantId },
-    select: { id: true, name: true },
+    select: { id: true, name: true, followUpJobId: true, dependsOnJobId: true },
     orderBy: { name: "asc" },
   });
 }
@@ -443,4 +451,131 @@ export async function moveJobToTenant(jobId: string, fromTenantId: string, toTen
     }),
   ]);
   return prisma.cronJob.findUnique({ where: { id: jobId } });
+}
+
+function actorLabel(actor: string) {
+  return actor.trim().slice(0, 190) || "system";
+}
+
+export function jobSnapshot(job: CronJob) {
+  const headers =
+    job.headers && typeof job.headers === "object" && !Array.isArray(job.headers)
+      ? (job.headers as Record<string, string>)
+      : undefined;
+  return {
+    name: job.name,
+    description: job.description,
+    groupId: job.groupId,
+    type: job.type,
+    tags: job.tags,
+    cronExpr: job.cronExpr,
+    timezone: job.timezone,
+    method: job.method,
+    url: job.url,
+    headers,
+    body: job.body,
+    timeoutMs: job.timeoutMs,
+    retryMax: job.retryMax,
+    retryDelaySec: job.retryDelaySec,
+    notifyUrl: job.notifyUrl,
+    notifyEmailOn: job.notifyEmailOn,
+    notifyTelegramOn: job.notifyTelegramOn,
+    notifyWebhookOn: job.notifyWebhookOn,
+    notifySlackOn: job.notifySlackOn,
+    keepResponse: job.keepResponse,
+    responseBoard: job.responseBoard,
+    pauseAfter: job.pauseAfter,
+    enabled: job.enabled,
+    followUpJobId: job.followUpJobId,
+    dependsOnJobId: job.dependsOnJobId,
+    assertStatus: job.assertStatus,
+    assertJsonPath: job.assertJsonPath,
+    assertEquals: job.assertEquals,
+    assertContains: job.assertContains,
+    slowAfterMs: job.slowAfterMs,
+    skipHolidays: job.skipHolidays,
+    skipWeekends: job.skipWeekends,
+    activeHoursStart: job.activeHoursStart,
+    activeHoursEnd: job.activeHoursEnd,
+    notes: job.notes ?? "",
+    sloFailPerDay: job.sloFailPerDay,
+  };
+}
+
+export async function writeJobRevision(job: CronJob, actor: string) {
+  await prisma.jobRevision.create({
+    data: {
+      jobId: job.id,
+      tenantId: job.tenantId,
+      actor: actorLabel(actor),
+      snapshot: jobSnapshot(job) as Prisma.InputJsonValue,
+    },
+  });
+  const extra = await prisma.jobRevision.findMany({
+    where: { jobId: job.id },
+    orderBy: { createdAt: "desc" },
+    skip: 30,
+    select: { id: true },
+  });
+  if (extra.length) {
+    await prisma.jobRevision.deleteMany({ where: { id: { in: extra.map((row) => row.id) } } });
+  }
+}
+
+export async function listJobRevisions(tenantId: string, jobId: string, take = 20) {
+  const job = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId }, select: { id: true } });
+  if (!job) return null;
+  return prisma.jobRevision.findMany({
+    where: { jobId, tenantId },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: { id: true, actor: true, snapshot: true, createdAt: true },
+  });
+}
+
+export async function restoreRevision(tenantId: string, jobId: string, revisionId: string, actor: string) {
+  const revision = await prisma.jobRevision.findFirst({
+    where: { id: revisionId, jobId, tenantId },
+  });
+  if (!revision) return null;
+  const parsed = jobInputSchema.safeParse(revision.snapshot);
+  if (!parsed.success) throw new Error("This revision cannot be restored");
+  return updateJob(tenantId, jobId, parsed.data, actor);
+}
+
+export async function scheduleOnce(tenantId: string, jobId: string, at: Date | null) {
+  const job = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
+  if (!job) return null;
+  if (at && at.getTime() < Date.now() - 60_000) throw new Error("Pick a time in the future");
+  return prisma.cronJob.update({
+    where: { id: jobId },
+    data: { onceAt: at },
+  });
+}
+
+export async function saveJobWatch(
+  tenantId: string,
+  jobId: string,
+  input: { column: string; op: string; value?: string },
+) {
+  const job = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
+  if (!job) return null;
+  const parsed = parseGridWatches([{ id: "tmp", column: input.column, op: input.op, value: input.value ?? "" }]);
+  if (parsed.length === 0) throw new Error("Invalid watch rule");
+  const watch: GridWatch = { ...parsed[0]!, id: `w_${Date.now().toString(36)}` };
+  const saved = [...parseGridWatches(job.gridWatches), watch].slice(-20);
+  return prisma.cronJob.update({
+    where: { id: jobId },
+    data: { gridWatches: saved as Prisma.InputJsonValue },
+  });
+}
+
+export async function deleteJobWatch(tenantId: string, jobId: string, watchId: string) {
+  const job = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
+  if (!job) return null;
+  const watches = parseGridWatches(job.gridWatches).filter((item) => item.id !== watchId);
+  return prisma.cronJob.update({
+    where: { id: jobId },
+    data: { gridWatches: watches as Prisma.InputJsonValue },
+  });
 }

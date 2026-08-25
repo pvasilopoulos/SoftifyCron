@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
-import { getJobForTenant } from "@/lib/jobs";
+import { getJobForTenant, listJobOptions, listJobRevisions } from "@/lib/jobs";
 import { describeCron, previewRuns } from "@/lib/cron";
 import { formatAbsolute, formatDateTime, formatDuration } from "@/lib/format";
 import { RelativeTime } from "@/components/relative-time";
@@ -14,6 +14,10 @@ import { listTenantOptions } from "@/lib/admin";
 import { MoveJobForm } from "@/components/move-job-form";
 import { summarizeNotify, NOTIFY_EVENT_LABELS } from "@/lib/notify-events";
 import { jobHeartbeatUrl } from "@/lib/app-url";
+import { JobChainMap } from "@/components/job-chain-map";
+import { JobHistory } from "@/components/job-history";
+import { Sparkline } from "@/components/sparkline";
+import { weekSparks } from "@/lib/spark-data";
 
 export const metadata = { title: "Job" };
 
@@ -28,7 +32,7 @@ export default async function JobDetailPage({
   if (!job) notFound();
   const access = jobAccess(session);
 
-  const [runs, tenants, deliveries] = await Promise.all([
+  const [runs, tenants, deliveries, peers, revisions, sparkMap] = await Promise.all([
     prisma.jobRun.findMany({
       where: { tenantId: session.tid, jobId: job.id },
       orderBy: { startedAt: "desc" },
@@ -40,7 +44,11 @@ export default async function JobDetailPage({
       orderBy: { createdAt: "desc" },
       take: 12,
     }),
+    listJobOptions(session.tid),
+    listJobRevisions(session.tid, job.id, 12),
+    weekSparks(session.tid, [job.id], 7, job.timezone),
   ]);
+  const spark = sparkMap.get(job.id);
 
   let upcoming: Date[] = [];
   try {
@@ -96,6 +104,7 @@ export default async function JobDetailPage({
               </span>
             ))}
             {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
+            <Sparkline days={spark} />
             {job.responseBoard ? (
               <Link
                 href={`/responses?job=${job.id}`}
@@ -128,6 +137,7 @@ export default async function JobDetailPage({
             responseBoard={job.responseBoard}
             curl={buildCurl(job)}
             lastStatus={job.lastStatus}
+            onceAt={job.onceAt?.toISOString() ?? null}
           />
         </div>
       </div>
@@ -182,6 +192,23 @@ export default async function JobDetailPage({
                     {formatDateTime(job.snoozeUntil, job.timezone)}
                   </span>
                 </dd>
+              </div>
+            ) : null}
+            {job.onceAt ? (
+              <div>
+                <dt className="text-ink-dim">Once-off</dt>
+                <dd className="mt-1">
+                  <RelativeTime value={job.onceAt} timeZone={job.timezone} />
+                  <span className="mt-1 block text-xs text-ink-dim">
+                    {formatDateTime(job.onceAt, job.timezone)}
+                  </span>
+                </dd>
+              </div>
+            ) : null}
+            {job.sloFailPerDay > 0 ? (
+              <div>
+                <dt className="text-ink-dim">SLO</dt>
+                <dd className="mt-1 text-ink-dim">Alert at {job.sloFailPerDay} fails / 24h</dd>
               </div>
             ) : null}
             {job.followUpJobId || job.dependsOnJobId ? (
@@ -269,6 +296,8 @@ export default async function JobDetailPage({
           </ol>
         </div>
       </section>
+
+      <JobChainMap jobs={peers} focusId={job.id} />
 
       <section className="card overflow-hidden p-0">
         <div className="border-b border-line px-5 py-4 sm:px-6">
@@ -366,6 +395,23 @@ export default async function JobDetailPage({
           </>
         )}
       </section>
+      {revisions && revisions.length > 0 ? (
+        <JobHistory
+          jobId={job.id}
+          canRestore={access.edit}
+          timeZone={job.timezone}
+          revisions={revisions.map((row) => {
+            const snap =
+              row.snapshot && typeof row.snapshot === "object" ? (row.snapshot as { name?: unknown }) : {};
+            return {
+              id: row.id,
+              actor: row.actor,
+              createdAt: row.createdAt.toISOString(),
+              name: typeof snap.name === "string" ? snap.name : job.name,
+            };
+          })}
+        />
+      ) : null}
       {session.platform && tenants.length > 0 ? (
         <MoveJobForm jobId={job.id} currentTenantId={session.tid} tenants={tenants} />
       ) : null}

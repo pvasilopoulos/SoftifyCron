@@ -11,6 +11,7 @@ import {
   type NotifyEvent,
 } from "@/lib/notify-events";
 import { applyQuietHours, parseChatIds, parseEmails } from "@/lib/notify-policy";
+import { currentOncall, mergeOncallEmails } from "@/lib/oncall";
 import { webhookSignatureHeader } from "@/lib/notify-sign";
 import { ensureWebhookSecret, smtpFromTenant } from "@/lib/tenant-notify";
 
@@ -32,6 +33,8 @@ export type NotifyJob = {
 };
 
 function subjectFor(name: string, events: NotifyEvent[]) {
+  if (events.includes("slo")) return `[SoftifyCron] ${name} broke SLO`;
+  if (events.includes("watch")) return `[SoftifyCron] ${name} watch hit`;
   if (events.includes("escalate")) return `[SoftifyCron] ${name} escalated`;
   if (events.includes("slow")) return `[SoftifyCron] ${name} ran slow`;
   if (events.includes("missed")) return `[SoftifyCron] ${name} missed a beat`;
@@ -44,6 +47,8 @@ function subjectFor(name: string, events: NotifyEvent[]) {
 }
 
 function webhookEventName(events: NotifyEvent[]) {
+  if (events.includes("slo")) return "job.slo";
+  if (events.includes("watch")) return "job.watch";
   if (events.includes("escalate")) return "job.escalated";
   if (events.includes("slow")) return "job.slow";
   if (events.includes("missed")) return "job.missed";
@@ -243,7 +248,10 @@ export async function notifyJob(
   });
 
   await sendChannel("email", wantEmail, async () => {
-    const emails = parseEmails(tenant.notifyEmail);
+    const emails = mergeOncallEmails(
+      parseEmails(tenant.notifyEmail),
+      tenant.oncallEnabled ? currentOncall(tenant.oncallRoster, tenant.timezone) : null,
+    );
     if (emails.length === 0) throw new Error("No alert email on this workspace");
     const smtp = smtpFromTenant(tenant);
     if (!smtp) throw new Error("Workspace SMTP is not configured");

@@ -75,6 +75,7 @@ export async function saveJobAction(
     activeHoursStart: String(formData.get("activeHoursStart") ?? ""),
     activeHoursEnd: String(formData.get("activeHoursEnd") ?? ""),
     notes: String(formData.get("notes") ?? ""),
+    sloFailPerDay: Number(formData.get("sloFailPerDay") ?? 0),
   });
   if (!parsed.success) {
     return {
@@ -86,7 +87,7 @@ export async function saveJobAction(
   let job;
   try {
     job = jobId
-      ? await updateJob(session.tid, jobId, parsed.data)
+      ? await updateJob(session.tid, jobId, parsed.data, `${session.name} <${session.email}>`)
       : await createJob(session.tid, parsed.data);
     await writeAudit({
       tenantId: session.tid,

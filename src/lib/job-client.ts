@@ -93,6 +93,41 @@ export async function deleteJobViewRequest(jobId: string, viewId: string) {
   });
 }
 
+export async function saveJobWatchRequest(
+  jobId: string,
+  watch: { column: string; op: string; value?: string },
+) {
+  return postJson(`/api/jobs/${jobId}/watches`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(watch),
+  });
+}
+
+export async function deleteJobWatchRequest(jobId: string, watchId: string) {
+  return postJson(`/api/jobs/${jobId}/watches`, {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ watchId }),
+  });
+}
+
+export async function scheduleOnceRequest(jobId: string, at: string | null) {
+  return postJson(`/api/jobs/${jobId}/once`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ at }),
+  });
+}
+
+export async function restoreRevisionRequest(jobId: string, revisionId: string) {
+  return postJson(`/api/jobs/${jobId}/revisions`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ revisionId }),
+  });
+}
+
 export function confirmDeleteJob(name: string) {
   return confirm(`Delete “${name}” and its run history? This cannot be undone.`);
 }

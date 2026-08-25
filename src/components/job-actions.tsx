@@ -13,6 +13,7 @@ import {
   runJobRequest,
   skipJobRequest,
   snoozeJobRequest,
+  scheduleOnceRequest,
   toggleJobRequest,
 } from "@/lib/job-client";
 import { toast } from "@/components/toaster";
@@ -27,6 +28,7 @@ export function JobActions({
   responseBoard = false,
   curl,
   lastStatus,
+  onceAt,
 }: {
   jobId: string;
   name: string;
@@ -36,10 +38,12 @@ export function JobActions({
   responseBoard?: boolean;
   curl?: string;
   lastStatus?: string | null;
+  onceAt?: string | Date | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [onceValue, setOnceValue] = useState("");
 
   async function wrap(key: string, action: () => Promise<void>) {
     setBusy(key);
@@ -142,6 +146,51 @@ export function JobActions({
           <option value="failure:0">Clear fail mute</option>
           <option value="missed:0">Clear missed mute</option>
         </select>
+      ) : null}
+      {access.edit ? (
+        <label className="inline-flex flex-wrap items-center gap-2 text-sm">
+          <span className="sr-only">Fire once at</span>
+          <input
+            className="field w-auto"
+            type="datetime-local"
+            value={onceValue}
+            disabled={!!busy}
+            onChange={(event) => setOnceValue(event.target.value)}
+          />
+          <button
+            className="btn btn-ghost"
+            type="button"
+            disabled={!!busy || !onceValue}
+            onClick={() =>
+              wrap("once", async () => {
+                await scheduleOnceRequest(jobId, new Date(onceValue).toISOString());
+                setOnceValue("");
+                setMessage("Once-off scheduled");
+                toast("Once-off scheduled");
+                router.refresh();
+              })
+            }
+          >
+            {busy === "once" ? "Saving…" : "Fire once"}
+          </button>
+          {onceAt ? (
+            <button
+              className="btn btn-ghost"
+              type="button"
+              disabled={!!busy}
+              onClick={() =>
+                wrap("once-clear", async () => {
+                  await scheduleOnceRequest(jobId, null);
+                  setMessage("Once-off cleared");
+                  toast("Once-off cleared");
+                  router.refresh();
+                })
+              }
+            >
+              Clear once
+            </button>
+          ) : null}
+        </label>
       ) : null}
       {access.edit && enabled ? (
         <button

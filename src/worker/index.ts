@@ -1,6 +1,7 @@
 import { claimAndRunDueJobs } from "../lib/runner";
 import { checkMissedHeartbeats } from "../lib/notify-missed";
 import { sendDueDigests } from "../lib/digest";
+import { sendStatusOutageAlerts } from "../lib/status-subscribers";
 
 const TICK_MS = 1000;
 
@@ -15,6 +16,7 @@ async function main() {
       const ran = await claimAndRunDueJobs();
       const missed = await checkMissedHeartbeats();
       const digests = await sendDueDigests();
+      const statusAlerts = await sendStatusOutageAlerts();
       if (ran > 0) {
         console.log(`[worker] executed ${ran} due job${ran === 1 ? "" : "s"}`);
       }
@@ -23,6 +25,9 @@ async function main() {
       }
       if (digests > 0) {
         console.log(`[worker] sent ${digests} digest${digests === 1 ? "" : "s"}`);
+      }
+      if (statusAlerts > 0) {
+        console.log(`[worker] sent ${statusAlerts} status alert${statusAlerts === 1 ? "" : "s"}`);
       }
     } catch (error) {
       console.error("[worker] tick failed", error);

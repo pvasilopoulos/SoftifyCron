@@ -383,7 +383,7 @@ export function compareCells(a: string, b: string) {
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 }
 
-function matchFilter(cell: string, op: FilterOp, value: string) {
+export function matchFilter(cell: string, op: FilterOp, value: string) {
   const hay = cell.toLowerCase();
   const needle = value.trim().toLowerCase();
   switch (op) {

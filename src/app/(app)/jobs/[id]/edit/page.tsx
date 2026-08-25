@@ -76,6 +76,7 @@ export default async function EditJobPage({
           activeHoursStart: job.activeHoursStart,
           activeHoursEnd: job.activeHoursEnd,
           notes: job.notes ?? "",
+          sloFailPerDay: job.sloFailPerDay,
         }}
       />
     </div>

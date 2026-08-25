@@ -47,6 +47,7 @@ export async function exportJobs(tenantId: string) {
       activeHoursStart: job.activeHoursStart,
       activeHoursEnd: job.activeHoursEnd,
       notes: job.notes,
+      sloFailPerDay: job.sloFailPerDay,
       enabled: false,
     })),
   };

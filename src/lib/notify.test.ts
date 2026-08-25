@@ -31,6 +31,11 @@ describe("notify events", () => {
       "failure",
       "escalate",
     ]);
+    expect(eventsForRun({ status: "SUCCESS", previousFailures: 0, watch: true, slo: true })).toEqual([
+      "success",
+      "watch",
+      "slo",
+    ]);
   });
 
   it("matches a channel when any selected event fired", () => {

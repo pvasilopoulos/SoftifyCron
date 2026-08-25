@@ -22,7 +22,13 @@ import {
 import { changedSourceRows, diffGrids, diffHoverText } from "@/lib/grid-diff";
 import { jsonLineDiff, prettyJsonText } from "@/lib/json-diff";
 import { parseGridViews, type GridView } from "@/lib/grid-views";
-import { deleteJobViewRequest, saveJobViewRequest } from "@/lib/job-client";
+import { parseGridWatches, type GridWatch } from "@/lib/grid-watch";
+import {
+  deleteJobViewRequest,
+  deleteJobWatchRequest,
+  saveJobViewRequest,
+  saveJobWatchRequest,
+} from "@/lib/job-client";
 
 type Panel = "columns" | "filters" | "view" | null;
 type Prefs = {
@@ -82,6 +88,7 @@ export function ResponseGridView({
   storageKey = "response",
   jobId,
   savedViews,
+  savedWatches,
 }: {
   grid: ResponseGrid;
   raw?: string | null;
@@ -89,6 +96,7 @@ export function ResponseGridView({
   storageKey?: string;
   jobId?: string;
   savedViews?: unknown;
+  savedWatches?: unknown;
 }) {
   const datasets = useMemo(
     () => (raw ? parseResponseDatasets(raw) : [{ id: "grid", name: grid.title || "Grid", grid }]),
@@ -107,6 +115,8 @@ export function ResponseGridView({
   const [diffOn, setDiffOn] = useState(Boolean(previousRaw));
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [views, setViews] = useState<GridView[]>(() => parseGridViews(savedViews));
+  const [watches, setWatches] = useState<GridWatch[]>(() => parseGridWatches(savedWatches));
+  const [watchDraft, setWatchDraft] = useState({ column: "", op: "contains" as FilterOp, value: "" });
   const [hover, setHover] = useState<{ prev: string; next: string; x: number; y: number } | null>(null);
   const jsonDiff = useMemo(
     () => (raw && previousRaw && diffOn ? jsonLineDiff(raw, previousRaw) : null),
@@ -271,6 +281,35 @@ export function ResponseGridView({
       toast("View deleted");
     } catch (error) {
       toast(error instanceof Error ? error.message : "Could not delete view", "err");
+    }
+  }
+
+  async function addWatch() {
+    if (!jobId) return;
+    const column = watchDraft.column || source.columns[0] || "";
+    if (!column) return;
+    try {
+      const data = await saveJobWatchRequest(jobId, {
+        column,
+        op: watchDraft.op,
+        value: watchDraft.value,
+      });
+      setWatches(parseGridWatches(data.job?.gridWatches));
+      setWatchDraft({ column, op: watchDraft.op, value: "" });
+      toast("Watch saved");
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Could not save watch", "err");
+    }
+  }
+
+  async function removeWatch(item: GridWatch) {
+    if (!jobId) return;
+    try {
+      const data = await deleteJobWatchRequest(jobId, item.id);
+      setWatches(parseGridWatches(data.job?.gridWatches));
+      toast("Watch deleted");
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Could not delete watch", "err");
     }
   }
 
@@ -552,6 +591,58 @@ export function ResponseGridView({
               <button className="btn btn-gold btn-sm" type="button" onClick={saveCurrentView}>
                 Save current view
               </button>
+              <div className="space-y-2 pt-2">
+                <p className="text-xs uppercase tracking-[0.14em] text-ink-dim">Grid watches</p>
+                <p className="text-xs text-ink-dim">Alert when a cell matches after a run.</p>
+                {watches.length === 0 ? <p className="text-sm text-ink-dim">None yet.</p> : null}
+                <ul className="space-y-2">
+                  {watches.map((item) => (
+                    <li key={item.id} className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="mono">
+                        {item.column} {item.op} {item.value || "∅"}
+                      </span>
+                      <button className="text-xs text-rose" type="button" onClick={() => removeWatch(item)}>
+                        Delete
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    className="field w-auto min-w-28"
+                    value={watchDraft.column || source.columns[0] || ""}
+                    onChange={(event) => setWatchDraft((current) => ({ ...current, column: event.target.value }))}
+                  >
+                    {source.columns.map((column) => (
+                      <option key={column} value={column}>
+                        {column}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="field w-auto"
+                    value={watchDraft.op}
+                    onChange={(event) =>
+                      setWatchDraft((current) => ({ ...current, op: event.target.value as FilterOp }))
+                    }
+                  >
+                    {FILTER_OPS.map((op) => (
+                      <option key={op} value={op}>
+                        {FILTER_OP_LABELS[op]}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className="field w-auto min-w-28"
+                    value={watchDraft.value}
+                    onChange={(event) => setWatchDraft((current) => ({ ...current, value: event.target.value }))}
+                    placeholder="Value"
+                  />
+                  <button className="btn btn-gold btn-sm" type="button" onClick={addWatch}>
+                    Add watch
+                  </button>
+                </div>
+              </div>
             </div>
           ) : null}
           <div className="flex flex-wrap gap-2">

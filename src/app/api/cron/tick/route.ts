@@ -8,6 +8,7 @@ import {
 import { claimAndRunDueJobs } from "@/lib/runner";
 import { checkMissedHeartbeats } from "@/lib/notify-missed";
 import { sendDueDigests } from "@/lib/digest";
+import { sendStatusOutageAlerts } from "@/lib/status-subscribers";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +24,13 @@ async function tick(request: Request) {
     const ran = await claimAndRunDueJobs(8);
     const missed = await checkMissedHeartbeats();
     const digests = await sendDueDigests();
+    const statusAlerts = await sendStatusOutageAlerts();
     return NextResponse.json({
       ok: true,
       ran,
       missed,
       digests,
+      statusAlerts,
       tickedAt: new Date().toISOString(),
     });
   } catch (error) {

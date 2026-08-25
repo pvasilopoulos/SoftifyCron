@@ -79,6 +79,7 @@ export default async function JobResponsePage({
                 storageKey={`job-${job.id}`}
                 jobId={job.id}
                 savedViews={job.gridViews}
+                savedWatches={job.gridWatches}
               />
             ) : (
               <p className="text-sm text-ink-dim">

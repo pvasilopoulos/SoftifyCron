@@ -45,6 +45,7 @@ enum RunTrigger {
   SCHEDULE
   MANUAL
   RETRY
+  ONCE
 }
 
 model Tenant {
@@ -89,6 +90,8 @@ model Tenant {
   digestEnabled            Boolean          @default(false)
   digestHour               String           @default("08:00") @db.VarChar(5)
   digestLastDate           String           @default("") @db.VarChar(10)
+  oncallEnabled            Boolean          @default(false)
+  oncallRoster             String           @default("") @db.VarChar(2000)
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
   memberships              Membership[]
@@ -101,6 +104,7 @@ model Tenant {
   apiTokens                ApiToken[]
   auditEvents              AuditEvent[]
   deliveries               NotifyDelivery[]
+  statusSubscribers        StatusSubscriber[]
 }
 
 model User {
@@ -220,6 +224,9 @@ model CronJob {
   ackNote              String?    @db.VarChar(500)
   eventMutes           Json?
   gridViews            Json?
+  gridWatches          Json?
+  onceAt               DateTime?
+  sloFailPerDay        Int        @default(0)
   consecutiveFailures  Int        @default(0)
   lastStatus           RunStatus?
   lastRunAt            DateTime?
@@ -231,12 +238,14 @@ model CronJob {
   tenant               Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   group                JobGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
   runs                 JobRun[]
+  revisions            JobRevision[]
   deliveries           NotifyDelivery[]
 
   @@index([tenantId, enabled, nextRunAt])
   @@index([tenantId, groupId])
   @@index([tenantId, type])
   @@index([enabled, nextRunAt, lockedUntil])
+  @@index([onceAt])
 }
 
 model JobRun {
@@ -348,6 +357,33 @@ model NotifyDelivery {
   @@index([tenantId, createdAt])
   @@index([jobId, createdAt])
   @@index([jobId, channel, createdAt])
+}
+
+model StatusSubscriber {
+  id            String    @id @default(cuid())
+  tenantId      String
+  email         String    @db.VarChar(190)
+  token         String    @unique
+  confirmedAt   DateTime?
+  lastAlertDate String    @default("") @db.VarChar(10)
+  createdAt     DateTime  @default(now())
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model JobRevision {
+  id        String   @id @default(cuid())
+  jobId     String
+  tenantId  String
+  actor     String   @db.VarChar(190)
+  snapshot  Json
+  createdAt DateTime @default(now())
+  job       CronJob  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, createdAt])
+  @@index([tenantId, createdAt])
 }
 
 model WorkerHeartbeat {

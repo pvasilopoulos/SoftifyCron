@@ -60,6 +60,8 @@ export type TenantNotifyInput = {
   maintMuteOnly?: boolean;
   digestEnabled?: boolean;
   digestHour?: string;
+  oncallEnabled?: boolean;
+  oncallRoster?: string;
 };
 
 export function smtpFromTenant(tenant: {
@@ -129,6 +131,8 @@ export function publicNotify(
     maintMuteOnly?: boolean;
     digestEnabled?: boolean;
     digestHour?: string;
+    oncallEnabled?: boolean;
+    oncallRoster?: string;
   },
   extra?: { signingSecret?: string },
 ) {
@@ -169,6 +173,8 @@ export function publicNotify(
     maintMuteOnly: Boolean(tenant.maintMuteOnly),
     digestEnabled: Boolean(tenant.digestEnabled),
     digestHour: tenant.digestHour ?? "08:00",
+    oncallEnabled: Boolean(tenant.oncallEnabled),
+    oncallRoster: tenant.oncallRoster ?? "",
     signingSecret: extra?.signingSecret,
   };
 }
@@ -292,6 +298,8 @@ export async function updateTenantNotify(tenantId: string, input: TenantNotifyIn
     maintMuteOnly: input.maintMuteOnly ?? existing.maintMuteOnly,
     digestEnabled: input.digestEnabled ?? existing.digestEnabled,
     digestHour: clockOrEmpty(input.digestHour, existing.digestHour) || "08:00",
+    oncallEnabled: input.oncallEnabled ?? existing.oncallEnabled,
+    oncallRoster: parseEmailsStrict(input.oncallRoster ?? existing.oncallRoster).join(", "),
   };
   if (input.smtpPass?.trim()) {
     data.smtpPassEnc = encryptSecret(input.smtpPass.trim());

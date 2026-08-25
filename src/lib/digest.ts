@@ -6,6 +6,7 @@ import { sendSlack } from "@/lib/slack";
 import { parseChatIds, parseClockMinutes, parseEmails } from "@/lib/notify-policy";
 import { smtpFromTenant } from "@/lib/tenant-notify";
 import { localIsoDate, localMinutes } from "@/lib/holidays-gr";
+import { currentOncall, mergeOncallEmails } from "@/lib/oncall";
 
 export async function sendDueDigests(now = new Date()) {
   const tenants = await prisma.tenant.findMany({
@@ -52,16 +53,18 @@ export async function sendDueDigests(now = new Date()) {
       },
     });
     const rate = total === 0 ? "—" : `${Math.round((success / total) * 100)}%`;
+    const oncall = tenant.oncallEnabled ? currentOncall(tenant.oncallRoster, tenant.timezone, now) : null;
     const lines = [
       `SoftifyCron digest · ${tenant.name}`,
+      oncall ? `On-call: ${oncall}` : null,
       `Last 24h: ${total} runs · ${rate} success · ${failCount} failed · ${slow} slow`,
       ...failed.map((run) => `- ${run.job.name} ${run.status}${run.error ? ` · ${run.error}` : ""}`),
-    ];
+    ].filter(Boolean) as string[];
     const text = lines.join("\n");
     const subject = `[SoftifyCron] Daily digest · ${tenant.name}`;
 
     const smtp = smtpFromTenant(tenant);
-    const emails = parseEmails(tenant.notifyEmail);
+    const emails = mergeOncallEmails(parseEmails(tenant.notifyEmail), oncall);
     if (smtp && emails.length) {
       await sendMail({ to: emails, subject, text }, smtp);
     }

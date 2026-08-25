@@ -54,6 +54,7 @@ type JobFormValues = {
   activeHoursStart: string;
   activeHoursEnd: string;
   notes: string;
+  sloFailPerDay: number;
 };
 
 type JobOption = { id: string; name: string };
@@ -94,6 +95,7 @@ const DEFAULTS: JobFormValues = {
   activeHoursStart: "",
   activeHoursEnd: "",
   notes: "",
+  sloFailPerDay: 0,
 };
 
 export function JobForm({
@@ -315,6 +317,20 @@ export function JobForm({
             defaultValue={values.pauseAfter}
           />
           <p className="mt-2 text-xs text-ink-dim">0 keeps the job armed forever. 3 pauses it after three consecutive failures.</p>
+        </label>
+        <label className="block">
+          <span className="field-label">SLO fail budget / 24h</span>
+          <input
+            className="field"
+            type="number"
+            name="sloFailPerDay"
+            min={0}
+            max={100}
+            defaultValue={values.sloFailPerDay}
+          />
+          <p className="mt-2 text-xs text-ink-dim">
+            0 is off. If failed, timed-out, or blocked runs in the last 24 hours reach this number, fire an SLO alert.
+          </p>
         </label>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
