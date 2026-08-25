@@ -102,7 +102,7 @@ export function PeopleBoard({
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Remove failed");
       if (data.left) {
-        window.location.href = "/login";
+        router.push("/login");
         return;
       }
       toast("Teammate removed");

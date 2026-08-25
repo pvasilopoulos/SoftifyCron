@@ -1,5 +1,5 @@
 import type { Role } from "@prisma/client";
-import { canInviteRole, hasPermission } from "@/lib/acl";
+import { canInviteRole, hasPermission } from "./acl";
 
 export type MemberActor = {
   role: Role;
