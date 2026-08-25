@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { NotifyMatrix } from "@/components/notify-matrix";
 import { NOTIFY_EVENTS } from "@/lib/notify-events";
+import { WEEKDAYS } from "@/lib/maintenance";
 
 export type NotifySettings = {
   notifyEmail: string;
@@ -33,6 +34,14 @@ export type NotifySettings = {
   escalateAfter: number;
   statusPageEnabled: boolean;
   statusPageSlug: string;
+  maintEnabled: boolean;
+  maintStartWd: number;
+  maintStartHm: string;
+  maintEndWd: number;
+  maintEndHm: string;
+  maintMuteOnly: boolean;
+  digestEnabled: boolean;
+  digestHour: string;
   signingSecret?: string;
 };
 
@@ -90,6 +99,14 @@ export function NotificationsPanel({
         escalateAfter: String(form.get("escalateAfter") ?? "3"),
         statusPageEnabled: form.get("statusPageEnabled") === "on",
         statusPageSlug: String(form.get("statusPageSlug") ?? ""),
+        maintEnabled: form.get("maintEnabled") === "on",
+        maintStartWd: String(form.get("maintStartWd") ?? "5"),
+        maintStartHm: String(form.get("maintStartHm") ?? "22:00"),
+        maintEndWd: String(form.get("maintEndWd") ?? "1"),
+        maintEndHm: String(form.get("maintEndHm") ?? "07:00"),
+        maintMuteOnly: form.get("maintMuteOnly") === "on",
+        digestEnabled: form.get("digestEnabled") === "on",
+        digestHour: String(form.get("digestHour") ?? "08:00"),
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -457,6 +474,62 @@ export function NotificationsPanel({
           <p className="mt-2 text-xs text-ink-dim">
             Live at /status/{initial.statusPageSlug || "your-slug"}
           </p>
+        </label>
+      </section>
+
+      <section className="card p-5 sm:p-6">
+        <h2 className="font-display text-2xl">Maintenance window</h2>
+        <p className="mt-1 text-sm text-ink-dim">
+          Skip scheduled fires (or only mute alerts) from a weekday+time to another. Default is Friday 22:00 → Monday 07:00.
+        </p>
+        <label className="mt-5 flex min-h-12 items-center gap-3">
+          <input type="checkbox" name="maintEnabled" defaultChecked={initial.maintEnabled} disabled={!canEdit} />
+          <span className="text-sm">Enable workspace maintenance window</span>
+        </label>
+        <label className="mt-3 flex min-h-12 items-center gap-3">
+          <input type="checkbox" name="maintMuteOnly" defaultChecked={initial.maintMuteOnly} disabled={!canEdit} />
+          <span className="text-sm">Still run jobs, only mute alerts</span>
+        </label>
+        <div className="mt-4 grid max-w-2xl gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="field-label">From weekday</span>
+            <select className="field" name="maintStartWd" defaultValue={String(initial.maintStartWd)} disabled={!canEdit}>
+              {WEEKDAYS.map((day, index) => (
+                <option key={day} value={index}>{day}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="field-label">From time</span>
+            <input className="field" type="time" name="maintStartHm" defaultValue={initial.maintStartHm} disabled={!canEdit} />
+          </label>
+          <label className="block">
+            <span className="field-label">Until weekday</span>
+            <select className="field" name="maintEndWd" defaultValue={String(initial.maintEndWd)} disabled={!canEdit}>
+              {WEEKDAYS.map((day, index) => (
+                <option key={day} value={index}>{day}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="field-label">Until time</span>
+            <input className="field" type="time" name="maintEndHm" defaultValue={initial.maintEndHm} disabled={!canEdit} />
+          </label>
+        </div>
+      </section>
+
+      <section className="card p-5 sm:p-6">
+        <h2 className="font-display text-2xl">Daily digest</h2>
+        <p className="mt-1 text-sm text-ink-dim">
+          One summary at this hour in the workspace timezone, using the same email / Telegram / Slack as alerts.
+        </p>
+        <label className="mt-5 flex min-h-12 items-center gap-3">
+          <input type="checkbox" name="digestEnabled" defaultChecked={initial.digestEnabled} disabled={!canEdit} />
+          <span className="text-sm">Send a daily digest</span>
+        </label>
+        <label className="mt-4 block max-w-xs">
+          <span className="field-label">Hour</span>
+          <input className="field" type="time" name="digestHour" defaultValue={initial.digestHour} disabled={!canEdit} />
         </label>
       </section>
 

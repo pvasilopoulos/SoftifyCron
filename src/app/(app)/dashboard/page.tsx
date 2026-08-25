@@ -9,6 +9,7 @@ import { TimelineCard } from "@/components/timeline-card";
 import { getWorkerHeartbeat } from "@/lib/heartbeat";
 import { hasPermission } from "@/lib/acl";
 import { buildTimeline } from "@/lib/timeline";
+import { AckButton } from "@/components/ack-button";
 
 export const metadata = { title: "Overview" };
 
@@ -75,6 +76,10 @@ export default async function DashboardPage() {
     ]);
   const tz = tenant?.timezone ?? "UTC";
   const timeline = buildTimeline(timelineJobs, Boolean(tenant?.skipGreekHolidays));
+  const isAcked = (job: (typeof failing)[number]) =>
+    Boolean(job.ackedAt && (!job.lastRunAt || job.ackedAt >= job.lastRunAt));
+  const openFailing = failing.filter((job) => !isAcked(job));
+  const ackedFailing = failing.filter((job) => isAcked(job));
 
   const rate =
     runsToday === 0 ? "—" : `${Math.round((successesToday / runsToday) * 100)}%`;
@@ -118,7 +123,7 @@ export default async function DashboardPage() {
         ))}
       </section>
 
-      {failing.length > 0 ? (
+      {openFailing.length > 0 ? (
         <section className="card border-rose/30 p-6">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-2xl text-rose">Needs attention</h2>
@@ -127,7 +132,32 @@ export default async function DashboardPage() {
             </Link>
           </div>
           <div className="mt-5 space-y-4">
-            {failing.map((job) => (
+            {openFailing.map((job) => (
+              <div key={job.id} className="border-b border-line pb-4 last:border-0 last:pb-0">
+                <div className="flex min-w-0 items-center justify-between gap-3">
+                  <Link href={`/jobs/${job.id}`} className="min-w-0 truncate font-medium hover:text-gold">
+                    {job.name}
+                  </Link>
+                  <div className="flex items-center gap-2">
+                    {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
+                    <AckButton jobId={job.id} />
+                  </div>
+                </div>
+                <p className="mt-1 text-sm text-ink-dim">
+                  {job.consecutiveFailures} consecutive ·{" "}
+                  <RelativeTime value={job.lastRunAt} timeZone={job.timezone} />
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {ackedFailing.length > 0 ? (
+        <section className="card p-6">
+          <h2 className="font-display text-2xl">Acknowledged</h2>
+          <div className="mt-5 space-y-4">
+            {ackedFailing.map((job) => (
               <Link
                 key={job.id}
                 href={`/jobs/${job.id}`}
@@ -138,8 +168,8 @@ export default async function DashboardPage() {
                   {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
                 </div>
                 <p className="mt-1 text-sm text-ink-dim">
-                  {job.consecutiveFailures} consecutive ·{" "}
-                  <RelativeTime value={job.lastRunAt} timeZone={job.timezone} />
+                  Acked by {job.ackedBy ?? "someone"}
+                  {job.ackNote ? ` · ${job.ackNote}` : ""}
                 </p>
               </Link>
             ))}

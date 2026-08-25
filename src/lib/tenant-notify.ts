@@ -52,6 +52,14 @@ export type TenantNotifyInput = {
   escalateAfter?: number | string;
   statusPageEnabled?: boolean;
   statusPageSlug?: string;
+  maintEnabled?: boolean;
+  maintStartWd?: number | string;
+  maintStartHm?: string;
+  maintEndWd?: number | string;
+  maintEndHm?: string;
+  maintMuteOnly?: boolean;
+  digestEnabled?: boolean;
+  digestHour?: string;
 };
 
 export function smtpFromTenant(tenant: {
@@ -113,6 +121,14 @@ export function publicNotify(
     escalateAfter?: number;
     statusPageEnabled?: boolean;
     statusPageSlug?: string | null;
+    maintEnabled?: boolean;
+    maintStartWd?: number;
+    maintStartHm?: string;
+    maintEndWd?: number;
+    maintEndHm?: string;
+    maintMuteOnly?: boolean;
+    digestEnabled?: boolean;
+    digestHour?: string;
   },
   extra?: { signingSecret?: string },
 ) {
@@ -145,6 +161,14 @@ export function publicNotify(
     escalateAfter: tenant.escalateAfter ?? 3,
     statusPageEnabled: Boolean(tenant.statusPageEnabled),
     statusPageSlug: tenant.statusPageSlug ?? "",
+    maintEnabled: Boolean(tenant.maintEnabled),
+    maintStartWd: tenant.maintStartWd ?? 5,
+    maintStartHm: tenant.maintStartHm ?? "22:00",
+    maintEndWd: tenant.maintEndWd ?? 1,
+    maintEndHm: tenant.maintEndHm ?? "07:00",
+    maintMuteOnly: Boolean(tenant.maintMuteOnly),
+    digestEnabled: Boolean(tenant.digestEnabled),
+    digestHour: tenant.digestHour ?? "08:00",
     signingSecret: extra?.signingSecret,
   };
 }
@@ -254,6 +278,20 @@ export async function updateTenantNotify(tenantId: string, input: TenantNotifyIn
       if (!enabled) return existing.statusPageSlug;
       return slug || existing.slug;
     })(),
+    maintEnabled: input.maintEnabled ?? existing.maintEnabled,
+    maintStartWd:
+      input.maintStartWd == null
+        ? existing.maintStartWd
+        : Math.min(6, Math.max(0, Math.trunc(Number(input.maintStartWd) || 5))),
+    maintStartHm: clockOrEmpty(input.maintStartHm, existing.maintStartHm) || "22:00",
+    maintEndWd:
+      input.maintEndWd == null
+        ? existing.maintEndWd
+        : Math.min(6, Math.max(0, Math.trunc(Number(input.maintEndWd) || 1))),
+    maintEndHm: clockOrEmpty(input.maintEndHm, existing.maintEndHm) || "07:00",
+    maintMuteOnly: input.maintMuteOnly ?? existing.maintMuteOnly,
+    digestEnabled: input.digestEnabled ?? existing.digestEnabled,
+    digestHour: clockOrEmpty(input.digestHour, existing.digestHour) || "08:00",
   };
   if (input.smtpPass?.trim()) {
     data.smtpPassEnc = encryptSecret(input.smtpPass.trim());

@@ -4,6 +4,7 @@ import { deleteJob, getJobForTenant, toggleJob, updateJob } from "@/lib/jobs";
 import { jobInputSchema } from "@/lib/validators";
 import { jsonError, zodError } from "@/lib/http";
 import { hasPermission } from "@/lib/acl";
+import { writeAudit } from "@/lib/audit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -48,6 +49,12 @@ export async function PATCH(request: Request, { params }: Ctx) {
   if (!existing) return jsonError("Job not found", 404);
 
   const job = await toggleJob(session.tid, id, enabled);
+  await writeAudit({
+    tenantId: session.tid,
+    actorId: session.sub,
+    action: enabled ? "job.resume" : "job.pause",
+    target: id,
+  });
   return NextResponse.json({ job });
 }
 
@@ -58,5 +65,11 @@ export async function DELETE(_request: Request, { params }: Ctx) {
   const { id } = await params;
   const ok = await deleteJob(session.tid, id);
   if (!ok) return jsonError("Job not found", 404);
+  await writeAudit({
+    tenantId: session.tid,
+    actorId: session.sub,
+    action: "job.delete",
+    target: id,
+  });
   return NextResponse.json({ ok: true });
 }

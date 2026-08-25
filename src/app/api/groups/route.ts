@@ -4,6 +4,7 @@ import { createGroup, deleteGroup, listGroups, updateGroup } from "@/lib/groups"
 import { groupInputSchema } from "@/lib/validators";
 import { jsonError, zodError } from "@/lib/http";
 import { hasPermission } from "@/lib/acl";
+import { writeAudit } from "@/lib/audit";
 
 export async function GET() {
   const session = await getTenantSession();
@@ -33,6 +34,12 @@ export async function PUT(request: Request) {
   if (!id || !parsed.success) return jsonError("Invalid group");
   const group = await updateGroup(session.tid, id, parsed.data);
   if (!group) return jsonError("Group not found", 404);
+  await writeAudit({
+    tenantId: session.tid,
+    actorId: session.sub,
+    action: "group.update",
+    target: group.id,
+  });
   return NextResponse.json({ group });
 }
 

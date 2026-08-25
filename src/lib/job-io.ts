@@ -46,6 +46,7 @@ export async function exportJobs(tenantId: string) {
       skipWeekends: job.skipWeekends,
       activeHoursStart: job.activeHoursStart,
       activeHoursEnd: job.activeHoursEnd,
+      notes: job.notes,
       enabled: false,
     })),
   };

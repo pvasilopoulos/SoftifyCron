@@ -6,6 +6,7 @@ import { StatusPill } from "@/components/status-pill";
 import { RelativeTime } from "@/components/relative-time";
 import { formatAbsolute, formatDuration } from "@/lib/format";
 import { hasPermission } from "@/lib/acl";
+import { RunCommentForm } from "@/components/run-comment";
 
 export const metadata = { title: "Run" };
 
@@ -63,6 +64,8 @@ export default async function RunDetailPage({
           </div>
         </dl>
         {run.error ? <p className="mt-6 text-sm text-rose">{run.error}</p> : null}
+        {run.comment ? <p className="mt-4 rounded-2xl bg-bg-mute px-3 py-2 text-sm">{run.comment}</p> : null}
+        <RunCommentForm runId={run.id} initial={run.comment ?? ""} />
         {run.responseBody ? (
           <pre className="mono mt-6 overflow-x-auto rounded-2xl bg-bg p-4 text-xs">
             {run.responseBody}

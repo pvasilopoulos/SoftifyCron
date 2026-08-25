@@ -5,6 +5,7 @@ import { requireTenantSession } from "@/lib/session";
 import { createJob, updateJob } from "@/lib/jobs";
 import { jobInputSchema } from "@/lib/validators";
 import { hasPermission } from "@/lib/acl";
+import { writeAudit } from "@/lib/audit";
 
 function readHeaders(raw: string) {
   const trimmed = raw.trim();
@@ -73,6 +74,7 @@ export async function saveJobAction(
     skipWeekends: formData.get("skipWeekends") === "on",
     activeHoursStart: String(formData.get("activeHoursStart") ?? ""),
     activeHoursEnd: String(formData.get("activeHoursEnd") ?? ""),
+    notes: String(formData.get("notes") ?? ""),
   });
   if (!parsed.success) {
     return {
@@ -86,6 +88,13 @@ export async function saveJobAction(
     job = jobId
       ? await updateJob(session.tid, jobId, parsed.data)
       : await createJob(session.tid, parsed.data);
+    await writeAudit({
+      tenantId: session.tid,
+      actorId: session.sub,
+      action: jobId ? "job.update" : "job.create",
+      target: job?.id,
+      meta: { name: parsed.data.name },
+    });
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Could not save job" };
   }

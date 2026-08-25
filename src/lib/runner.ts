@@ -10,6 +10,8 @@ import { fitMysqlLongText, readBodyBytes } from "@/lib/response-body";
 import { checkAssertions } from "@/lib/assert-response";
 import { isOverdueSlot, nextAllowedFire, scheduleBlockReason } from "@/lib/schedule-policy";
 import { pruneJobHistory, tenantRunningCount } from "@/lib/retention";
+import { maintAction, maintFromRow } from "@/lib/maintenance";
+import { applyEventMutes } from "@/lib/event-mutes";
 
 function needsResponseBody(job: CronJob) {
   return Boolean(job.assertContains?.trim() || job.assertJsonPath?.trim() || job.keepResponse);
@@ -92,13 +94,37 @@ async function performRequest(job: CronJob) {
   };
 }
 
+export async function previewJob(job: CronJob) {
+  const started = Date.now();
+  try {
+    const result = await performRequest({ ...job, keepResponse: true });
+    return {
+      ok: result.ok,
+      httpStatus: result.httpStatus,
+      responseBody: (result.responseBody ?? "").slice(0, 20_000),
+      encoding: result.encoding,
+      durationMs: Date.now() - started,
+      error: result.ok ? null : `HTTP ${result.httpStatus}`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      httpStatus: null as number | null,
+      responseBody: null as string | null,
+      encoding: null as string | null,
+      durationMs: Date.now() - started,
+      error: err instanceof Error ? err.message : "Preview failed",
+    };
+  }
+}
+
 export async function executeJobById(jobId: string, trigger: RunTrigger) {
   const job = await prisma.cronJob.findUnique({ where: { id: jobId } });
   if (!job) return null;
   return executeJob(job, trigger);
 }
 
-export async function executeJob(job: CronJob, trigger: RunTrigger) {
+export async function executeJob(job: CronJob, trigger: RunTrigger, opts?: { muteNotify?: boolean }) {
   const startedAt = new Date();
   const run = await prisma.jobRun.create({
     data: {
@@ -224,11 +250,21 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
       enabled: stillArmed,
       nextRunAt,
       lockedUntil: null,
+      ...(status === "SUCCESS" ? { ackedAt: null, ackedBy: null, ackNote: null } : {}),
       ...(status === "SUCCESS" && job.type === "HEARTBEAT" ? { lastHeartbeatAt: finishedAt } : {}),
     },
   });
 
   if (!shouldRetry) {
+    const rawEvents = eventsForRun({
+      status,
+      previousFailures: job.consecutiveFailures,
+      paused: autoPause,
+      lateMs,
+      slow,
+      escalate,
+    });
+    const events = applyEventMutes(rawEvents, job.eventMutes);
     await notifyJob(
       {
         ...job,
@@ -242,14 +278,8 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
       {
         runId: run.id,
         lateMs,
-        events: eventsForRun({
-          status,
-          previousFailures: job.consecutiveFailures,
-          paused: autoPause,
-          lateMs,
-          slow,
-          escalate,
-        }),
+        events,
+        silent: Boolean(opts?.muteNotify),
       },
     );
   }
@@ -294,6 +324,7 @@ export async function claimAndRunDueJobs(limit = 25) {
         nextRunAt: { lte: now },
         OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }],
       },
+      include: { group: true },
       orderBy: { nextRunAt: "asc" },
       take: limit,
     });
@@ -305,13 +336,14 @@ export async function claimAndRunDueJobs(limit = 25) {
     for (const job of due) {
       const tenant = tenantById.get(job.tenantId);
       const holidays = Boolean(tenant?.skipGreekHolidays);
-      const blocked = scheduleBlockReason(job, holidays, now);
+      const maint = maintAction(now, job.timezone, maintFromRow(tenant), maintFromRow(job.group));
+      const blocked = scheduleBlockReason({ ...job, maintSkip: maint.skip }, holidays, now);
       const skipOverdue = tenant && !tenant.catchUpMissed && isOverdueSlot(job.cronExpr, job.timezone, job.nextRunAt, now);
       if (blocked || skipOverdue) {
         await prisma.cronJob.updateMany({
           where: { id: job.id, nextRunAt: job.nextRunAt },
           data: {
-            nextRunAt: nextAllowedFire(job.cronExpr, job, holidays, now),
+            nextRunAt: nextAllowedFire(job.cronExpr, { ...job, maintSkip: maint.skip }, holidays, now),
             lockedUntil: null,
           },
         });
@@ -348,7 +380,7 @@ export async function claimAndRunDueJobs(limit = 25) {
       });
       if (claimed.count !== 1) continue;
       const isRetry = job.consecutiveFailures > 0;
-      await executeJob(job, isRetry ? "RETRY" : "SCHEDULE");
+      await executeJob(job, isRetry ? "RETRY" : "SCHEDULE", { muteNotify: maint.mute });
       ran += 1;
     }
     return ran;

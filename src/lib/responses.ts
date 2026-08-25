@@ -10,6 +10,7 @@ export async function listResponseBoardJobs(tenantId: string) {
       timezone: true,
       lastStatus: true,
       lastRunAt: true,
+      gridViews: true,
     },
     orderBy: { name: "asc" },
   });

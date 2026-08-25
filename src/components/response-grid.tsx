@@ -19,6 +19,9 @@ import {
   type SortState,
 } from "@/lib/response-grid";
 import { diffGrids } from "@/lib/grid-diff";
+import { jsonLineDiff, prettyJsonText } from "@/lib/json-diff";
+import { parseGridViews, type GridView } from "@/lib/grid-views";
+import { deleteJobViewRequest, saveJobViewRequest } from "@/lib/job-client";
 
 type Panel = "columns" | "filters" | "view" | null;
 type Prefs = {
@@ -61,14 +64,6 @@ function parsePrefs(raw: string): Prefs {
   }
 }
 
-function prettyJson(raw: string) {
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2);
-  } catch {
-    return raw;
-  }
-}
-
 function download(name: string, text: string, type: string) {
   const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
@@ -84,11 +79,15 @@ export function ResponseGridView({
   raw,
   previousRaw,
   storageKey = "response",
+  jobId,
+  savedViews,
 }: {
   grid: ResponseGrid;
   raw?: string | null;
   previousRaw?: string | null;
   storageKey?: string;
+  jobId?: string;
+  savedViews?: unknown;
 }) {
   const datasets = useMemo(
     () => (raw ? parseResponseDatasets(raw) : [{ id: "grid", name: grid.title || "Grid", grid }]),
@@ -106,6 +105,11 @@ export function ResponseGridView({
   const [page, setPage] = useState(1);
   const [diffOn, setDiffOn] = useState(Boolean(previousRaw));
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
+  const [views, setViews] = useState<GridView[]>(() => parseGridViews(savedViews));
+  const jsonDiff = useMemo(
+    () => (raw && previousRaw && diffOn ? jsonLineDiff(raw, previousRaw) : null),
+    [raw, previousRaw, diffOn],
+  );
   const previousGrid = useMemo(() => {
     if (!previousRaw) return null;
     const prevSets = parseResponseDatasets(previousRaw);
@@ -203,6 +207,50 @@ export function ResponseGridView({
   }
 
   const selectedRows = view.rows.filter((_, index) => selected.has(index));
+
+  function applyView(item: GridView) {
+    patchPrefs({
+      visible: item.visible,
+      freeze: item.freeze,
+      compact: item.compact,
+      wrap: item.wrap,
+      pageSize: item.pageSize,
+    });
+    toast(`View “${item.name}” applied`);
+    setPanel(null);
+  }
+
+  async function saveCurrentView() {
+    if (!jobId) return;
+    const name = prompt("Name this view")?.trim();
+    if (!name) return;
+    try {
+      const data = await saveJobViewRequest(jobId, {
+        name,
+        visible,
+        freeze: prefs.freeze,
+        compact: prefs.compact,
+        wrap: prefs.wrap,
+        pageSize: prefs.pageSize,
+      });
+      setViews(parseGridViews(data.job?.gridViews));
+      toast("View saved");
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Could not save view", "err");
+    }
+  }
+
+  async function removeView(item: GridView) {
+    if (!jobId) return;
+    if (!confirm(`Delete view “${item.name}”?`)) return;
+    try {
+      const data = await deleteJobViewRequest(jobId, item.id);
+      setViews(parseGridViews(data.job?.gridViews));
+      toast("View deleted");
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Could not delete view", "err");
+    }
+  }
 
   return (
     <div className="grid-shell" ref={root}>
@@ -458,6 +506,27 @@ export function ResponseGridView({
             />
             Wrap cells
           </label>
+          {jobId ? (
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.14em] text-ink-dim">Saved views</p>
+              {views.length === 0 ? <p className="text-sm text-ink-dim">None yet for this job.</p> : null}
+              <ul className="space-y-2">
+                {views.map((item) => (
+                  <li key={item.id} className="flex flex-wrap items-center gap-2">
+                    <button className="btn btn-ghost btn-sm" type="button" onClick={() => applyView(item)}>
+                      {item.name}
+                    </button>
+                    <button className="text-xs text-rose" type="button" onClick={() => removeView(item)}>
+                      Delete
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <button className="btn btn-gold btn-sm" type="button" onClick={saveCurrentView}>
+                Save current view
+              </button>
+            </div>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <button
               className="btn btn-ghost btn-sm"
@@ -497,7 +566,34 @@ export function ResponseGridView({
       ) : null}
 
       {mode === "json" && raw ? (
-        <pre className="grid-code">{prettyJson(raw)}</pre>
+        jsonDiff ? (
+          <div className="grid-json-split">
+            <div>
+              <p className="grid-json-label">Previous</p>
+              <pre className="grid-code">
+                {jsonDiff.map((row, index) => (
+                  <span key={`l-${index}`} className={`grid-json-line is-${row.kind}`}>
+                    {row.left || " "}
+                    {"\n"}
+                  </span>
+                ))}
+              </pre>
+            </div>
+            <div>
+              <p className="grid-json-label">Current</p>
+              <pre className="grid-code">
+                {jsonDiff.map((row, index) => (
+                  <span key={`r-${index}`} className={`grid-json-line is-${row.kind}`}>
+                    {row.right || " "}
+                    {"\n"}
+                  </span>
+                ))}
+              </pre>
+            </div>
+          </div>
+        ) : (
+          <pre className="grid-code">{prettyJsonText(raw)}</pre>
+        )
       ) : mode === "raw" && raw ? (
         <pre className="grid-code">{raw}</pre>
       ) : view.columns.length === 0 ? (

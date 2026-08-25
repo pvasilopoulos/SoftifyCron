@@ -3,6 +3,7 @@ import { getTenantSession } from "@/lib/session";
 import { snoozeJob } from "@/lib/jobs";
 import { jsonError } from "@/lib/http";
 import { hasPermission } from "@/lib/acl";
+import { writeAudit } from "@/lib/audit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -19,6 +20,13 @@ export async function POST(request: Request, { params }: Ctx) {
   try {
     const job = await snoozeJob(session.tid, id, hours || null);
     if (!job) return jsonError("Job not found", 404);
+    await writeAudit({
+      tenantId: session.tid,
+      actorId: session.sub,
+      action: hours ? "job.snooze" : "job.unsnooze",
+      target: id,
+      meta: { hours },
+    });
     return NextResponse.json({ job });
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : "Could not snooze job", 400);

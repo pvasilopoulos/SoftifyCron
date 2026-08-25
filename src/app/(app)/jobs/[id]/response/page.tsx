@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
-import { getJobForTenant, getLatestRun } from "@/lib/jobs";
+import { getJobForTenant } from "@/lib/jobs";
 import { formatAbsolute, formatDuration } from "@/lib/format";
 import { StatusPill } from "@/components/status-pill";
 import { ResponseGridView } from "@/components/response-grid";
 import { parseResponseGrid } from "@/lib/response-grid";
+import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Last response" };
 
@@ -18,7 +19,13 @@ export default async function JobResponsePage({
   const { id } = await params;
   const job = await getJobForTenant(session.tid, id);
   if (!job) notFound();
-  const run = await getLatestRun(session.tid, job.id);
+  const runs = await prisma.jobRun.findMany({
+    where: { tenantId: session.tid, jobId: job.id },
+    orderBy: { startedAt: "desc" },
+    take: 2,
+  });
+  const run = runs[0] ?? null;
+  const previousRaw = runs[1]?.responseBody ?? null;
   const grid = parseResponseGrid(run?.responseBody);
 
   return (
@@ -68,7 +75,10 @@ export default async function JobResponsePage({
               <ResponseGridView
                 grid={grid}
                 raw={run.responseBody}
+                previousRaw={previousRaw}
                 storageKey={`job-${job.id}`}
+                jobId={job.id}
+                savedViews={job.gridViews}
               />
             ) : (
               <p className="text-sm text-ink-dim">

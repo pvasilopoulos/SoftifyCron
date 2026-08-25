@@ -2,11 +2,18 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { WEEKDAYS } from "@/lib/maintenance";
 
 type Group = {
   id: string;
   name: string;
   color: string;
+  maintEnabled: boolean;
+  maintStartWd: number;
+  maintStartHm: string;
+  maintEndWd: number;
+  maintEndHm: string;
+  maintMuteOnly: boolean;
   _count: { jobs: number };
 };
 type Secret = { id: string; name: string; key: string; createdAt: Date | string };
@@ -40,6 +47,31 @@ export function WorkspacePanels({
     });
     if (response.ok) {
       form.reset();
+      refresh();
+    }
+  }
+
+  async function saveGroupMaint(event: React.FormEvent<HTMLFormElement>, group: Group) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = Object.fromEntries(new FormData(form).entries());
+    const response = await fetch("/api/groups", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id: group.id,
+        name: group.name,
+        color: group.color,
+        maintEnabled: data.maintEnabled === "on",
+        maintMuteOnly: data.maintMuteOnly === "on",
+        maintStartWd: data.maintStartWd,
+        maintStartHm: data.maintStartHm,
+        maintEndWd: data.maintEndWd,
+        maintEndHm: data.maintEndHm,
+      }),
+    });
+    if (response.ok) {
+      setMessage("Group window saved");
       refresh();
     }
   }
@@ -82,23 +114,75 @@ export function WorkspacePanels({
         <p className="mt-1 text-sm text-ink-dim">Folders for ops, billing, and integrations.</p>
         <ul className="mt-5 space-y-3">
           {groups.map((group) => (
-            <li key={group.id} className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <span
-                  className="h-3 w-3 rounded-full"
-                  style={{ background: group.color }}
-                />
-                <span>{group.name}</span>
-                <span className="text-xs text-ink-dim">{group._count.jobs}</span>
+            <li key={group.id} className="space-y-3 rounded-2xl border border-line p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span
+                    className="h-3 w-3 rounded-full"
+                    style={{ background: group.color }}
+                  />
+                  <span>{group.name}</span>
+                  <span className="text-xs text-ink-dim">{group._count.jobs}</span>
+                  {group.maintEnabled ? (
+                    <span className="text-xs text-gold-2">
+                      {WEEKDAYS[group.maintStartWd]} {group.maintStartHm} → {WEEKDAYS[group.maintEndWd]}{" "}
+                      {group.maintEndHm}
+                      {group.maintMuteOnly ? " · mute" : " · skip"}
+                    </span>
+                  ) : null}
+                </div>
+                {canManage ? (
+                  <button
+                    className="text-xs text-rose"
+                    type="button"
+                    onClick={() => removeGroup(group.id)}
+                  >
+                    Delete
+                  </button>
+                ) : null}
               </div>
               {canManage ? (
-                <button
-                  className="text-xs text-rose"
-                  type="button"
-                  onClick={() => removeGroup(group.id)}
-                >
-                  Delete
-                </button>
+                <form className="grid gap-3 sm:grid-cols-2" onSubmit={(event) => saveGroupMaint(event, group)}>
+                  <label className="flex min-h-10 items-center gap-2 text-sm sm:col-span-2">
+                    <input type="checkbox" name="maintEnabled" defaultChecked={group.maintEnabled} />
+                    Group maintenance window
+                  </label>
+                  <label className="flex min-h-10 items-center gap-2 text-sm sm:col-span-2">
+                    <input type="checkbox" name="maintMuteOnly" defaultChecked={group.maintMuteOnly} />
+                    Run jobs, only mute alerts
+                  </label>
+                  <label className="block">
+                    <span className="field-label">From</span>
+                    <select className="field" name="maintStartWd" defaultValue={String(group.maintStartWd)}>
+                      {WEEKDAYS.map((day, index) => (
+                        <option key={day} value={index}>
+                          {day}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="field-label">From time</span>
+                    <input className="field" type="time" name="maintStartHm" defaultValue={group.maintStartHm} />
+                  </label>
+                  <label className="block">
+                    <span className="field-label">Until</span>
+                    <select className="field" name="maintEndWd" defaultValue={String(group.maintEndWd)}>
+                      {WEEKDAYS.map((day, index) => (
+                        <option key={day} value={index}>
+                          {day}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="field-label">Until time</span>
+                    <input className="field" type="time" name="maintEndHm" defaultValue={group.maintEndHm} />
+                  </label>
+                  <button className="btn btn-ghost sm:col-span-2" type="submit">
+                    Save window
+                  </button>
+                </form>
               ) : null}
             </li>
           ))}

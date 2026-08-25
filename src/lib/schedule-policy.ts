@@ -9,6 +9,7 @@ export type ScheduleJob = {
   activeHoursStart?: string | null;
   activeHoursEnd?: string | null;
   snoozeUntil?: Date | string | null;
+  maintSkip?: boolean;
 };
 
 export function inActiveHours(at: Date, timeZone: string, start: string, end: string) {
@@ -29,6 +30,7 @@ export function scheduleBlockReason(
   if (job.snoozeUntil && new Date(job.snoozeUntil).getTime() > at.getTime()) {
     return "snoozed";
   }
+  if (job.maintSkip) return "maintenance";
   const iso = localIsoDate(at, job.timezone);
   if ((job.skipHolidays || tenantHolidays) && isGreekHoliday(iso)) return "holiday";
   if (job.skipWeekends) {
@@ -60,7 +62,7 @@ export function nextAllowedFire(
       cursor = new Date(Math.max(new Date(job.snoozeUntil).getTime(), next.getTime()));
       continue;
     }
-    if (reason === "weekend" || reason === "holiday") {
+    if (reason === "weekend" || reason === "holiday" || reason === "maintenance") {
       cursor = new Date(next.getTime() + 18 * 3_600_000);
       continue;
     }

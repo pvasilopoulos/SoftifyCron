@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Logo } from "@/components/logo";
 import { StatusPill } from "@/components/status-pill";
 import { formatAbsolute, formatDateTime } from "@/lib/format";
+import { jobStatusStats, statusStats } from "@/lib/status-stats";
 
 export const revalidate = 30;
 
@@ -49,6 +50,10 @@ export default async function PublicStatusPage({
     job.lastStatus === "FAILED" || job.lastStatus === "TIMEOUT" || job.lastStatus === "BLOCKED",
   ).length;
   const healthy = jobs.filter((job) => job.lastStatus === "SUCCESS").length;
+  const [stats, perJob] = await Promise.all([
+    statusStats(tenant.id),
+    jobStatusStats(tenant.id, jobs.map((job) => job.id)),
+  ]);
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
@@ -59,7 +64,14 @@ export default async function PublicStatusPage({
       <h1 className="mt-8 font-display text-4xl">{tenant.name}</h1>
       <p className="mt-2 text-ink-dim">
         {jobs.length} jobs · {healthy} healthy · {failing} need attention
+        {stats.uptime != null ? ` · ${stats.days}d uptime ${stats.uptime}%` : ""}
       </p>
+      {stats.lastOutage ? (
+        <p className="mt-2 text-sm text-ink-dim">
+          Last outage: {stats.lastOutage.job.name} · {stats.lastOutage.status.toLowerCase()} ·{" "}
+          {formatDateTime(stats.lastOutage.startedAt, tenant.timezone)}
+        </p>
+      ) : null}
       <ul className="mt-8 space-y-3">
         {jobs.length === 0 ? (
           <li className="card p-6 text-ink-dim">No jobs in this workspace yet.</li>
@@ -71,6 +83,7 @@ export default async function PublicStatusPage({
                   <p className="truncate font-medium">{job.name}</p>
                   <p className="mt-1 text-xs text-ink-dim">
                     {job.enabled ? "armed" : "paused"} · {job.type.toLowerCase()}
+                    {perJob.get(job.id)?.uptime != null ? ` · ${stats.days}d ${perJob.get(job.id)?.uptime}%` : ""}
                   </p>
                 </div>
                 {job.lastStatus ? <StatusPill status={job.lastStatus} /> : (

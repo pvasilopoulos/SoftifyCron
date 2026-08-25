@@ -74,7 +74,16 @@ export async function resolveGroupId(
 export async function updateGroup(
   tenantId: string,
   id: string,
-  input: { name: string; color?: string },
+  input: {
+    name: string;
+    color?: string;
+    maintEnabled?: boolean;
+    maintStartWd?: number | string;
+    maintStartHm?: string;
+    maintEndWd?: number | string;
+    maintEndHm?: string;
+    maintMuteOnly?: boolean;
+  },
 ) {
   const group = await prisma.jobGroup.findFirst({ where: { id, tenantId } });
   if (!group) return null;
@@ -83,6 +92,18 @@ export async function updateGroup(
     data: {
       name: input.name.trim(),
       color: input.color ? resolveColor(input.color) : group.color,
+      maintEnabled: input.maintEnabled ?? group.maintEnabled,
+      maintStartWd:
+        input.maintStartWd == null
+          ? group.maintStartWd
+          : Math.min(6, Math.max(0, Math.trunc(Number(input.maintStartWd) || 5))),
+      maintStartHm: input.maintStartHm?.trim() || group.maintStartHm,
+      maintEndWd:
+        input.maintEndWd == null
+          ? group.maintEndWd
+          : Math.min(6, Math.max(0, Math.trunc(Number(input.maintEndWd) || 1))),
+      maintEndHm: input.maintEndHm?.trim() || group.maintEndHm,
+      maintMuteOnly: input.maintMuteOnly ?? group.maintMuteOnly,
     },
   });
 }

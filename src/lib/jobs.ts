@@ -4,8 +4,14 @@ import { assertSafeUrl } from "@/lib/ssrf";
 import { resolveGroupId } from "@/lib/groups";
 import { tenantNotifyDefaults } from "@/lib/tenant-notify";
 import { nextAllowedFire } from "@/lib/schedule-policy";
+import { setEventMute } from "@/lib/event-mutes";
+import { NOTIFY_EVENTS } from "@/lib/notify-events";
+import { parseGridViews, type GridView } from "@/lib/grid-views";
 import type { JobInput } from "@/lib/validators";
 import type { JobType, Prisma, RunStatus } from "@prisma/client";
+
+export type { GridView };
+export { parseGridViews };
 
 async function resolvePeerJobId(
   tenantId: string,
@@ -93,6 +99,7 @@ export async function createJob(tenantId: string, input: JobInput) {
       skipWeekends: data.skipWeekends,
       activeHoursStart: data.activeHoursStart ?? "",
       activeHoursEnd: data.activeHoursEnd ?? "",
+      notes: data.notes?.trim() || null,
     },
   });
 }
@@ -150,6 +157,7 @@ export async function updateJob(tenantId: string, jobId: string, input: JobInput
       skipWeekends: data.skipWeekends,
       activeHoursStart: data.activeHoursStart ?? "",
       activeHoursEnd: data.activeHoursEnd ?? "",
+      notes: data.notes?.trim() || null,
       enabled: data.enabled,
       nextRunAt,
       lockedUntil: data.enabled ? existing.lockedUntil : null,
@@ -261,6 +269,7 @@ export async function duplicateJob(tenantId: string, jobId: string) {
       skipWeekends: job.skipWeekends,
       activeHoursStart: job.activeHoursStart,
       activeHoursEnd: job.activeHoursEnd,
+      notes: job.notes,
       nextRunAt: null,
     },
   });
@@ -326,6 +335,69 @@ export async function snoozeJob(tenantId: string, jobId: string, hours: number |
         ? nextAllowedFire(job.cronExpr, { ...job, snoozeUntil }, Boolean(tenant?.skipGreekHolidays))
         : null,
     },
+  });
+}
+
+export async function ackJob(
+  tenantId: string,
+  jobId: string,
+  actor: { name: string; email: string },
+  note: string,
+) {
+  const job = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
+  if (!job) return null;
+  return prisma.cronJob.update({
+    where: { id: jobId },
+    data: {
+      ackedAt: new Date(),
+      ackedBy: `${actor.name} <${actor.email}>`.slice(0, 190),
+      ackNote: note.trim().slice(0, 500) || null,
+    },
+  });
+}
+
+export async function muteJobEvent(tenantId: string, jobId: string, event: string, hours: number) {
+  const job = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
+  if (!job) return null;
+  if (!NOTIFY_EVENTS.includes(event as (typeof NOTIFY_EVENTS)[number])) {
+    throw new Error("Unknown event");
+  }
+  const eventMutes = setEventMute(job.eventMutes, event as (typeof NOTIFY_EVENTS)[number], hours);
+  return prisma.cronJob.update({
+    where: { id: jobId },
+    data: { eventMutes: eventMutes as Prisma.InputJsonValue },
+  });
+}
+
+export async function commentRun(tenantId: string, runId: string, comment: string) {
+  const run = await prisma.jobRun.findFirst({ where: { id: runId, tenantId } });
+  if (!run) return null;
+  return prisma.jobRun.update({
+    where: { id: runId },
+    data: { comment: comment.trim().slice(0, 500) || null },
+  });
+}
+
+export async function saveJobGridView(tenantId: string, jobId: string, view: Omit<GridView, "id">) {
+  const job = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
+  if (!job) return null;
+  const views = parseGridViews(job.gridViews);
+  const next: GridView = { ...view, id: `v_${Date.now().toString(36)}`, name: view.name.trim().slice(0, 40) };
+  if (!next.name) throw new Error("Name the view");
+  const saved = [...views.filter((item) => item.name !== next.name), next].slice(-12);
+  return prisma.cronJob.update({
+    where: { id: jobId },
+    data: { gridViews: saved as Prisma.InputJsonValue },
+  });
+}
+
+export async function deleteJobGridView(tenantId: string, jobId: string, viewId: string) {
+  const job = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
+  if (!job) return null;
+  const views = parseGridViews(job.gridViews).filter((item) => item.id !== viewId);
+  return prisma.cronJob.update({
+    where: { id: jobId },
+    data: { gridViews: views as Prisma.InputJsonValue },
   });
 }
 

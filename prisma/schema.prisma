@@ -80,6 +80,15 @@ model Tenant {
   escalateAfter            Int              @default(3)
   statusPageEnabled        Boolean          @default(false)
   statusPageSlug           String?          @unique
+  maintEnabled             Boolean          @default(false)
+  maintStartWd             Int              @default(5)
+  maintStartHm             String           @default("22:00") @db.VarChar(5)
+  maintEndWd               Int              @default(1)
+  maintEndHm               String           @default("07:00") @db.VarChar(5)
+  maintMuteOnly            Boolean          @default(false)
+  digestEnabled            Boolean          @default(false)
+  digestHour               String           @default("08:00") @db.VarChar(5)
+  digestLastDate           String           @default("") @db.VarChar(10)
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
   memberships              Membership[]
@@ -151,8 +160,14 @@ model JobGroup {
   tenantId  String
   name      String
   slug      String
-  color     String    @default("#7dffce")
-  createdAt DateTime  @default(now())
+  color          String    @default("#7dffce")
+  maintEnabled   Boolean   @default(false)
+  maintStartWd   Int       @default(5)
+  maintStartHm   String    @default("22:00") @db.VarChar(5)
+  maintEndWd     Int       @default(1)
+  maintEndHm     String    @default("07:00") @db.VarChar(5)
+  maintMuteOnly  Boolean   @default(false)
+  createdAt      DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   jobs      CronJob[]
@@ -199,6 +214,12 @@ model CronJob {
   skipWeekends         Boolean    @default(false)
   activeHoursStart     String     @default("") @db.VarChar(5)
   activeHoursEnd       String     @default("") @db.VarChar(5)
+  notes                String?    @db.Text
+  ackedAt              DateTime?
+  ackedBy              String?    @db.VarChar(190)
+  ackNote              String?    @db.VarChar(500)
+  eventMutes           Json?
+  gridViews            Json?
   consecutiveFailures  Int        @default(0)
   lastStatus           RunStatus?
   lastRunAt            DateTime?
@@ -231,6 +252,7 @@ model JobRun {
   responseBody    String?    @db.LongText
   responseCharset String?    @db.VarChar(40)
   error        String?    @db.Text
+  comment      String?    @db.VarChar(500)
   job          CronJob    @relation(fields: [jobId], references: [id], onDelete: Cascade)
   tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 

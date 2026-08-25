@@ -70,6 +70,15 @@ export default async function JobDetailPage({
           <p className="mt-2 max-w-2xl text-ink-dim">
             {job.description || describeCron(job.cronExpr)}
           </p>
+          {job.notes ? (
+            <p className="mt-3 max-w-2xl rounded-2xl bg-bg-mute px-3 py-2 text-sm">{job.notes}</p>
+          ) : null}
+          {job.ackedAt && job.lastStatus && job.lastStatus !== "SUCCESS" && (!job.lastRunAt || job.ackedAt >= job.lastRunAt) ? (
+            <p className="mt-3 text-sm text-ink-dim">
+              Acknowledged by {job.ackedBy ?? "someone"}
+              {job.ackNote ? ` · ${job.ackNote}` : ""}
+            </p>
+          ) : null}
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <span
               className="rounded-full px-2.5 py-1"
@@ -118,6 +127,7 @@ export default async function JobDetailPage({
             keepResponse={job.keepResponse}
             responseBoard={job.responseBoard}
             curl={buildCurl(job)}
+            lastStatus={job.lastStatus}
           />
         </div>
       </div>
@@ -312,6 +322,7 @@ export default async function JobDetailPage({
                   <p className="mt-1 text-sm">
                     HTTP {run.httpStatus ?? "—"} · {formatDuration(run.durationMs)}
                   </p>
+                  {run.comment ? <p className="mt-2 text-xs text-ink-dim">{run.comment}</p> : null}
                 </Link>
               ))}
             </div>
@@ -324,6 +335,7 @@ export default async function JobDetailPage({
                     <th className="px-6 py-3 font-medium">Status</th>
                     <th className="px-6 py-3 font-medium">HTTP</th>
                     <th className="px-6 py-3 font-medium">Duration</th>
+                    <th className="px-6 py-3 font-medium">Note</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -345,6 +357,7 @@ export default async function JobDetailPage({
                       </td>
                       <td className="px-6 py-3 mono">{run.httpStatus ?? "—"}</td>
                       <td className="px-6 py-3">{formatDuration(run.durationMs)}</td>
+                      <td className="px-6 py-3 text-xs text-ink-dim">{run.comment ?? "—"}</td>
                     </tr>
                   ))}
                 </tbody>

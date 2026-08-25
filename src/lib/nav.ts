@@ -5,6 +5,7 @@ export type NavId =
   | "jobs"
   | "runs"
   | "responses"
+  | "audit"
   | "people"
   | "roles"
   | "settings";
@@ -25,6 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "jobs", href: "/jobs", label: "Jobs", group: "workspace" },
   { id: "runs", href: "/runs", label: "Runs", group: "workspace" },
   { id: "responses", href: "/responses", label: "Responses", group: "workspace" },
+  { id: "audit", href: "/audit", label: "Audit", group: "workspace" },
   { id: "people", href: "/settings#people", label: "People", group: "team" },
   { id: "roles", href: "/settings#roles", label: "Roles", group: "team" },
   { id: "settings", href: "/settings#workspace", label: "Settings", group: "account" },

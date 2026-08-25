@@ -47,6 +47,7 @@ export type ResponseJobTab = {
   name: string;
   timezone: string;
   lastStatus: string | null;
+  gridViews?: unknown;
 };
 
 export function ResponsesBoard({
@@ -261,6 +262,8 @@ export function ResponsesBoard({
               raw={selectedRun?.responseBody}
               previousRaw={previousRun?.responseBody}
               storageKey={selectedId ?? "responses"}
+              jobId={selectedId ?? undefined}
+              savedViews={tabs.find((tab) => tab.id === selectedId)?.gridViews}
             />
           </div>
         </div>

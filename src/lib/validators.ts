@@ -52,6 +52,14 @@ export const tenantNotifySchema = z.object({
   escalateAfter: z.union([z.number(), z.string()]).optional(),
   statusPageEnabled: z.boolean().optional(),
   statusPageSlug: z.string().max(80).optional(),
+  maintEnabled: z.boolean().optional(),
+  maintStartWd: z.union([z.number(), z.string()]).optional(),
+  maintStartHm: z.string().max(5).optional(),
+  maintEndWd: z.union([z.number(), z.string()]).optional(),
+  maintEndHm: z.string().max(5).optional(),
+  maintMuteOnly: z.boolean().optional(),
+  digestEnabled: z.boolean().optional(),
+  digestHour: z.string().max(5).optional(),
 });
 
 export const notifyTestSchema = z.object({
@@ -133,11 +141,18 @@ export const jobInputSchema = z.object({
   skipWeekends: z.boolean().default(false),
   activeHoursStart: z.string().max(5).optional().default(""),
   activeHoursEnd: z.string().max(5).optional().default(""),
+  notes: z.string().max(4000).optional().default(""),
 });
 
 export const groupInputSchema = z.object({
   name: z.string().trim().min(1).max(60),
   color: z.string().optional(),
+  maintEnabled: z.boolean().optional(),
+  maintStartWd: z.union([z.number(), z.string()]).optional(),
+  maintStartHm: z.string().max(5).optional(),
+  maintEndWd: z.union([z.number(), z.string()]).optional(),
+  maintEndHm: z.string().max(5).optional(),
+  maintMuteOnly: z.boolean().optional(),
 });
 
 export const secretInputSchema = z.object({

@@ -4,9 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
 import {
+  ackJobRequest,
   confirmDeleteJob,
   deleteJobRequest,
   duplicateJobRequest,
+  muteJobRequest,
+  previewJobRequest,
   runJobRequest,
   skipJobRequest,
   snoozeJobRequest,
@@ -23,6 +26,7 @@ export function JobActions({
   keepResponse,
   responseBoard = false,
   curl,
+  lastStatus,
 }: {
   jobId: string;
   name: string;
@@ -31,6 +35,7 @@ export function JobActions({
   keepResponse: boolean;
   responseBoard?: boolean;
   curl?: string;
+  lastStatus?: string | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -68,6 +73,75 @@ export function JobActions({
         >
           {busy === "run" ? "Running…" : "Run now"}
         </button>
+      ) : null}
+      {access.run ? (
+        <button
+          className="btn btn-ghost"
+          type="button"
+          disabled={!!busy}
+          onClick={() =>
+            wrap("preview", async () => {
+              const data = await previewJobRequest(jobId);
+              const text = data.ok
+                ? `Dry-run HTTP ${data.httpStatus} in ${data.durationMs}ms`
+                : `Dry-run failed: ${data.error ?? "error"}`;
+              setMessage(text);
+              toast(text, data.ok ? "ok" : "err");
+              if (data.responseBody) {
+                console.info("[softifycron preview]", data.responseBody);
+              }
+            })
+          }
+        >
+          {busy === "preview" ? "Preview…" : "Dry-run"}
+        </button>
+      ) : null}
+      {access.run && lastStatus && lastStatus !== "SUCCESS" ? (
+        <button
+          className="btn btn-ghost"
+          type="button"
+          disabled={!!busy}
+          onClick={() =>
+            wrap("ack", async () => {
+              const note = prompt("Ack note (optional)") ?? "";
+              await ackJobRequest(jobId, note);
+              setMessage("Acknowledged");
+              toast("Acknowledged");
+              router.refresh();
+            })
+          }
+        >
+          Ack
+        </button>
+      ) : null}
+      {access.edit ? (
+        <select
+          className="field w-auto min-w-40"
+          disabled={!!busy}
+          defaultValue=""
+          onChange={(event) => {
+            const value = event.target.value;
+            event.currentTarget.value = "";
+            if (!value) return;
+            const [eventName, hours] = value.split(":");
+            wrap("mute", async () => {
+              await muteJobRequest(jobId, eventName, Number(hours));
+              setMessage(Number(hours) ? `Muted ${eventName} for ${hours}h` : `Cleared ${eventName} mute`);
+              toast(Number(hours) ? `Muted ${eventName} for ${hours}h` : `Cleared ${eventName} mute`);
+              router.refresh();
+            });
+          }}
+        >
+          <option value="" disabled>
+            Mute event…
+          </option>
+          <option value="slow:8">Mute slow 8h</option>
+          <option value="failure:8">Mute fails 8h</option>
+          <option value="missed:8">Mute missed 8h</option>
+          <option value="slow:0">Clear slow mute</option>
+          <option value="failure:0">Clear fail mute</option>
+          <option value="missed:0">Clear missed mute</option>
+        </select>
       ) : null}
       {access.edit && enabled ? (
         <button

@@ -621,6 +621,33 @@ details > summary::-webkit-details-marker { display: none; }
   font-size: 0.75rem;
   color: var(--gold-2);
 }
+.grid-json-split {
+  display: grid;
+  gap: 0.75rem;
+}
+@media (min-width: 768px) {
+  .grid-json-split {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.grid-json-label {
+  margin-bottom: 0.4rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.grid-json-line {
+  display: block;
+}
+.grid-json-line.is-chg,
+.grid-json-line.is-add,
+.grid-json-line.is-del {
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+}
+.grid-json-line.is-del {
+  background: color-mix(in srgb, var(--rose) 16%, transparent);
+}
 .grid-pairs {
   display: grid;
   gap: 1px;

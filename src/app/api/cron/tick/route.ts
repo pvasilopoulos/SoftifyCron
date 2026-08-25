@@ -7,6 +7,7 @@ import {
 } from "@/lib/cron-secret";
 import { claimAndRunDueJobs } from "@/lib/runner";
 import { checkMissedHeartbeats } from "@/lib/notify-missed";
+import { sendDueDigests } from "@/lib/digest";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +22,12 @@ async function tick(request: Request) {
   try {
     const ran = await claimAndRunDueJobs(8);
     const missed = await checkMissedHeartbeats();
+    const digests = await sendDueDigests();
     return NextResponse.json({
       ok: true,
       ran,
       missed,
+      digests,
       tickedAt: new Date().toISOString(),
     });
   } catch (error) {

@@ -111,8 +111,20 @@ async function cooledDown(jobId: string, channel: NotifyChannel, cooldownSec: nu
 
 export async function notifyJob(
   job: NotifyJob,
-  opts?: { events?: NotifyEvent[]; runId?: string | null; lateMs?: number },
+  opts?: { events?: NotifyEvent[]; runId?: string | null; lateMs?: number; silent?: boolean },
 ) {
+  if (opts?.silent) {
+    await recordDelivery({
+      tenantId: job.tenantId,
+      jobId: job.id,
+      runId: opts.runId ?? null,
+      channel: "email",
+      event: (opts.events ?? []).join(",") || "muted",
+      status: "skipped",
+      detail: "maintenance mute",
+    });
+    return;
+  }
   const events =
     opts?.events ??
     eventsForRun({

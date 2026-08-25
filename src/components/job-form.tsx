@@ -1,12 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { saveJobAction } from "@/app/actions/jobs";
 import { HTTP_METHODS, CRON_PRESETS } from "@/lib/constants";
 import { TIMEZONES } from "@/lib/format";
 import { JOB_TYPES } from "@/lib/acl";
 import { NotifyMatrix } from "@/components/notify-matrix";
+import { FirePreview } from "@/components/fire-preview";
 import { jobHeartbeatUrl } from "@/lib/app-url";
+import { JOB_TEMPLATES } from "@/lib/job-templates";
 import {
   DEFAULT_NOTIFY_EMAIL_ON,
   DEFAULT_NOTIFY_SLACK_ON,
@@ -51,6 +53,7 @@ type JobFormValues = {
   skipWeekends: boolean;
   activeHoursStart: string;
   activeHoursEnd: string;
+  notes: string;
 };
 
 type JobOption = { id: string; name: string };
@@ -90,6 +93,7 @@ const DEFAULTS: JobFormValues = {
   skipWeekends: false,
   activeHoursStart: "",
   activeHoursEnd: "",
+  notes: "",
 };
 
 export function JobForm({
@@ -97,20 +101,75 @@ export function JobForm({
   jobId,
   groups,
   jobs = [],
+  tenantHolidays = false,
 }: {
   initial?: Partial<JobFormValues>;
   jobId?: string;
   groups: Group[];
   jobs?: JobOption[];
+  tenantHolidays?: boolean;
 }) {
-  const values = { ...DEFAULTS, ...initial };
+  const [seed, setSeed] = useState(() => ({ ...DEFAULTS, ...initial }));
+  const values = seed;
   const [state, formAction, pending] = useActionState(saveJobAction, null);
   const heartbeatUrl = jobId ? jobHeartbeatUrl(jobId) : null;
+  const [live, setLive] = useState({
+    cronExpr: values.cronExpr,
+    timezone: values.timezone,
+    skipHolidays: values.skipHolidays,
+    skipWeekends: values.skipWeekends,
+    activeHoursStart: values.activeHoursStart,
+    activeHoursEnd: values.activeHoursEnd,
+  });
+
+  function syncLive(form: HTMLFormElement) {
+    const data = new FormData(form);
+    setLive({
+      cronExpr: String(data.get("cronExpr") ?? values.cronExpr),
+      timezone: String(data.get("timezone") ?? values.timezone),
+      skipHolidays: data.get("skipHolidays") === "on",
+      skipWeekends: data.get("skipWeekends") === "on",
+      activeHoursStart: String(data.get("activeHoursStart") ?? ""),
+      activeHoursEnd: String(data.get("activeHoursEnd") ?? ""),
+    });
+  }
 
   return (
-    <form action={formAction} autoComplete="off" className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+    <form
+      key={`${seed.type}-${seed.cronExpr}-${seed.name}-${seed.url}`}
+      action={formAction}
+      autoComplete="off"
+      className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]"
+      onInput={(event) => syncLive(event.currentTarget)}
+    >
       {jobId ? <input type="hidden" name="jobId" value={jobId} /> : null}
       <div className="space-y-4">
+        {!jobId ? (
+          <div className="flex flex-wrap gap-2">
+            {JOB_TEMPLATES.map((template) => (
+              <button
+                key={template.id}
+                className="btn btn-ghost btn-sm"
+                type="button"
+                title={template.hint}
+                onClick={() => {
+                  const next = { ...DEFAULTS, ...initial, ...template.values, notes: seed.notes };
+                  setSeed(next);
+                  setLive({
+                    cronExpr: next.cronExpr,
+                    timezone: next.timezone,
+                    skipHolidays: next.skipHolidays,
+                    skipWeekends: next.skipWeekends,
+                    activeHoursStart: next.activeHoursStart,
+                    activeHoursEnd: next.activeHoursEnd,
+                  });
+                }}
+              >
+                {template.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <label className="block">
           <span className="field-label">Name</span>
           <input className="field" name="name" defaultValue={values.name} required autoComplete="off" />
@@ -118,6 +177,15 @@ export function JobForm({
         <label className="block">
           <span className="field-label">Description</span>
           <textarea className="field min-h-24" name="description" defaultValue={values.description} />
+        </label>
+        <label className="block">
+          <span className="field-label">Ops notes</span>
+          <textarea
+            className="field min-h-20"
+            name="notes"
+            defaultValue={values.notes}
+            placeholder="Changed the endpoint on 12/3. Expect 404 until tonight."
+          />
         </label>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
@@ -362,7 +430,19 @@ export function JobForm({
         </button>
       </div>
       <aside className="card h-fit p-6">
-        <p className="text-xs uppercase tracking-[0.18em] text-gold">Types</p>
+        <p className="text-xs uppercase tracking-[0.18em] text-gold">Next 10 fires</p>
+        <div className="mt-4">
+          <FirePreview
+            cronExpr={live.cronExpr}
+            timezone={live.timezone}
+            skipHolidays={live.skipHolidays}
+            skipWeekends={live.skipWeekends}
+            activeHoursStart={live.activeHoursStart}
+            activeHoursEnd={live.activeHoursEnd}
+            tenantHolidays={tenantHolidays}
+          />
+        </div>
+        <p className="mt-6 text-xs uppercase tracking-[0.18em] text-gold">Types</p>
         <ul className="mt-4 space-y-3 text-sm text-ink-dim">
           <li><b className="text-ink">HTTP</b> — generic request.</li>
           <li>
