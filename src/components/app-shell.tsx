@@ -148,11 +148,11 @@ export function AppShell({
       </aside>
 
       <div className="app-stage">
-        <header className="stage-header sticky top-0 z-20 flex items-center justify-between px-4 py-3 lg:hidden">
-          <Link href="/dashboard">
+        <header className="stage-header sticky top-0 z-20 flex items-center justify-between gap-2 px-3 py-3 sm:px-4 lg:hidden">
+          <Link href="/dashboard" className="min-w-0 shrink">
             <Logo />
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center justify-end gap-2">
             <ThemeToggle compact />
             <TenantSwitcher
               compact

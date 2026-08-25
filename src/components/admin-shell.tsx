@@ -91,11 +91,11 @@ export function AdminShell({
         </div>
       </aside>
       <div className="app-stage">
-        <header className="stage-header sticky top-0 z-20 flex items-center justify-between px-4 py-3 lg:hidden">
-          <Link href="/admin">
+        <header className="stage-header sticky top-0 z-20 flex items-center justify-between gap-2 px-3 py-3 sm:px-4 lg:hidden">
+          <Link href="/admin" className="min-w-0 shrink">
             <Logo />
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center justify-end gap-2">
             <ThemeToggle compact />
             <TenantSwitcher
               compact
@@ -114,14 +114,14 @@ export function AdminShell({
         </header>
         <main className="px-4 py-6 lg:px-10 lg:py-10">{children}</main>
       </div>
-      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-bg-elev/70 px-2 pt-2 backdrop-blur-2xl lg:hidden">
+      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-bg-elev/70 px-1 pt-2 backdrop-blur-2xl lg:hidden">
         {NAV.map((item) => {
           const active = item.match(pathname);
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex min-h-12 items-center justify-center text-sm ${
+              className={`flex min-h-12 min-w-0 items-center justify-center truncate px-1 text-center text-[11px] ${
                 active ? "text-gold" : "text-ink-dim"
               }`}
             >

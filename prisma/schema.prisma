@@ -48,30 +48,41 @@ enum RunTrigger {
 }
 
 model Tenant {
-  id                   String       @id @default(cuid())
-  name                 String
-  slug                 String       @unique
-  timezone             String       @default("Europe/Athens")
-  notifyEmail          String?      @db.VarChar(160)
-  smtpHost             String?      @db.VarChar(255)
-  smtpPort             Int          @default(587)
-  smtpSecure           Boolean      @default(false)
-  smtpUser             String?      @db.VarChar(160)
-  smtpPassEnc          String?      @db.Text
-  smtpFrom             String?      @db.VarChar(190)
-  telegramBotTokenEnc  String?      @db.Text
-  telegramChatId       String?      @db.VarChar(80)
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
-  memberships Membership[]
-  jobs        CronJob[]
-  runs        JobRun[]
-  groups      JobGroup[]
-  secrets     Secret[]
-  invites     Invite[]
-  roles       TenantRole[]
-  apiTokens   ApiToken[]
-  auditEvents AuditEvent[]
+  id                       String           @id @default(cuid())
+  name                     String
+  slug                     String           @unique
+  timezone                 String           @default("Europe/Athens")
+  notifyEmail              String?          @db.Text
+  smtpHost                 String?          @db.VarChar(255)
+  smtpPort                 Int              @default(587)
+  smtpSecure               Boolean          @default(false)
+  smtpUser                 String?          @db.VarChar(160)
+  smtpPassEnc              String?          @db.Text
+  smtpFrom                 String?          @db.VarChar(190)
+  telegramBotTokenEnc      String?          @db.Text
+  telegramChatId           String?          @db.Text
+  slackWebhookEnc          String?          @db.Text
+  webhookSignEnc           String?          @db.Text
+  defaultNotifyEmailOn     String           @default("failure,timeout,blocked,pause,recovery") @db.VarChar(120)
+  defaultNotifyTelegramOn  String           @default("failure,timeout,blocked,pause,recovery") @db.VarChar(120)
+  defaultNotifyWebhookOn   String           @default("failure,timeout,blocked,pause") @db.VarChar(120)
+  defaultNotifySlackOn     String           @default("failure,timeout,blocked,pause,recovery") @db.VarChar(120)
+  quietHoursStart          String           @default("") @db.VarChar(5)
+  quietHoursEnd            String           @default("") @db.VarChar(5)
+  quietHoursAllow          String           @default("failure,timeout,blocked,pause,missed") @db.VarChar(120)
+  notifyCooldownSec        Int              @default(300)
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+  memberships              Membership[]
+  jobs                     CronJob[]
+  runs                     JobRun[]
+  groups                   JobGroup[]
+  secrets                  Secret[]
+  invites                  Invite[]
+  roles                    TenantRole[]
+  apiTokens                ApiToken[]
+  auditEvents              AuditEvent[]
+  deliveries               NotifyDelivery[]
 }
 
 model User {
@@ -163,11 +174,13 @@ model CronJob {
   notifyEmailOn        String     @default("failure,timeout,blocked,pause,recovery") @db.VarChar(120)
   notifyTelegramOn     String     @default("") @db.VarChar(120)
   notifyWebhookOn      String     @default("failure,timeout,blocked,pause") @db.VarChar(120)
+  notifySlackOn        String     @default("") @db.VarChar(120)
   keepResponse         Boolean    @default(false)
   pauseAfter           Int        @default(0)
   consecutiveFailures  Int        @default(0)
   lastStatus           RunStatus?
   lastRunAt            DateTime?
+  lastHeartbeatAt      DateTime?
   nextRunAt            DateTime?
   lockedUntil          DateTime?
   createdAt            DateTime   @default(now())
@@ -175,6 +188,7 @@ model CronJob {
   tenant               Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   group                JobGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
   runs                 JobRun[]
+  deliveries           NotifyDelivery[]
 
   @@index([tenantId, enabled, nextRunAt])
   @@index([tenantId, groupId])
@@ -272,6 +286,24 @@ model AuditEvent {
 
   @@index([tenantId, createdAt])
   @@index([createdAt])
+}
+
+model NotifyDelivery {
+  id        String   @id @default(cuid())
+  tenantId  String
+  jobId     String
+  runId     String?
+  channel   String   @db.VarChar(20)
+  event     String   @db.VarChar(80)
+  status    String   @db.VarChar(20)
+  detail    String?  @db.Text
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  job       CronJob  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([jobId, createdAt])
+  @@index([jobId, channel, createdAt])
 }
 
 model WorkerHeartbeat {

@@ -80,9 +80,9 @@ export function RunsBoard({
           <div className="grid gap-3 md:hidden">
             {runs.map((run) => (
               <Link key={run.id} href={`/runs/${run.id}`} className="card p-4">
-                <article>
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="font-medium">{run.job.name}</p>
+                <article className="min-w-0">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <p className="min-w-0 break-any font-medium">{run.job.name}</p>
                     <StatusPill status={run.status} />
                   </div>
                 <p className="mt-2 text-xs text-ink-dim">
@@ -100,7 +100,7 @@ export function RunsBoard({
               </Link>
             ))}
           </div>
-          <div className="hidden overflow-hidden rounded-[1.25rem] border border-line md:block">
+          <div className="table-wrap hidden md:block">
             <table className="w-full min-w-[800px] text-left text-sm">
               <thead className="bg-bg-mute text-xs uppercase tracking-[0.14em] text-ink-dim">
                 <tr>

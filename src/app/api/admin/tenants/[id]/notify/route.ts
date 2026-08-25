@@ -1,29 +1,29 @@
 import { NextResponse } from "next/server";
-import { getTenantSession } from "@/lib/session";
-import { hasPermission } from "@/lib/acl";
+import { getPlatformAdmin } from "@/lib/session";
 import { jsonError, zodError } from "@/lib/http";
 import { tenantNotifySchema, notifyTestSchema } from "@/lib/validators";
 import { loadPublicNotify, testTenantNotify, updateTenantNotify } from "@/lib/tenant-notify";
 
-export async function GET() {
-  const session = await getTenantSession();
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function GET(_request: Request, { params }: Ctx) {
+  const session = await getPlatformAdmin();
   if (!session) return jsonError("Unauthorized", 401);
-  const data = await loadPublicNotify(session.tid);
+  const { id } = await params;
+  const data = await loadPublicNotify(id);
   if (!data) return jsonError("Workspace not found", 404);
   return NextResponse.json(data);
 }
 
-export async function PUT(request: Request) {
-  const session = await getTenantSession();
+export async function PUT(request: Request, { params }: Ctx) {
+  const session = await getPlatformAdmin();
   if (!session) return jsonError("Unauthorized", 401);
-  if (!hasPermission(session, "settings.edit")) {
-    return jsonError("You cannot edit workspace settings", 403);
-  }
+  const { id } = await params;
   const body = await request.json().catch(() => null);
   const parsed = tenantNotifySchema.safeParse(body);
   if (!parsed.success) return zodError(parsed.error);
   try {
-    const data = await updateTenantNotify(session.tid, parsed.data);
+    const data = await updateTenantNotify(id, parsed.data);
     if (!data) return jsonError("Workspace not found", 404);
     return NextResponse.json(data);
   } catch (error) {
@@ -31,17 +31,15 @@ export async function PUT(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
-  const session = await getTenantSession();
+export async function POST(request: Request, { params }: Ctx) {
+  const session = await getPlatformAdmin();
   if (!session) return jsonError("Unauthorized", 401);
-  if (!hasPermission(session, "settings.edit")) {
-    return jsonError("You cannot edit workspace settings", 403);
-  }
+  const { id } = await params;
   const body = await request.json().catch(() => null);
   const parsed = notifyTestSchema.safeParse(body);
   if (!parsed.success) return zodError(parsed.error);
   try {
-    const result = await testTenantNotify(session.tid, parsed.data.channel);
+    const result = await testTenantNotify(id, parsed.data.channel);
     return NextResponse.json(result);
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : "Test failed", 400);

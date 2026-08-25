@@ -124,7 +124,7 @@ export function JobsBoard({
             placeholder="Search name, URL, tags…"
             aria-label="Search jobs"
           />
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <select
               className="field"
               value={query.group}
@@ -255,7 +255,7 @@ export function JobsBoard({
                       ) : null}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
-                          <Link href={`/jobs/${job.id}`} className="font-medium">
+                          <Link href={`/jobs/${job.id}`} className="min-w-0 break-any font-medium">
                             {job.name}
                           </Link>
                           <JobMenu
@@ -285,7 +285,7 @@ export function JobsBoard({
                 ))}
               </div>
 
-              <div className="hidden overflow-hidden rounded-[1.35rem] border border-line bg-bg-elev/40 backdrop-blur-xl md:block">
+              <div className="table-wrap hidden md:block">
                 <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="bg-bg-mute text-xs uppercase tracking-[0.14em] text-ink-dim">
                     <tr>

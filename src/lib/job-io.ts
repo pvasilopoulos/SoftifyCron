@@ -31,6 +31,7 @@ export async function exportJobs(tenantId: string) {
       notifyEmailOn: job.notifyEmailOn,
       notifyTelegramOn: job.notifyTelegramOn,
       notifyWebhookOn: job.notifyWebhookOn,
+      notifySlackOn: job.notifySlackOn,
       keepResponse: job.keepResponse,
       pauseAfter: job.pauseAfter,
       enabled: false,
@@ -59,7 +60,16 @@ export async function importJobs(tenantId: string, payload: unknown) {
 export async function exportTenantBackup(tenantId: string) {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    select: { name: true, slug: true, timezone: true, notifyEmail: true },
+    select: {
+      name: true,
+      slug: true,
+      timezone: true,
+      notifyEmail: true,
+      defaultNotifyEmailOn: true,
+      defaultNotifyTelegramOn: true,
+      defaultNotifyWebhookOn: true,
+      defaultNotifySlackOn: true,
+    },
   });
   if (!tenant) throw new Error("Workspace not found");
   const jobs = await exportJobs(tenantId);

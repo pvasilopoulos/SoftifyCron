@@ -5,10 +5,11 @@ export const NOTIFY_EVENTS = [
   "success",
   "recovery",
   "pause",
+  "missed",
 ] as const;
 
 export type NotifyEvent = (typeof NOTIFY_EVENTS)[number];
-export type NotifyChannel = "email" | "telegram" | "webhook";
+export type NotifyChannel = "email" | "telegram" | "webhook" | "slack";
 
 export const NOTIFY_EVENT_LABELS: Record<NotifyEvent, { title: string; hint: string }> = {
   failure: { title: "Fails", hint: "HTTP error or unexpected exception" },
@@ -17,11 +18,15 @@ export const NOTIFY_EVENT_LABELS: Record<NotifyEvent, { title: string; hint: str
   success: { title: "Succeeds", hint: "Every healthy run" },
   recovery: { title: "Recovers", hint: "First success after consecutive failures" },
   pause: { title: "Auto-pauses", hint: "Paused after N consecutive failures" },
+  missed: { title: "Misses a beat", hint: "Heartbeat went silent, or a schedule fired late" },
 };
 
-export const DEFAULT_NOTIFY_EMAIL_ON = "failure,timeout,blocked,pause,recovery";
-export const DEFAULT_NOTIFY_TELEGRAM_ON = "failure,timeout,blocked,pause,recovery";
-export const DEFAULT_NOTIFY_WEBHOOK_ON = "failure,timeout,blocked,pause";
+export const DEFAULT_NOTIFY_EMAIL_ON = "failure,timeout,blocked,pause,recovery,missed";
+export const DEFAULT_NOTIFY_TELEGRAM_ON = "failure,timeout,blocked,pause,recovery,missed";
+export const DEFAULT_NOTIFY_WEBHOOK_ON = "failure,timeout,blocked,pause,missed";
+export const DEFAULT_NOTIFY_SLACK_ON = "failure,timeout,blocked,pause,recovery,missed";
+export const DEFAULT_QUIET_ALLOW = "failure,timeout,blocked,pause,missed";
+export const LATE_SCHEDULE_MS = 120_000;
 
 const EVENT_SET = new Set<string>(NOTIFY_EVENTS);
 
@@ -55,6 +60,7 @@ export function eventsForRun(input: {
   status: "SUCCESS" | "FAILED" | "TIMEOUT" | "BLOCKED" | string;
   previousFailures: number;
   paused?: boolean;
+  lateMs?: number;
 }): NotifyEvent[] {
   const events: NotifyEvent[] = [];
   if (input.status === "SUCCESS") {
@@ -63,10 +69,15 @@ export function eventsForRun(input: {
     events.push("timeout");
   } else if (input.status === "BLOCKED") {
     events.push("blocked");
+  } else if (input.status === "MISSED") {
+    events.push("missed");
   } else {
     events.push("failure");
   }
   if (input.paused) events.push("pause");
+  if ((input.lateMs ?? 0) >= LATE_SCHEDULE_MS && !events.includes("missed")) {
+    events.push("missed");
+  }
   return events;
 }
 
@@ -74,12 +85,14 @@ export function summarizeNotify(job: {
   notifyEmailOn: string;
   notifyTelegramOn: string;
   notifyWebhookOn: string;
+  notifySlackOn?: string;
   notifyUrl: string | null;
 }) {
   return NOTIFY_EVENTS.map((event) => {
     const channels: NotifyChannel[] = [];
     if (channelHasEvent(job.notifyEmailOn, event)) channels.push("email");
     if (channelHasEvent(job.notifyTelegramOn, event)) channels.push("telegram");
+    if (channelHasEvent(job.notifySlackOn, event)) channels.push("slack");
     if (job.notifyUrl && channelHasEvent(job.notifyWebhookOn, event)) channels.push("webhook");
     return { event, channels };
   }).filter((row) => row.channels.length > 0);

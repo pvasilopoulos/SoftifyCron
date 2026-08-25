@@ -1,4 +1,5 @@
 import { claimAndRunDueJobs } from "../lib/runner";
+import { checkMissedHeartbeats } from "../lib/notify-missed";
 
 const TICK_MS = 1000;
 
@@ -11,8 +12,12 @@ async function main() {
   for (;;) {
     try {
       const ran = await claimAndRunDueJobs();
+      const missed = await checkMissedHeartbeats();
       if (ran > 0) {
         console.log(`[worker] executed ${ran} due job${ran === 1 ? "" : "s"}`);
+      }
+      if (missed > 0) {
+        console.log(`[worker] ${missed} missed heartbeat${missed === 1 ? "" : "s"}`);
       }
     } catch (error) {
       console.error("[worker] tick failed", error);

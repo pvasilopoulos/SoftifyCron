@@ -34,7 +34,31 @@ export default async function MonitorPage() {
       {jobs.length === 0 ? (
         <div className="card p-8 text-ink-dim">No failing jobs right now.</div>
       ) : (
-        <div className="overflow-hidden rounded-[1.25rem] border border-line">
+        <>
+          <div className="grid gap-3 md:hidden">
+            {jobs.map((job) => (
+              <article key={job.id} className="card p-4">
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="break-any font-medium">{job.name}</p>
+                    <p className="mt-1 text-sm text-ink-dim">{job.tenant.name}</p>
+                  </div>
+                  {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
+                </div>
+                <p className="mt-2 text-sm text-ink-dim">
+                  {job.consecutiveFailures} failures ·{" "}
+                  <RelativeTime value={job.lastRunAt} timeZone={job.timezone} />
+                </p>
+                <form className="mt-3" action={enterCustomerAction}>
+                  <input type="hidden" name="tenantId" value={job.tenantId} />
+                  <button className="btn btn-ghost btn-sm" type="submit">
+                    Open
+                  </button>
+                </form>
+              </article>
+            ))}
+          </div>
+          <div className="table-wrap hidden md:block">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="bg-bg-mute text-xs uppercase tracking-[0.14em] text-ink-dim">
               <tr>
@@ -70,7 +94,8 @@ export default async function MonitorPage() {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
       <p className="text-sm text-ink-dim">
         <Link className="text-gold" href="/admin/audit">

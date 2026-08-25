@@ -52,3 +52,35 @@ export function describeCron(cronExpr: string): string {
     return cronExpr;
   }
 }
+
+export function cronIntervalMs(
+  cronExpr: string,
+  timezone: string,
+  from: Date = new Date(),
+): number {
+  const first = getNextRunAt(cronExpr, timezone, from);
+  const second = getNextRunAt(cronExpr, timezone, first);
+  return Math.max(second.getTime() - first.getTime(), 60_000);
+}
+
+export function heartbeatStaleAfterMs(cronExpr: string, timezone: string): number {
+  const interval = cronIntervalMs(cronExpr, timezone);
+  return interval + Math.max(60_000, Math.round(interval * 0.2));
+}
+
+export function isHeartbeatStale(
+  job: {
+    cronExpr: string;
+    timezone: string;
+    lastHeartbeatAt?: Date | string | null;
+    lastRunAt?: Date | string | null;
+    lastStatus?: string | null;
+    createdAt: Date | string;
+  },
+  now: Date = new Date(),
+): boolean {
+  const last =
+    job.lastHeartbeatAt ?? (job.lastStatus === "SUCCESS" ? job.lastRunAt : null) ?? job.createdAt;
+  const age = now.getTime() - new Date(last).getTime();
+  return age > heartbeatStaleAfterMs(job.cronExpr, job.timezone);
+}

@@ -159,6 +159,8 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
     job.pauseAfter > 0 &&
     consecutiveFailures >= job.pauseAfter;
   const stillArmed = job.enabled && !autoPause;
+  const lateMs =
+    trigger === "MANUAL" || !job.nextRunAt ? 0 : startedAt.getTime() - job.nextRunAt.getTime();
 
   let nextRunAt = job.nextRunAt;
   if (trigger === "MANUAL" && stillArmed) {
@@ -180,19 +182,23 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
       enabled: stillArmed,
       nextRunAt,
       lockedUntil: null,
+      ...(status === "SUCCESS" && job.type === "HEARTBEAT" ? { lastHeartbeatAt: finishedAt } : {}),
     },
   });
 
   if (!shouldRetry) {
-    await notifyJob({
-      ...job,
-      consecutiveFailures,
-      lastStatus: status,
-      error,
-      httpStatus,
-      paused: autoPause,
-      previousFailures: job.consecutiveFailures,
-    });
+    await notifyJob(
+      {
+        ...job,
+        consecutiveFailures,
+        lastStatus: status,
+        error,
+        httpStatus,
+        paused: autoPause,
+        previousFailures: job.consecutiveFailures,
+      },
+      { runId: run.id, lateMs },
+    );
   }
 
   return { runId: run.id, status, retried: shouldRetry };

@@ -35,10 +35,11 @@ describe("notify events", () => {
       notifyEmailOn: "failure,success",
       notifyTelegramOn: "failure",
       notifyWebhookOn: "failure,success",
+      notifySlackOn: "failure",
       notifyUrl: null,
     });
     expect(rows).toEqual([
-      { event: "failure", channels: ["email", "telegram"] },
+      { event: "failure", channels: ["email", "telegram", "slack"] },
       { event: "success", channels: ["email"] },
     ]);
   });

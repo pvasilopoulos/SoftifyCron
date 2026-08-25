@@ -78,7 +78,7 @@ export default async function DashboardPage() {
         jobsClaimed={heartbeat?.jobsClaimed ?? 0}
       />
 
-      <section className="grid grid-cols-2 gap-3 xl:grid-cols-5">
+      <section className="stat-grid">
         {[
           ["Jobs", String(jobs), "/jobs"],
           ["Armed", String(active), "/jobs?state=armed"],
@@ -90,7 +90,7 @@ export default async function DashboardPage() {
             <p className="text-xs uppercase tracking-[0.16em] text-ink-dim">
               {label}
             </p>
-            <p className="mt-3 font-display text-3xl tabular-nums sm:text-4xl">{value}</p>
+            <p className="mt-3 font-display text-3xl tabular-nums">{value}</p>
           </Link>
         ))}
       </section>
@@ -110,8 +110,8 @@ export default async function DashboardPage() {
                 href={`/jobs/${job.id}`}
                 className="block border-b border-line pb-4 last:border-0 last:pb-0"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-medium">{job.name}</p>
+                <div className="flex min-w-0 items-center justify-between gap-3">
+                  <p className="min-w-0 truncate font-medium">{job.name}</p>
                   {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
                 </div>
                 <p className="mt-1 text-sm text-ink-dim">
@@ -144,9 +144,9 @@ export default async function DashboardPage() {
                   href={`/jobs/${job.id}`}
                   className="block border-b border-line pb-4 last:border-0 last:pb-0"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-medium">{job.name}</p>
-                    <span className="text-xs text-gold-2">
+                  <div className="flex min-w-0 items-center justify-between gap-3">
+                    <p className="min-w-0 truncate font-medium">{job.name}</p>
+                    <span className="shrink-0 text-xs text-gold-2">
                       <RelativeTime value={job.nextRunAt} timeZone={job.timezone} />
                     </span>
                   </div>
@@ -175,10 +175,10 @@ export default async function DashboardPage() {
                 <Link
                   key={run.id}
                   href={`/runs/${run.id}`}
-                  className="flex items-center justify-between gap-3 border-b border-line pb-4 last:border-0 last:pb-0"
+                  className="flex min-w-0 items-center justify-between gap-3 border-b border-line pb-4 last:border-0 last:pb-0"
                 >
-                  <div>
-                    <p className="font-medium">{run.job.name}</p>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{run.job.name}</p>
                     <p className="text-xs text-ink-dim">
                       <RelativeTime value={run.startedAt} timeZone={tz} />
                     </p>

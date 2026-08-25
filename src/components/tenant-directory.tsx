@@ -94,7 +94,37 @@ export function TenantDirectory({ tenants }: { tenants: Tenant[] }) {
       {filtered.length === 0 ? (
         <div className="card p-8 text-ink-dim">No tenants match that search.</div>
       ) : (
-        <div className="overflow-hidden rounded-[1.25rem] border border-line">
+        <>
+          <div className="grid gap-3 md:hidden">
+            {slice.map((customer) => (
+              <article key={customer.id} className="card p-4">
+                <Link href={`/admin/tenants/${customer.id}`} className="break-any font-medium">
+                  {customer.name}
+                </Link>
+                <p className="mono mt-1 text-xs text-ink-dim">{customer.slug}</p>
+                <p className="mt-3 text-sm text-ink-dim">
+                  {customer._count.jobs} jobs · {customer._count.memberships} users
+                  {customer.failing ? ` · ${customer.failing} failing` : ""}
+                </p>
+                <p className="mt-1 text-xs text-ink-dim">
+                  {customer.memberships[0]?.user.email ?? "—"}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link href={`/admin/tenants/${customer.id}`} className="btn btn-ghost btn-sm">
+                    Manage
+                  </Link>
+                  <form action={enterCustomerAction}>
+                    <input type="hidden" name="tenantId" value={customer.id} />
+                    <button className="btn btn-gold btn-sm" type="submit">
+                      Open
+                    </button>
+                  </form>
+                  <DeleteTenantButton id={customer.id} name={customer.name} />
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="table-wrap hidden md:block">
           <table className="w-full min-w-[860px] text-left text-sm">
             <thead className="bg-bg-mute text-xs uppercase tracking-[0.14em] text-ink-dim">
               <tr>
@@ -153,7 +183,8 @@ export function TenantDirectory({ tenants }: { tenants: Tenant[] }) {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
       {pages > 1 ? (
         <div className="flex items-center gap-3 text-sm">

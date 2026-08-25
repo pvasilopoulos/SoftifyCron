@@ -57,12 +57,15 @@ export async function saveJobAction(
     notifyEmailOn: formData.getAll("notifyEmailOn").map(String),
     notifyTelegramOn: formData.getAll("notifyTelegramOn").map(String),
     notifyWebhookOn: formData.getAll("notifyWebhookOn").map(String),
+    notifySlackOn: formData.getAll("notifySlackOn").map(String),
     keepResponse: formData.get("keepResponse") === "on",
     pauseAfter: Number(formData.get("pauseAfter") ?? 0),
     enabled: formData.get("enabled") === "on",
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+    return {
+      error: parsed.error.issues.map((issue) => issue.message).join("; ") || "Invalid input",
+    };
   }
 
   const jobId = String(formData.get("jobId") ?? "");

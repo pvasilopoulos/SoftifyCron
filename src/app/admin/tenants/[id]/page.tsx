@@ -10,6 +10,8 @@ import { listTenantRoles } from "@/lib/roles";
 import { AdminTenantBoards } from "@/components/admin-tenant-boards";
 import { TenantDetailsForm } from "@/components/tenant-details-form";
 import { formatDateTime } from "@/lib/format";
+import { NotificationsPanel } from "@/components/notifications-panel";
+import { publicNotify } from "@/lib/tenant-notify";
 
 export const metadata = { title: "Tenant" };
 
@@ -56,11 +58,25 @@ export default async function TenantDetailPage({
         </div>
       </div>
 
-      <section className="card p-6 max-w-lg">
+      <section className="card p-5 sm:p-6 max-w-lg">
         <h2 className="font-display text-2xl">Tenant details</h2>
         <div className="mt-6">
           <TenantDetailsForm tenantId={tenant.id} name={tenant.name} timezone={tenant.timezone} />
         </div>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="font-display text-2xl">Notifications</h2>
+          <p className="mt-1 text-sm text-ink-dim">
+            SMTP, Telegram, Slack, and default event matrix for this workspace.
+          </p>
+        </div>
+        <NotificationsPanel
+          canEdit
+          endpoint={`/api/admin/tenants/${tenant.id}/notify`}
+          initial={publicNotify(tenant)}
+        />
       </section>
 
       <AdminTenantBoards

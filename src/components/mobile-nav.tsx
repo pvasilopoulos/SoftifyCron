@@ -68,7 +68,7 @@ export function MobileNav({
 
   return (
     <>
-      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-bg-elev/70 px-2 pt-2 backdrop-blur-2xl lg:hidden">
+      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-bg-elev/70 px-1 pt-2 backdrop-blur-2xl lg:hidden">
         {pinned.map((item) => {
           const Icon = NAV_ICONS[item.id];
           const active = isNavActive(pathname, hash, item);
@@ -76,18 +76,18 @@ export function MobileNav({
             <Link
               key={item.id}
               href={item.href}
-              className={`flex min-h-12 flex-col items-center justify-center gap-1 text-[11px] ${
+              className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 px-1 text-center text-[10px] leading-tight ${
                 active ? "text-gold" : "text-ink-dim"
               }`}
             >
               <Icon />
-              {item.label}
+              <span className="w-full truncate">{item.label}</span>
             </Link>
           );
         })}
         <button
           type="button"
-          className={`flex min-h-12 flex-col items-center justify-center gap-1 text-[11px] ${
+          className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 px-1 text-center text-[10px] leading-tight ${
             open ? "text-gold" : "text-ink-dim"
           }`}
           aria-expanded={open}

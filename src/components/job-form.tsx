@@ -6,8 +6,10 @@ import { HTTP_METHODS, CRON_PRESETS } from "@/lib/constants";
 import { TIMEZONES } from "@/lib/format";
 import { JOB_TYPES } from "@/lib/acl";
 import { NotifyMatrix } from "@/components/notify-matrix";
+import { jobHeartbeatUrl } from "@/lib/app-url";
 import {
   DEFAULT_NOTIFY_EMAIL_ON,
+  DEFAULT_NOTIFY_SLACK_ON,
   DEFAULT_NOTIFY_TELEGRAM_ON,
   DEFAULT_NOTIFY_WEBHOOK_ON,
 } from "@/lib/notify-events";
@@ -33,6 +35,7 @@ type JobFormValues = {
   notifyEmailOn: string;
   notifyTelegramOn: string;
   notifyWebhookOn: string;
+  notifySlackOn: string;
   keepResponse: boolean;
   pauseAfter: number;
   enabled: boolean;
@@ -57,6 +60,7 @@ const DEFAULTS: JobFormValues = {
   notifyEmailOn: DEFAULT_NOTIFY_EMAIL_ON,
   notifyTelegramOn: DEFAULT_NOTIFY_TELEGRAM_ON,
   notifyWebhookOn: DEFAULT_NOTIFY_WEBHOOK_ON,
+  notifySlackOn: DEFAULT_NOTIFY_SLACK_ON,
   keepResponse: false,
   pauseAfter: 0,
   enabled: true,
@@ -73,6 +77,7 @@ export function JobForm({
 }) {
   const values = { ...DEFAULTS, ...initial };
   const [state, formAction, pending] = useActionState(saveJobAction, null);
+  const heartbeatUrl = jobId ? jobHeartbeatUrl(jobId) : null;
 
   return (
     <form action={formAction} autoComplete="off" className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
@@ -177,11 +182,12 @@ export function JobForm({
           <div>
             <p className="field-label">Notifications</p>
             <p className="mb-3 text-xs text-ink-dim">
-              Pick channels per event. Email and Telegram use Workspace → Notifications. Webhook uses the URL below.
+              Pick channels per event. Email, Telegram, and Slack use Workspace → Notifications. Webhook uses the URL below.
             </p>
             <NotifyMatrix
               emailOn={values.notifyEmailOn}
               telegramOn={values.notifyTelegramOn}
+              slackOn={values.notifySlackOn}
               webhookOn={values.notifyWebhookOn}
             />
           </div>
@@ -219,7 +225,19 @@ export function JobForm({
         <p className="text-xs uppercase tracking-[0.18em] text-gold">Types</p>
         <ul className="mt-4 space-y-3 text-sm text-ink-dim">
           <li><b className="text-ink">HTTP</b> — generic request.</li>
-          <li><b className="text-ink">HEARTBEAT</b> — GET health ping.</li>
+          <li>
+            <b className="text-ink">HEARTBEAT</b> — GET health ping. A missed beat fires if this job stays silent longer than its cron window. You can also ping{" "}
+            <span className="mono text-gold-2">/api/v1/jobs/:id/heartbeat</span>
+            {heartbeatUrl ? (
+              <>
+                {" "}
+                (<span className="mono break-all">{heartbeatUrl}</span>)
+              </>
+            ) : (
+              " after it is created"
+            )}
+            .
+          </li>
           <li><b className="text-ink">WEBHOOK</b> — POST payload to an endpoint.</li>
         </ul>
         <p className="mt-5 text-sm text-ink-dim">
@@ -232,7 +250,7 @@ export function JobForm({
           Skip next jumps over one fire. Auto-pause stops a flapping job after N failures so it stops paging you.
         </p>
         <p className="mt-4 text-sm text-ink-dim">
-          Configure SMTP and Telegram under Workspace → Notifications, then tick events on this job.
+          Configure SMTP, Telegram, and Slack under Workspace → Notifications, then tick events on this job.
         </p>
       </aside>
     </form>

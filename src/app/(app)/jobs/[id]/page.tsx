@@ -13,6 +13,7 @@ import { buildCurl } from "@/lib/curl";
 import { listTenantOptions } from "@/lib/admin";
 import { MoveJobForm } from "@/components/move-job-form";
 import { summarizeNotify, NOTIFY_EVENT_LABELS } from "@/lib/notify-events";
+import { jobHeartbeatUrl } from "@/lib/app-url";
 
 export const metadata = { title: "Job" };
 
@@ -27,13 +28,18 @@ export default async function JobDetailPage({
   if (!job) notFound();
   const access = jobAccess(session);
 
-  const [runs, tenants] = await Promise.all([
+  const [runs, tenants, deliveries] = await Promise.all([
     prisma.jobRun.findMany({
       where: { tenantId: session.tid, jobId: job.id },
       orderBy: { startedAt: "desc" },
       take: 20,
     }),
     session.platform ? listTenantOptions() : Promise.resolve([]),
+    prisma.notifyDelivery.findMany({
+      where: { tenantId: session.tid, jobId: job.id },
+      orderBy: { createdAt: "desc" },
+      take: 12,
+    }),
   ]);
 
   let upcoming: Date[] = [];
@@ -149,27 +155,36 @@ export default async function JobDetailPage({
                 {job.pauseAfter > 0 ? ` · auto-pause at ${job.pauseAfter}` : ""}
               </dd>
             </div>
-          </dl>
-          {notifyRows.length > 0 || job.notifyUrl ? (
-              <div className="mt-6 space-y-2 text-sm">
-                <p className="text-ink-dim">Notifications</p>
-                {notifyRows.length === 0 ? (
-                  <p className="text-ink-dim">No events selected.</p>
-                ) : (
-                  <ul className="space-y-1">
-                    {notifyRows.map((row) => (
-                      <li key={row.event}>
-                        {NOTIFY_EVENT_LABELS[row.event].title}
-                        <span className="text-ink-dim"> · {row.channels.join(", ")}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {job.notifyUrl ? (
-                  <p className="mono break-all text-xs text-ink-dim">{job.notifyUrl}</p>
-                ) : null}
+            {job.type === "HEARTBEAT" ? (
+              <div className="sm:col-span-2">
+                <dt className="text-ink-dim">Last heartbeat</dt>
+                <dd className="mt-1">
+                  <RelativeTime value={job.lastHeartbeatAt} timeZone={job.timezone} />
+                  <span className="mono mt-1 block break-all text-xs text-ink-dim">
+                    {jobHeartbeatUrl(job.id)}
+                  </span>
+                </dd>
               </div>
             ) : null}
+          </dl>
+          <div className="mt-6 space-y-2 text-sm">
+            <p className="text-ink-dim">Notifications</p>
+            {notifyRows.length === 0 ? (
+              <p className="text-ink-dim">No events selected.</p>
+            ) : (
+              <ul className="space-y-1">
+                {notifyRows.map((row) => (
+                  <li key={row.event}>
+                    {NOTIFY_EVENT_LABELS[row.event].title}
+                    <span className="text-ink-dim"> · {row.channels.join(", ")}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {job.notifyUrl ? (
+              <p className="mono break-all text-xs text-ink-dim">{job.notifyUrl}</p>
+            ) : null}
+          </div>
           <pre className="mono mt-6 overflow-x-auto rounded-2xl bg-bg p-4 text-xs text-gold-2">
             {headers}
           </pre>
@@ -192,7 +207,35 @@ export default async function JobDetailPage({
       </section>
 
       <section className="card overflow-hidden p-0">
-        <div className="border-b border-line px-6 py-4">
+        <div className="border-b border-line px-5 py-4 sm:px-6">
+          <h2 className="font-display text-2xl">Alert log</h2>
+        </div>
+        {deliveries.length === 0 ? (
+          <p className="px-5 py-8 text-sm text-ink-dim sm:px-6">No deliveries yet.</p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {deliveries.map((row) => (
+              <li key={row.id} className="px-5 py-3 text-sm sm:px-6">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-medium">
+                    {row.channel} · {row.event}
+                  </p>
+                  <span className={row.status === "sent" ? "text-sage" : row.status === "failed" ? "text-rose" : "text-ink-dim"}>
+                    {row.status}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-ink-dim">
+                  <RelativeTime value={row.createdAt} timeZone={job.timezone} />
+                  {row.detail ? ` · ${row.detail}` : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="card overflow-hidden p-0">
+        <div className="border-b border-line px-5 py-4 sm:px-6">
           <h2 className="font-display text-2xl">Runs</h2>
         </div>
         {runs.length === 0 ? (
@@ -218,7 +261,7 @@ export default async function JobDetailPage({
                 </Link>
               ))}
             </div>
-            <div className="hidden overflow-x-auto md:block">
+            <div className="table-wrap hidden md:block rounded-none border-0">
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead className="text-xs uppercase tracking-[0.14em] text-ink-dim">
                   <tr>

@@ -1,12 +1,7 @@
 import { z } from "zod";
 import { JOB_TYPES, PERMISSIONS } from "@/lib/acl";
 import { HTTP_METHODS } from "@/lib/constants";
-import {
-  DEFAULT_NOTIFY_EMAIL_ON,
-  DEFAULT_NOTIFY_TELEGRAM_ON,
-  DEFAULT_NOTIFY_WEBHOOK_ON,
-  serializeNotifyList,
-} from "@/lib/notify-events";
+import { serializeNotifyList } from "@/lib/notify-events";
 
 export const registerSchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -27,20 +22,31 @@ export const tenantUpdateSchema = z.object({
 });
 
 export const tenantNotifySchema = z.object({
-  notifyEmail: z.union([z.email().max(160), z.literal("")]).optional(),
+  notifyEmail: z.string().max(2000).optional(),
   smtpHost: z.string().trim().max(255).optional().or(z.literal("")),
-  smtpPort: z.coerce.number().int().min(1).max(65535).optional(),
+  smtpPort: z.union([z.number(), z.string(), z.null()]).optional(),
   smtpSecure: z.boolean().optional(),
   smtpUser: z.string().trim().max(160).optional().or(z.literal("")),
   smtpPass: z.string().max(400).optional().or(z.literal("")),
   smtpFrom: z.string().trim().max(190).optional().or(z.literal("")),
-  telegramChatId: z.string().trim().max(80).optional().or(z.literal("")),
+  telegramChatId: z.string().max(500).optional().or(z.literal("")),
   telegramBotToken: z.string().trim().max(200).optional().or(z.literal("")),
   clearTelegramToken: z.boolean().optional(),
+  slackWebhookUrl: z.string().max(2048).optional().or(z.literal("")),
+  clearSlackWebhook: z.boolean().optional(),
+  rotateWebhookSecret: z.boolean().optional(),
+  defaultNotifyEmailOn: z.union([z.array(z.string()), z.string()]).optional(),
+  defaultNotifyTelegramOn: z.union([z.array(z.string()), z.string()]).optional(),
+  defaultNotifyWebhookOn: z.union([z.array(z.string()), z.string()]).optional(),
+  defaultNotifySlackOn: z.union([z.array(z.string()), z.string()]).optional(),
+  quietHoursStart: z.string().max(5).optional(),
+  quietHoursEnd: z.string().max(5).optional(),
+  quietHoursAllow: z.union([z.array(z.string()), z.string()]).optional(),
+  notifyCooldownSec: z.union([z.number(), z.string()]).optional(),
 });
 
 export const notifyTestSchema = z.object({
-  channel: z.enum(["email", "telegram"]),
+  channel: z.enum(["email", "telegram", "slack"]),
 });
 
 export const passwordChangeSchema = z.object({
@@ -69,7 +75,18 @@ export const apiTokenNameSchema = z.object({
 const notifyListSchema = z
   .union([z.array(z.string()), z.string()])
   .optional()
-  .transform((value) => serializeNotifyList(value ?? []));
+  .transform((value) => (value == null ? undefined : serializeNotifyList(value)));
+
+function intField(fallback: number, min: number, max: number) {
+  return z
+    .union([z.number(), z.string(), z.null(), z.undefined()])
+    .transform((value) => {
+      if (value == null || value === "") return fallback;
+      const n = typeof value === "number" ? value : Number(value);
+      return Number.isFinite(n) ? n : fallback;
+    })
+    .pipe(z.number().int().min(min).max(max));
+}
 
 export const jobInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -84,15 +101,16 @@ export const jobInputSchema = z.object({
   url: z.url().max(2048),
   headers: z.record(z.string(), z.string()).optional().nullable(),
   body: z.string().max(100_000).optional().nullable(),
-  timeoutMs: z.number().int().min(1000).max(120_000).default(30_000),
-  retryMax: z.number().int().min(0).max(10).default(0),
-  retryDelaySec: z.number().int().min(10).max(86_400).default(60),
+  timeoutMs: intField(30_000, 1000, 120_000),
+  retryMax: intField(0, 0, 10),
+  retryDelaySec: intField(60, 10, 86_400),
   notifyUrl: z.union([z.url().max(2048), z.literal(""), z.null()]).optional(),
-  notifyEmailOn: notifyListSchema.default(DEFAULT_NOTIFY_EMAIL_ON),
-  notifyTelegramOn: notifyListSchema.default(DEFAULT_NOTIFY_TELEGRAM_ON),
-  notifyWebhookOn: notifyListSchema.default(DEFAULT_NOTIFY_WEBHOOK_ON),
+  notifyEmailOn: notifyListSchema,
+  notifyTelegramOn: notifyListSchema,
+  notifyWebhookOn: notifyListSchema,
+  notifySlackOn: notifyListSchema,
   keepResponse: z.boolean().default(false),
-  pauseAfter: z.number().int().min(0).max(100).default(0),
+  pauseAfter: intField(0, 0, 100),
   enabled: z.boolean().default(true),
 });
 

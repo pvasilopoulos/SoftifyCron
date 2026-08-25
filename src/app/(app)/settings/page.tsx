@@ -9,7 +9,7 @@ import { canManageRoleCatalog, listTenantRoles } from "@/lib/roles";
 import { listApiTokens } from "@/lib/api-tokens";
 import { hasPermission } from "@/lib/acl";
 import { notFound } from "next/navigation";
-import { envSmtp } from "@/lib/mail";
+import { publicNotify } from "@/lib/tenant-notify";
 
 export const metadata = { title: "Workspace" };
 
@@ -42,18 +42,7 @@ export default async function SettingsPage() {
         slug: tenant.slug,
         timezone: tenant.timezone,
       }}
-      notify={{
-        notifyEmail: tenant.notifyEmail ?? "",
-        smtpHost: tenant.smtpHost ?? "",
-        smtpPort: tenant.smtpPort,
-        smtpSecure: tenant.smtpSecure,
-        smtpUser: tenant.smtpUser ?? "",
-        smtpFrom: tenant.smtpFrom ?? "",
-        smtpHasPassword: Boolean(tenant.smtpPassEnc),
-        telegramChatId: tenant.telegramChatId ?? "",
-        telegramHasToken: Boolean(tenant.telegramBotTokenEnc),
-        envSmtp: Boolean(envSmtp()),
-      }}
+      notify={publicNotify(tenant)}
       members={members}
       invites={invites}
       roles={roles}

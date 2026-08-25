@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getNextRunAt, skipNextFire, validateCron } from "@/lib/cron";
 import { assertSafeUrl } from "@/lib/ssrf";
 import { resolveGroupId } from "@/lib/groups";
+import { tenantNotifyDefaults } from "@/lib/tenant-notify";
 import type { JobInput } from "@/lib/validators";
 import type { JobType, Prisma, RunStatus } from "@prisma/client";
 
@@ -29,6 +30,7 @@ export async function createJob(tenantId: string, input: JobInput) {
   if (data.notifyUrl) await assertSafeUrl(data.notifyUrl);
   const groupId = await resolveGroupId(tenantId, data);
   const nextRunAt = data.enabled ? getNextRunAt(data.cronExpr, data.timezone) : null;
+  const defaults = await tenantNotifyDefaults(tenantId);
   return prisma.cronJob.create({
     data: {
       tenantId,
@@ -47,9 +49,10 @@ export async function createJob(tenantId: string, input: JobInput) {
       retryMax: data.retryMax,
       retryDelaySec: data.retryDelaySec,
       notifyUrl: data.notifyUrl || null,
-      notifyEmailOn: data.notifyEmailOn,
-      notifyTelegramOn: data.notifyTelegramOn,
-      notifyWebhookOn: data.notifyWebhookOn,
+      notifyEmailOn: data.notifyEmailOn ?? defaults.notifyEmailOn,
+      notifyTelegramOn: data.notifyTelegramOn ?? defaults.notifyTelegramOn,
+      notifyWebhookOn: data.notifyWebhookOn ?? defaults.notifyWebhookOn,
+      notifySlackOn: data.notifySlackOn ?? defaults.notifySlackOn,
       keepResponse: data.keepResponse,
       pauseAfter: data.pauseAfter,
       enabled: data.enabled,
@@ -85,9 +88,10 @@ export async function updateJob(tenantId: string, jobId: string, input: JobInput
       retryMax: data.retryMax,
       retryDelaySec: data.retryDelaySec,
       notifyUrl: data.notifyUrl || null,
-      notifyEmailOn: data.notifyEmailOn,
-      notifyTelegramOn: data.notifyTelegramOn,
-      notifyWebhookOn: data.notifyWebhookOn,
+      notifyEmailOn: data.notifyEmailOn ?? existing.notifyEmailOn,
+      notifyTelegramOn: data.notifyTelegramOn ?? existing.notifyTelegramOn,
+      notifyWebhookOn: data.notifyWebhookOn ?? existing.notifyWebhookOn,
+      notifySlackOn: data.notifySlackOn ?? existing.notifySlackOn,
       keepResponse: data.keepResponse,
       pauseAfter: data.pauseAfter,
       enabled: data.enabled,
@@ -186,6 +190,7 @@ export async function duplicateJob(tenantId: string, jobId: string) {
       notifyEmailOn: job.notifyEmailOn,
       notifyTelegramOn: job.notifyTelegramOn,
       notifyWebhookOn: job.notifyWebhookOn,
+      notifySlackOn: job.notifySlackOn,
       keepResponse: job.keepResponse,
       pauseAfter: job.pauseAfter,
       nextRunAt: null,
@@ -261,6 +266,10 @@ export async function moveJobToTenant(jobId: string, fromTenantId: string, toTen
       data: { tenantId: toTenantId, groupId: null },
     }),
     prisma.jobRun.updateMany({
+      where: { jobId },
+      data: { tenantId: toTenantId },
+    }),
+    prisma.notifyDelivery.updateMany({
       where: { jobId },
       data: { tenantId: toTenantId },
     }),

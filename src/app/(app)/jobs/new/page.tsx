@@ -3,13 +3,17 @@ import { JobForm } from "@/components/job-form";
 import { requireSession } from "@/lib/session";
 import { listGroups } from "@/lib/groups";
 import { hasPermission } from "@/lib/acl";
+import { tenantNotifyDefaults } from "@/lib/tenant-notify";
 
 export const metadata = { title: "New job" };
 
 export default async function NewJobPage() {
   const session = await requireSession();
   if (!hasPermission(session, "jobs.edit")) redirect("/jobs");
-  const groups = await listGroups(session.tid);
+  const [groups, defaults] = await Promise.all([
+    listGroups(session.tid),
+    tenantNotifyDefaults(session.tid),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -21,7 +25,16 @@ export default async function NewJobPage() {
           The worker will only execute it inside {session.tname}.
         </p>
       </div>
-      <JobForm groups={groups} />
+      <JobForm
+        groups={groups}
+        initial={{
+          timezone: defaults.timezone,
+          notifyEmailOn: defaults.notifyEmailOn,
+          notifyTelegramOn: defaults.notifyTelegramOn,
+          notifyWebhookOn: defaults.notifyWebhookOn,
+          notifySlackOn: defaults.notifySlackOn,
+        }}
+      />
     </div>
   );
 }

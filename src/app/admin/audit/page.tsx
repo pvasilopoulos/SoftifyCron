@@ -14,7 +14,22 @@ export default async function AuditPage() {
       {events.length === 0 ? (
         <div className="card p-8 text-ink-dim">No audit events yet.</div>
       ) : (
-        <div className="overflow-hidden rounded-[1.25rem] border border-line">
+        <>
+          <div className="grid gap-3 md:hidden">
+            {events.map((event) => (
+              <article key={event.id} className="card p-4">
+                <p className="mono text-sm">{event.action}</p>
+                <p className="mt-1 text-sm text-ink-dim">
+                  {event.actor?.email ?? "—"} · {event.tenant?.name ?? "—"}
+                </p>
+                <p className="mt-1 text-xs text-ink-dim">
+                  <RelativeTime value={event.createdAt} timeZone="Europe/Athens" />
+                </p>
+                {event.target ? <p className="mono mt-2 break-any text-xs text-ink-dim">{event.target}</p> : null}
+              </article>
+            ))}
+          </div>
+          <div className="table-wrap hidden md:block">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="bg-bg-mute text-xs uppercase tracking-[0.14em] text-ink-dim">
               <tr>
@@ -39,7 +54,8 @@ export default async function AuditPage() {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

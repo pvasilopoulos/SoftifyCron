@@ -27,12 +27,13 @@ export function mailConfigured(smtp?: SmtpConfig | null) {
 }
 
 export async function sendMail(
-  input: { to: string; subject: string; text: string },
+  input: { to: string | string[]; subject: string; text: string },
   smtp?: SmtpConfig | null,
 ) {
   const config = smtp ?? envSmtp();
+  const to = Array.isArray(input.to) ? input.to.filter(Boolean).join(", ") : input.to;
   if (!config) {
-    console.info(`[mail:log] to=${input.to} subject=${input.subject}\n${input.text}`);
+    console.info(`[mail:log] to=${to} subject=${input.subject}\n${input.text}`);
     return { sent: false };
   }
 
@@ -45,7 +46,7 @@ export async function sendMail(
   });
   await transporter.sendMail({
     from: config.from,
-    to: input.to,
+    to,
     subject: input.subject,
     text: input.text,
   });
