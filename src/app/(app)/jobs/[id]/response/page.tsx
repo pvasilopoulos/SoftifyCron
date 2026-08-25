@@ -65,7 +65,11 @@ export default async function JobResponsePage({
           {run.error ? <p className="mt-3 text-sm text-rose">{run.error}</p> : null}
           <div className="mt-5">
             {run.responseBody ? (
-              <ResponseGridView grid={grid} raw={run.responseBody} />
+              <ResponseGridView
+                grid={grid}
+                raw={run.responseBody}
+                storageKey={`job-${job.id}`}
+              />
             ) : (
               <p className="text-sm text-ink-dim">
                 No body stored on this run. Run the job again after enabling the flag.

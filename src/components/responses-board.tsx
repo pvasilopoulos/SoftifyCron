@@ -185,7 +185,12 @@ export function ResponsesBoard({
             {selectedRun?.responseCharset ? ` · decoded as ${selectedRun.responseCharset}` : ""}
           </p>
           <div className="mt-5">
-            <ResponseGridView grid={grid} raw={selectedRun?.responseBody} />
+            <ResponseGridView
+              key={`${selectedId}-${selectedRun.id}`}
+              grid={grid}
+              raw={selectedRun?.responseBody}
+              storageKey={selectedId ?? "responses"}
+            />
           </div>
         </div>
       )}

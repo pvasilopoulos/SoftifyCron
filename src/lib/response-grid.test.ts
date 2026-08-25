@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { filterGrid, parseResponseGrid } from "./response-grid";
+import {
+  applyGridQuery,
+  filterGrid,
+  parseResponseDatasets,
+  parseResponseGrid,
+} from "./response-grid";
 
 describe("parseResponseGrid", () => {
   it("turns an array of objects into columns", () => {
@@ -53,5 +58,49 @@ describe("parseResponseGrid", () => {
   it("filters rows", () => {
     const grid = parseResponseGrid(JSON.stringify([{ name: "Athens" }, { name: "Patras" }]));
     expect(filterGrid(grid, "pat").rows).toEqual([["Patras"]]);
+  });
+
+  it("keeps every JSON row", () => {
+    const rows = Array.from({ length: 650 }, (_, index) => ({ id: index, name: `row-${index}` }));
+    const grid = parseResponseGrid(JSON.stringify(rows));
+    expect(grid.rows).toHaveLength(650);
+    expect(grid.rows[649]).toEqual(["649", "row-649"]);
+  });
+
+  it("flattens nested object fields", () => {
+    const grid = parseResponseGrid(JSON.stringify([{ user: { name: "Ada" }, qty: 2 }]));
+    expect(grid.columns).toEqual(["user.name", "qty"]);
+    expect(grid.rows[0]).toEqual(["Ada", "2"]);
+  });
+
+  it("sorts and filters by column", () => {
+    const grid = parseResponseGrid(
+      JSON.stringify([
+        { name: "Patras", qty: 2 },
+        { name: "Athens", qty: 10 },
+      ]),
+    );
+    const sorted = applyGridQuery(grid, { sort: { column: "qty", dir: "desc" } });
+    expect(sorted.rows[0]).toEqual(["Athens", "10"]);
+    const filtered = applyGridQuery(grid, {
+      filters: [{ id: "1", column: "name", op: "contains", value: "ath" }],
+    });
+    expect(filtered.rows).toEqual([["Athens", "10"]]);
+  });
+
+  it("exposes every nested JSON table as a dataset", () => {
+    const datasets = parseResponseDatasets(
+      JSON.stringify({
+        ok: true,
+        users: [{ id: 1, name: "Ada" }],
+        orders: [
+          { id: 9, total: 12 },
+          { id: 8, total: 4 },
+        ],
+      }),
+    );
+    expect(datasets.map((item) => item.id)).toEqual(["orders", "users", "_fields"]);
+    expect(datasets[0]?.grid.rows).toHaveLength(2);
+    expect(datasets[2]?.grid.rows).toEqual([["ok", "true"]]);
   });
 });
