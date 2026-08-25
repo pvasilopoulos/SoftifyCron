@@ -6,9 +6,11 @@ import { useState } from "react";
 export function JobActions({
   jobId,
   enabled,
+  canManage,
 }: {
   jobId: string;
   enabled: boolean;
+  canManage: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -39,6 +41,19 @@ export function JobActions({
     router.refresh();
   }
 
+  async function duplicate() {
+    setBusy("copy");
+    const response = await fetch(`/api/jobs/${jobId}/duplicate`, { method: "POST" });
+    const data = await response.json().catch(() => ({}));
+    setBusy(null);
+    if (!response.ok) {
+      setMessage(data.error ?? "Could not duplicate");
+      return;
+    }
+    router.push(`/jobs/${data.job.id}/edit`);
+    router.refresh();
+  }
+
   async function remove() {
     if (!confirm("Delete this job and its run history?")) return;
     setBusy("delete");
@@ -54,12 +69,19 @@ export function JobActions({
       <button className="btn btn-gold" type="button" onClick={runNow} disabled={!!busy}>
         {busy === "run" ? "Running…" : "Run now"}
       </button>
-      <button className="btn btn-ghost" type="button" onClick={toggle} disabled={!!busy}>
-        {enabled ? "Pause" : "Resume"}
-      </button>
-      <button className="btn btn-danger" type="button" onClick={remove} disabled={!!busy}>
-        Delete
-      </button>
+      {canManage ? (
+        <>
+          <button className="btn btn-ghost" type="button" onClick={toggle} disabled={!!busy}>
+            {enabled ? "Pause" : "Resume"}
+          </button>
+          <button className="btn btn-ghost" type="button" onClick={duplicate} disabled={!!busy}>
+            {busy === "copy" ? "Copying…" : "Duplicate"}
+          </button>
+          <button className="btn btn-danger" type="button" onClick={remove} disabled={!!busy}>
+            Delete
+          </button>
+        </>
+      ) : null}
       {message ? <span className="text-sm text-ink-dim">{message}</span> : null}
     </div>
   );

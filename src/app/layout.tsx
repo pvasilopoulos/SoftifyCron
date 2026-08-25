@@ -18,6 +18,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#07080c",
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   title: {
     default: "SoftifyCron",
@@ -25,6 +32,11 @@ export const metadata: Metadata = {
   },
   description:
     "Multi-tenant cron control plane. Isolated workspaces, MySQL-backed jobs, and HTTP schedules you can actually manage.",
+  appleWebApp: {
+    capable: true,
+    title: "SoftifyCron",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -33,10 +45,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${outfit.variable} ${fraunces.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col text-ink">
-        <div className="noise" aria-hidden="true" />
-        {children}
-      </body>
+      <body className="min-h-full min-h-dvh flex flex-col text-ink">{children}</body>
     </html>
   );
 }

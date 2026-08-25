@@ -1,6 +1,6 @@
 # SoftifyCron
 
-Multi-tenant HTTP cron control plane. Each workspace has its own users, jobs, and run history on **MySQL**. A Node worker claims due rows and executes them.
+Multi-tenant HTTP cron control plane. Each workspace has its own users, jobs, secrets, and run history on **MySQL**. A Node worker claims due rows and executes them.
 
 ## Stack
 
@@ -8,6 +8,7 @@ Multi-tenant HTTP cron control plane. Each workspace has its own users, jobs, an
 - Prisma + MySQL 8 / MariaDB
 - Signed HTTP-only session cookies (`jose`)
 - Dedicated scheduler worker with row locking
+- Mobile-first app shell with bottom navigation
 
 ## Quick start
 
@@ -32,11 +33,12 @@ Demo login:
 
 ## What you get
 
-- Register creates a **tenant** + owner user
-- Login is scoped to that tenant
-- CRUD for per-tenant cron jobs (HTTP GET/POST/PUT/PATCH/DELETE)
-- Pause / resume / run now
-- Execution history stored in MySQL
+- Register creates a **tenant** + owner user, with default job groups
+- Login is scoped to that tenant; invites join teammates as admin or member
+- HTTP, heartbeat, and webhook jobs with groups, tags, search, and bulk actions
+- Pause / resume / duplicate / run now
+- Retries, failure webhooks, and `{{SECRET:KEY}}` interpolation
+- Execution history stored in MySQL, filterable on desktop and phone
 - SSRF guard: localhost, private, and link-local targets are rejected
 
 ## Scripts
@@ -46,6 +48,6 @@ Demo login:
 | `npm run dev` | Web + worker |
 | `npm run worker` | Scheduler only |
 | `npx prisma migrate deploy` | Apply SQL migrations |
-| `npm test` | Unit tests (cron + SSRF) |
+| `npm test` | Unit tests (cron + SSRF + secrets) |
 | `npm run lint` | ESLint |
 | `npm run build` | Production build |

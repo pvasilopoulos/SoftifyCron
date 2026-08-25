@@ -1,12 +1,18 @@
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { SettingsForm } from "@/components/settings-form";
+import { WorkspacePanels } from "@/components/workspace-panels";
+import { listGroups } from "@/lib/groups";
+import { listSecrets } from "@/lib/secrets";
+import { listInvites } from "@/lib/invites";
+import { canManage } from "@/lib/acl";
 import { notFound } from "next/navigation";
 
 export const metadata = { title: "Workspace" };
 
 export default async function SettingsPage() {
   const session = await requireSession();
+  const manage = canManage(session.role);
   const tenant = await prisma.tenant.findUnique({
     where: { id: session.tid },
     include: {
@@ -17,6 +23,12 @@ export default async function SettingsPage() {
     },
   });
   if (!tenant) notFound();
+
+  const [groups, secrets, invites] = await Promise.all([
+    listGroups(session.tid),
+    manage ? listSecrets(session.tid) : Promise.resolve([]),
+    manage ? listInvites(session.tid) : Promise.resolve([]),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -34,7 +46,7 @@ export default async function SettingsPage() {
             <SettingsForm
               name={tenant.name}
               timezone={tenant.timezone}
-              canEdit={session.role !== "MEMBER"}
+              canEdit={manage}
             />
           </div>
         </div>
@@ -53,6 +65,12 @@ export default async function SettingsPage() {
           </ul>
         </div>
       </div>
+      <WorkspacePanels
+        groups={groups}
+        secrets={secrets}
+        invites={invites}
+        canManage={manage}
+      />
     </div>
   );
 }

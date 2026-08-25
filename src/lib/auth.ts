@@ -2,6 +2,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/format";
 import { signSession, type SessionPayload } from "@/lib/session";
+import { acceptInvite, getInviteByToken } from "@/lib/invites";
+import { ensureDefaultGroups } from "@/lib/groups";
 import type { Role } from "@prisma/client";
 
 export async function hashPassword(password: string) {
@@ -22,11 +24,10 @@ async function uniqueSlug(name: string) {
   return `${base}-${Date.now().toString(36)}`;
 }
 
-async function sessionFromMembership(user: {
-  id: string;
-  email: string;
-  name: string;
-}, membership: { tenantId: string; role: Role; tenant: { name: string; slug: string } }): Promise<SessionPayload> {
+export async function sessionFromMembership(
+  user: { id: string; email: string; name: string },
+  membership: { tenantId: string; role: Role; tenant: { name: string; slug: string } },
+): Promise<SessionPayload> {
   return {
     sub: user.id,
     tid: membership.tenantId,
@@ -42,7 +43,8 @@ export async function registerUser(input: {
   name: string;
   email: string;
   password: string;
-  organization: string;
+  organization?: string;
+  invite?: string | null;
 }) {
   const email = input.email.trim().toLowerCase();
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -51,32 +53,40 @@ export async function registerUser(input: {
   }
 
   const passwordHash = await hashPassword(input.password);
-  const slug = await uniqueSlug(input.organization);
+  const invite = input.invite ? await getInviteByToken(input.invite) : null;
 
+  if (invite) {
+    const createdUser = await prisma.user.create({
+      data: { email, name: input.name.trim(), passwordHash },
+    });
+    await acceptInvite(input.invite!, createdUser.id, email);
+    const membership = await prisma.membership.findFirst({
+      where: { userId: createdUser.id, tenantId: invite.tenantId },
+      include: { tenant: true },
+    });
+    if (!membership) throw new Error("Could not join workspace");
+    const payload = await sessionFromMembership(createdUser, membership);
+    return { token: await signSession(payload), payload };
+  }
+
+  const org = input.organization?.trim();
+  if (!org) {
+    throw new Error("Organization is required");
+  }
+  const slug = await uniqueSlug(org);
   const user = await prisma.$transaction(async (tx) => {
     const createdUser = await tx.user.create({
-      data: {
-        email,
-        name: input.name.trim(),
-        passwordHash,
-      },
+      data: { email, name: input.name.trim(), passwordHash },
     });
     const tenant = await tx.tenant.create({
-      data: {
-        name: input.organization.trim(),
-        slug,
-      },
+      data: { name: org, slug },
     });
     await tx.membership.create({
-      data: {
-        userId: createdUser.id,
-        tenantId: tenant.id,
-        role: "OWNER",
-      },
+      data: { userId: createdUser.id, tenantId: tenant.id, role: "OWNER" },
     });
     return { createdUser, tenant };
   });
-
+  await ensureDefaultGroups(user.tenant.id);
   const payload: SessionPayload = {
     sub: user.createdUser.id,
     tid: user.tenant.id,
@@ -86,11 +96,10 @@ export async function registerUser(input: {
     tname: user.tenant.name,
     tslug: user.tenant.slug,
   };
-  const token = await signSession(payload);
-  return { token, payload };
+  return { token: await signSession(payload), payload };
 }
 
-export async function loginUser(emailRaw: string, password: string) {
+export async function loginUser(emailRaw: string, password: string, inviteToken?: string | null) {
   const email = emailRaw.trim().toLowerCase();
   const user = await prisma.user.findUnique({
     where: { email },
@@ -98,26 +107,27 @@ export async function loginUser(emailRaw: string, password: string) {
       memberships: {
         include: { tenant: true },
         orderBy: { createdAt: "asc" },
-        take: 1,
       },
     },
   });
 
-  if (!user) {
-    throw new Error("Invalid email or password");
-  }
-
+  if (!user) throw new Error("Invalid email or password");
   const ok = await verifyPassword(password, user.passwordHash);
-  if (!ok) {
-    throw new Error("Invalid email or password");
+  if (!ok) throw new Error("Invalid email or password");
+
+  if (inviteToken) {
+    const invite = await acceptInvite(inviteToken, user.id, email);
+    const membership = await prisma.membership.findFirst({
+      where: { userId: user.id, tenantId: invite.tenantId },
+      include: { tenant: true },
+    });
+    if (!membership) throw new Error("Could not join workspace");
+    const payload = await sessionFromMembership(user, membership);
+    return { token: await signSession(payload), payload };
   }
 
   const membership = user.memberships[0];
-  if (!membership) {
-    throw new Error("This account has no workspace");
-  }
-
+  if (!membership) throw new Error("This account has no workspace");
   const payload = await sessionFromMembership(user, membership);
-  const token = await signSession(payload);
-  return { token, payload };
+  return { token: await signSession(payload), payload };
 }

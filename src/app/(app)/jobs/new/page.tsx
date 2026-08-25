@@ -1,10 +1,16 @@
+import { redirect } from "next/navigation";
 import { JobForm } from "@/components/job-form";
 import { requireSession } from "@/lib/session";
+import { listGroups } from "@/lib/groups";
+import { canManage } from "@/lib/acl";
 
 export const metadata = { title: "New job" };
 
 export default async function NewJobPage() {
   const session = await requireSession();
+  if (!canManage(session.role)) redirect("/jobs");
+  const groups = await listGroups(session.tid);
+
   return (
     <div className="space-y-8">
       <div>
@@ -15,7 +21,7 @@ export default async function NewJobPage() {
           The worker will only execute it inside {session.tname}.
         </p>
       </div>
-      <JobForm />
+      <JobForm groups={groups} />
     </div>
   );
 }

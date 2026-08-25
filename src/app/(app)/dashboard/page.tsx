@@ -4,19 +4,31 @@ import { requireSession } from "@/lib/session";
 import { describeCron } from "@/lib/cron";
 import { formatDateTime } from "@/lib/format";
 import { StatusPill } from "@/components/status-pill";
+import { canManage } from "@/lib/acl";
 
 export const metadata = { title: "Overview" };
+
+const FAILING = ["FAILED", "TIMEOUT", "BLOCKED"] as const;
 
 export default async function DashboardPage() {
   const session = await requireSession();
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
+  const manage = canManage(session.role);
 
-  const [tenant, jobs, active, upcoming, runsToday, successesToday, recent] =
+  const [tenant, jobs, active, failingCount, failing, upcoming, runsToday, successesToday, recent] =
     await Promise.all([
       prisma.tenant.findUnique({ where: { id: session.tid } }),
       prisma.cronJob.count({ where: { tenantId: session.tid } }),
       prisma.cronJob.count({ where: { tenantId: session.tid, enabled: true } }),
+      prisma.cronJob.count({
+        where: { tenantId: session.tid, lastStatus: { in: [...FAILING] } },
+      }),
+      prisma.cronJob.findMany({
+        where: { tenantId: session.tid, lastStatus: { in: [...FAILING] } },
+        orderBy: { lastRunAt: "desc" },
+        take: 8,
+      }),
       prisma.cronJob.findMany({
         where: { tenantId: session.tid, enabled: true, nextRunAt: { not: null } },
         orderBy: { nextRunAt: "asc" },
@@ -51,26 +63,58 @@ export default async function DashboardPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-gold">Overview</p>
           <h1 className="mt-2 font-display text-4xl italic">{session.tname}</h1>
         </div>
-        <Link href="/jobs/new" className="btn btn-gold">
-          New job
-        </Link>
+        {manage ? (
+          <Link href="/jobs/new" className="btn btn-gold">
+            New job
+          </Link>
+        ) : null}
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-5">
         {[
-          ["Jobs", String(jobs)],
-          ["Armed", String(active)],
-          ["Runs today", String(runsToday)],
-          ["Success today", rate],
-        ].map(([label, value]) => (
-          <div key={label} className="card p-5">
+          ["Jobs", String(jobs), "/jobs"],
+          ["Armed", String(active), "/jobs?state=armed"],
+          ["Failing", String(failingCount), "/jobs?state=failing"],
+          ["Runs today", String(runsToday), "/runs"],
+          ["Success today", rate, "/runs?status=SUCCESS"],
+        ].map(([label, value, href]) => (
+          <Link key={label} href={href} className="card p-4 sm:p-5">
             <p className="text-xs uppercase tracking-[0.16em] text-ink-dim">
               {label}
             </p>
-            <p className="mt-3 font-display text-4xl">{value}</p>
-          </div>
+            <p className="mt-3 font-display text-3xl sm:text-4xl">{value}</p>
+          </Link>
         ))}
       </section>
+
+      {failing.length > 0 ? (
+        <section className="card border-rose/30 p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-2xl italic text-rose">Needs attention</h2>
+            <Link href="/jobs?state=failing" className="text-sm text-gold">
+              All failing
+            </Link>
+          </div>
+          <div className="mt-5 space-y-4">
+            {failing.map((job) => (
+              <Link
+                key={job.id}
+                href={`/jobs/${job.id}`}
+                className="block border-b border-line pb-4 last:border-0 last:pb-0"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-medium">{job.name}</p>
+                  {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
+                </div>
+                <p className="mt-1 text-sm text-ink-dim">
+                  {job.consecutiveFailures} consecutive ·{" "}
+                  {formatDateTime(job.lastRunAt, job.timezone)}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="card p-6">

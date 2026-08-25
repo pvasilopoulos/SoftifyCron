@@ -1,7 +1,9 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { getJobForTenant } from "@/lib/jobs";
+import { listGroups } from "@/lib/groups";
 import { JobForm } from "@/components/job-form";
+import { canManage } from "@/lib/acl";
 
 export const metadata = { title: "Edit job" };
 
@@ -11,8 +13,12 @@ export default async function EditJobPage({
   params: Promise<{ id: string }>;
 }) {
   const session = await requireSession();
+  if (!canManage(session.role)) redirect("/jobs");
   const { id } = await params;
-  const job = await getJobForTenant(session.tid, id);
+  const [job, groups] = await Promise.all([
+    getJobForTenant(session.tid, id),
+    listGroups(session.tid),
+  ]);
   if (!job) notFound();
 
   const headers =
@@ -28,9 +34,13 @@ export default async function EditJobPage({
       </div>
       <JobForm
         jobId={job.id}
+        groups={groups}
         initial={{
           name: job.name,
           description: job.description ?? "",
+          groupId: job.groupId ?? "",
+          type: job.type,
+          tags: job.tags,
           cronExpr: job.cronExpr,
           timezone: job.timezone,
           method: job.method,
@@ -38,6 +48,9 @@ export default async function EditJobPage({
           headers,
           body: job.body ?? "",
           timeoutMs: job.timeoutMs,
+          retryMax: job.retryMax,
+          retryDelaySec: job.retryDelaySec,
+          notifyUrl: job.notifyUrl ?? "",
           enabled: job.enabled,
         }}
       />

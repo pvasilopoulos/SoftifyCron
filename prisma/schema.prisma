@@ -21,6 +21,12 @@ enum HttpMethod {
   DELETE
 }
 
+enum JobType {
+  HTTP
+  HEARTBEAT
+  WEBHOOK
+}
+
 enum RunStatus {
   PENDING
   RUNNING
@@ -33,6 +39,7 @@ enum RunStatus {
 enum RunTrigger {
   SCHEDULE
   MANUAL
+  RETRY
 }
 
 model Tenant {
@@ -45,6 +52,9 @@ model Tenant {
   memberships Membership[]
   jobs        CronJob[]
   runs        JobRun[]
+  groups      JobGroup[]
+  secrets     Secret[]
+  invites     Invite[]
 }
 
 model User {
@@ -70,28 +80,54 @@ model Membership {
   @@index([tenantId])
 }
 
+model JobGroup {
+  id        String    @id @default(cuid())
+  tenantId  String
+  name      String
+  slug      String
+  color     String    @default("#7dffce")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  jobs      CronJob[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+}
+
 model CronJob {
-  id          String     @id @default(cuid())
-  tenantId    String
-  name        String
-  description String?    @db.Text
-  cronExpr    String
-  timezone    String     @default("Europe/Athens")
-  enabled     Boolean    @default(true)
-  method      HttpMethod @default(GET)
-  url         String     @db.VarChar(2048)
-  headers     Json?
-  body        String?    @db.MediumText
-  timeoutMs   Int        @default(30000)
-  lastRunAt   DateTime?
-  nextRunAt   DateTime?
-  lockedUntil DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  runs        JobRun[]
+  id                   String     @id @default(cuid())
+  tenantId             String
+  groupId              String?
+  name                 String
+  description          String?    @db.Text
+  type                 JobType    @default(HTTP)
+  tags                 String     @default("") @db.VarChar(500)
+  cronExpr             String
+  timezone             String     @default("Europe/Athens")
+  enabled              Boolean    @default(true)
+  method               HttpMethod @default(GET)
+  url                  String     @db.VarChar(2048)
+  headers              Json?
+  body                 String?    @db.MediumText
+  timeoutMs            Int        @default(30000)
+  retryMax             Int        @default(0)
+  retryDelaySec        Int        @default(60)
+  notifyUrl            String?    @db.VarChar(2048)
+  consecutiveFailures  Int        @default(0)
+  lastStatus           RunStatus?
+  lastRunAt            DateTime?
+  nextRunAt            DateTime?
+  lockedUntil          DateTime?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+  tenant               Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  group                JobGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  runs                 JobRun[]
 
   @@index([tenantId, enabled, nextRunAt])
+  @@index([tenantId, groupId])
+  @@index([tenantId, type])
   @@index([enabled, nextRunAt, lockedUntil])
 }
 
@@ -112,4 +148,33 @@ model JobRun {
 
   @@index([tenantId, startedAt])
   @@index([jobId, startedAt])
+  @@index([tenantId, status])
+}
+
+model Secret {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  key       String
+  valueEnc  String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+}
+
+model Invite {
+  id        String    @id @default(cuid())
+  tenantId  String
+  email     String
+  role      Role      @default(MEMBER)
+  tokenHash String    @unique
+  expiresAt DateTime
+  acceptedAt DateTime?
+  createdAt DateTime  @default(now())
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, email])
 }

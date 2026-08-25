@@ -26,6 +26,10 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAuthPath(pathname) && session) {
+    const invite = request.nextUrl.searchParams.get("invite");
+    if (invite) {
+      return NextResponse.redirect(new URL(`/invite/${invite}`, request.url));
+    }
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
@@ -40,5 +44,6 @@ export const config = {
     "/settings/:path*",
     "/login",
     "/register",
+    "/invite/:path*",
   ],
 };

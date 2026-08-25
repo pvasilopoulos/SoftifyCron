@@ -2,6 +2,8 @@ import type { CronJob, Prisma, RunTrigger } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getNextRunAt } from "@/lib/cron";
 import { assertSafeUrl } from "@/lib/ssrf";
+import { resolveSecrets } from "@/lib/secrets";
+import { notifyFailure } from "@/lib/notify";
 
 const MAX_BODY = 32_768;
 
@@ -29,9 +31,7 @@ async function safeFetch(rawUrl: string, init: RequestInit, timeoutMs: number) {
     });
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get("location");
-      if (!location) {
-        return response;
-      }
+      if (!location) return response;
       current = await assertSafeUrl(new URL(location, current).toString());
       continue;
     }
@@ -41,26 +41,28 @@ async function safeFetch(rawUrl: string, init: RequestInit, timeoutMs: number) {
 }
 
 async function performRequest(job: CronJob) {
-  const headers = new Headers(headerRecord(job.headers));
+  const rawHeaders = headerRecord(job.headers);
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(rawHeaders)) {
+    headers.set(key, await resolveSecrets(job.tenantId, value));
+  }
   if (!headers.has("user-agent")) {
     headers.set("user-agent", "SoftifyCron/1.0");
   }
-  const method = job.method;
+  const method = job.type === "HEARTBEAT" ? "GET" : job.method;
   const canHaveBody = method !== "GET" && method !== "DELETE";
-  if (canHaveBody && job.body && !headers.has("content-type")) {
+  const body = canHaveBody
+    ? await resolveSecrets(job.tenantId, job.body)
+    : undefined;
+  if (canHaveBody && body && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
   }
-
+  const url = await resolveSecrets(job.tenantId, job.url);
   const response = await safeFetch(
-    job.url,
-    {
-      method,
-      headers,
-      body: canHaveBody ? job.body ?? undefined : undefined,
-    },
+    url,
+    { method, headers, body: canHaveBody ? body || undefined : undefined },
     job.timeoutMs,
   );
-
   const raw = await response.text();
   return {
     httpStatus: response.status,
@@ -97,9 +99,7 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
     httpStatus = result.httpStatus;
     responseBody = result.responseBody;
     status = result.ok ? "SUCCESS" : "FAILED";
-    if (!result.ok) {
-      error = `HTTP ${result.httpStatus}`;
-    }
+    if (!result.ok) error = `HTTP ${result.httpStatus}`;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
@@ -109,7 +109,8 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
       message.includes("not allowed") ||
       message.includes("private address") ||
       message.includes("Invalid URL") ||
-      message.includes("Only HTTP")
+      message.includes("Only HTTP") ||
+      message.includes("Unknown secret")
     ) {
       status = "BLOCKED";
       error = message;
@@ -121,38 +122,52 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
 
   const finishedAt = new Date();
   const durationMs = finishedAt.getTime() - startedAt.getTime();
+  const failed = status !== "SUCCESS";
+  const consecutiveFailures = failed ? job.consecutiveFailures + 1 : 0;
+  const shouldRetry =
+    failed &&
+    trigger !== "MANUAL" &&
+    job.enabled &&
+    job.retryMax > 0 &&
+    consecutiveFailures <= job.retryMax;
 
   await prisma.jobRun.update({
     where: { id: run.id },
+    data: { status, httpStatus, responseBody, error, finishedAt, durationMs },
+  });
+
+  let nextRunAt = job.nextRunAt;
+  if (trigger === "MANUAL") {
+    nextRunAt = job.nextRunAt;
+  } else if (shouldRetry) {
+    nextRunAt = new Date(Date.now() + job.retryDelaySec * 1000);
+  } else if (job.enabled) {
+    nextRunAt = getNextRunAt(job.cronExpr, job.timezone, finishedAt);
+  } else {
+    nextRunAt = null;
+  }
+
+  await prisma.cronJob.update({
+    where: { id: job.id },
     data: {
-      status,
-      httpStatus,
-      responseBody,
-      error,
-      finishedAt,
-      durationMs,
+      lastRunAt: startedAt,
+      lastStatus: status,
+      consecutiveFailures,
+      nextRunAt,
+      lockedUntil: null,
     },
   });
 
-  if (trigger === "SCHEDULE") {
-    await prisma.cronJob.update({
-      where: { id: job.id },
-      data: {
-        lastRunAt: startedAt,
-        nextRunAt: job.enabled
-          ? getNextRunAt(job.cronExpr, job.timezone, finishedAt)
-          : null,
-        lockedUntil: null,
-      },
-    });
-  } else {
-    await prisma.cronJob.update({
-      where: { id: job.id },
-      data: { lastRunAt: startedAt },
+  if (failed && !shouldRetry && job.notifyUrl) {
+    await notifyFailure({
+      ...job,
+      consecutiveFailures,
+      lastStatus: status,
+      error,
     });
   }
 
-  return { runId: run.id, status };
+  return { runId: run.id, status, retried: shouldRetry };
 }
 
 export async function claimAndRunDueJobs(limit = 25) {
@@ -180,7 +195,8 @@ export async function claimAndRunDueJobs(limit = 25) {
       data: { lockedUntil: lockUntil },
     });
     if (claimed.count !== 1) continue;
-    await executeJob(job, "SCHEDULE");
+    const isRetry = job.consecutiveFailures > 0;
+    await executeJob(job, isRetry ? "RETRY" : "SCHEDULE");
     ran += 1;
   }
   return ran;

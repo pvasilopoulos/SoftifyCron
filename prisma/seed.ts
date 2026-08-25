@@ -42,6 +42,20 @@ async function main() {
     throw new Error("Failed to resolve demo tenant");
   }
 
+  const groupCount = await prisma.jobGroup.count({ where: { tenantId } });
+  if (groupCount === 0) {
+    await prisma.jobGroup.createMany({
+      data: [
+        { tenantId, name: "Ops", slug: "ops", color: "#7dffce" },
+        { tenantId, name: "Integrations", slug: "integrations", color: "#8b9cff" },
+        { tenantId, name: "Billing", slug: "billing", color: "#ffc46b" },
+      ],
+    });
+  }
+
+  const groups = await prisma.jobGroup.findMany({ where: { tenantId } });
+  const bySlug = Object.fromEntries(groups.map((group) => [group.slug, group.id]));
+
   const existing = await prisma.cronJob.count({ where: { tenantId } });
   if (existing === 0) {
     const jobs = [
@@ -50,25 +64,40 @@ async function main() {
         description: "Hits example.com every 15 minutes to prove the scheduler is alive.",
         cronExpr: "*/15 * * * *",
         method: "GET" as const,
+        type: "HEARTBEAT" as const,
+        tags: "critical,uptime",
         url: "https://example.com",
         enabled: true,
+        groupId: bySlug.ops ?? null,
+        retryMax: 2,
+        retryDelaySec: 60,
       },
       {
         name: "Morning digest",
         description: "Placeholder daily webhook. Point it at your own endpoint.",
         cronExpr: "0 9 * * 1-5",
         method: "POST" as const,
+        type: "WEBHOOK" as const,
+        tags: "digest",
         url: "https://httpbingo.org/status/204",
         body: JSON.stringify({ source: "softifycron", kind: "digest" }),
         enabled: true,
+        groupId: bySlug.billing ?? null,
+        retryMax: 1,
+        retryDelaySec: 120,
       },
       {
         name: "Paused backup probe",
         description: "Disabled on purpose so you can toggle it from the jobs list.",
         cronExpr: "0 3 * * *",
         method: "GET" as const,
+        type: "HTTP" as const,
+        tags: "backup",
         url: "https://example.com",
         enabled: false,
+        groupId: bySlug.integrations ?? null,
+        retryMax: 0,
+        retryDelaySec: 60,
       },
     ];
 
@@ -76,20 +105,38 @@ async function main() {
       await prisma.cronJob.create({
         data: {
           tenantId,
+          groupId: job.groupId,
           name: job.name,
           description: job.description,
+          type: job.type,
+          tags: job.tags,
           cronExpr: job.cronExpr,
           timezone: "Europe/Athens",
           method: job.method,
           url: job.url,
           body: "body" in job ? job.body : null,
           enabled: job.enabled,
+          retryMax: job.retryMax,
+          retryDelaySec: job.retryDelaySec,
           nextRunAt: job.enabled
             ? getNextRunAt(job.cronExpr, "Europe/Athens")
             : null,
         },
       });
     }
+  } else {
+    await prisma.cronJob.updateMany({
+      where: { tenantId, name: "Status page ping", groupId: null },
+      data: { groupId: bySlug.ops, type: "HEARTBEAT", tags: "critical,uptime" },
+    });
+    await prisma.cronJob.updateMany({
+      where: { tenantId, name: "Morning digest", groupId: null },
+      data: { groupId: bySlug.billing, type: "WEBHOOK", tags: "digest" },
+    });
+    await prisma.cronJob.updateMany({
+      where: { tenantId, name: "Paused backup probe", groupId: null },
+      data: { groupId: bySlug.integrations, tags: "backup" },
+    });
   }
 
   console.log("Seeded demo workspace");

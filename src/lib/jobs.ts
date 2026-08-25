@@ -2,60 +2,96 @@ import { prisma } from "@/lib/prisma";
 import { getNextRunAt, validateCron } from "@/lib/cron";
 import { assertSafeUrl } from "@/lib/ssrf";
 import type { JobInput } from "@/lib/validators";
-import type { Prisma } from "@prisma/client";
+import type { JobType, Prisma, RunStatus } from "@prisma/client";
+
+export type JobFilters = {
+  q?: string;
+  groupId?: string | "none";
+  type?: JobType;
+  state?: "armed" | "paused" | "failing";
+};
+
+function applyTypeDefaults(input: JobInput): JobInput {
+  if (input.type === "HEARTBEAT") {
+    return { ...input, method: "GET", body: null };
+  }
+  if (input.type === "WEBHOOK") {
+    return { ...input, method: input.method === "GET" ? "POST" : input.method };
+  }
+  return input;
+}
 
 export async function createJob(tenantId: string, input: JobInput) {
-  validateCron(input.cronExpr, input.timezone);
-  await assertSafeUrl(input.url);
-  const nextRunAt = input.enabled
-    ? getNextRunAt(input.cronExpr, input.timezone)
-    : null;
-
+  const data = applyTypeDefaults(input);
+  validateCron(data.cronExpr, data.timezone);
+  await assertSafeUrl(data.url);
+  if (data.notifyUrl) await assertSafeUrl(data.notifyUrl);
+  if (data.groupId) {
+    const group = await prisma.jobGroup.findFirst({
+      where: { id: data.groupId, tenantId },
+    });
+    if (!group) throw new Error("Group not found");
+  }
+  const nextRunAt = data.enabled ? getNextRunAt(data.cronExpr, data.timezone) : null;
   return prisma.cronJob.create({
     data: {
       tenantId,
-      name: input.name,
-      description: input.description || null,
-      cronExpr: input.cronExpr,
-      timezone: input.timezone,
-      method: input.method,
-      url: input.url,
-      headers: (input.headers ?? undefined) as Prisma.InputJsonValue | undefined,
-      body: input.body || null,
-      timeoutMs: input.timeoutMs,
-      enabled: input.enabled,
+      groupId: data.groupId || null,
+      name: data.name,
+      description: data.description || null,
+      type: data.type,
+      tags: data.tags ?? "",
+      cronExpr: data.cronExpr,
+      timezone: data.timezone,
+      method: data.method,
+      url: data.url,
+      headers: (data.headers ?? undefined) as Prisma.InputJsonValue | undefined,
+      body: data.body || null,
+      timeoutMs: data.timeoutMs,
+      retryMax: data.retryMax,
+      retryDelaySec: data.retryDelaySec,
+      notifyUrl: data.notifyUrl || null,
+      enabled: data.enabled,
       nextRunAt,
     },
   });
 }
 
 export async function updateJob(tenantId: string, jobId: string, input: JobInput) {
-  validateCron(input.cronExpr, input.timezone);
-  await assertSafeUrl(input.url);
-  const existing = await prisma.cronJob.findFirst({
-    where: { id: jobId, tenantId },
-  });
+  const data = applyTypeDefaults(input);
+  validateCron(data.cronExpr, data.timezone);
+  await assertSafeUrl(data.url);
+  if (data.notifyUrl) await assertSafeUrl(data.notifyUrl);
+  const existing = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
   if (!existing) return null;
-
-  const nextRunAt = input.enabled
-    ? getNextRunAt(input.cronExpr, input.timezone)
-    : null;
-
+  if (data.groupId) {
+    const group = await prisma.jobGroup.findFirst({
+      where: { id: data.groupId, tenantId },
+    });
+    if (!group) throw new Error("Group not found");
+  }
+  const nextRunAt = data.enabled ? getNextRunAt(data.cronExpr, data.timezone) : null;
   return prisma.cronJob.update({
     where: { id: jobId },
     data: {
-      name: input.name,
-      description: input.description || null,
-      cronExpr: input.cronExpr,
-      timezone: input.timezone,
-      method: input.method,
-      url: input.url,
-      headers: (input.headers ?? undefined) as Prisma.InputJsonValue | undefined,
-      body: input.body || null,
-      timeoutMs: input.timeoutMs,
-      enabled: input.enabled,
+      groupId: data.groupId || null,
+      name: data.name,
+      description: data.description || null,
+      type: data.type,
+      tags: data.tags ?? "",
+      cronExpr: data.cronExpr,
+      timezone: data.timezone,
+      method: data.method,
+      url: data.url,
+      headers: (data.headers ?? undefined) as Prisma.InputJsonValue | undefined,
+      body: data.body || null,
+      timeoutMs: data.timeoutMs,
+      retryMax: data.retryMax,
+      retryDelaySec: data.retryDelaySec,
+      notifyUrl: data.notifyUrl || null,
+      enabled: data.enabled,
       nextRunAt,
-      lockedUntil: input.enabled ? existing.lockedUntil : null,
+      lockedUntil: data.enabled ? existing.lockedUntil : null,
     },
   });
 }
@@ -63,20 +99,44 @@ export async function updateJob(tenantId: string, jobId: string, input: JobInput
 export async function getJobForTenant(tenantId: string, jobId: string) {
   return prisma.cronJob.findFirst({
     where: { id: jobId, tenantId },
+    include: { group: true },
   });
 }
 
-export async function listJobs(tenantId: string) {
+export async function listJobs(tenantId: string, filters: JobFilters = {}) {
+  const failing: RunStatus[] = ["FAILED", "TIMEOUT", "BLOCKED"];
+  const q = filters.q?.trim();
   return prisma.cronJob.findMany({
-    where: { tenantId },
+    where: {
+      tenantId,
+      ...(filters.groupId === "none"
+        ? { groupId: null }
+        : filters.groupId
+          ? { groupId: filters.groupId }
+          : {}),
+      ...(filters.type ? { type: filters.type } : {}),
+      ...(filters.state === "armed" ? { enabled: true } : {}),
+      ...(filters.state === "paused" ? { enabled: false } : {}),
+      ...(filters.state === "failing" ? { lastStatus: { in: failing } } : {}),
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q } },
+              { description: { contains: q } },
+              { url: { contains: q } },
+              { tags: { contains: q } },
+              { cronExpr: { contains: q } },
+            ],
+          }
+        : {}),
+    },
+    include: { group: true },
     orderBy: [{ enabled: "desc" }, { nextRunAt: "asc" }, { name: "asc" }],
   });
 }
 
 export async function deleteJob(tenantId: string, jobId: string) {
-  const result = await prisma.cronJob.deleteMany({
-    where: { id: jobId, tenantId },
-  });
+  const result = await prisma.cronJob.deleteMany({ where: { id: jobId, tenantId } });
   return result.count > 0;
 }
 
@@ -91,4 +151,74 @@ export async function toggleJob(tenantId: string, jobId: string, enabled: boolea
       lockedUntil: enabled ? job.lockedUntil : null,
     },
   });
+}
+
+export async function duplicateJob(tenantId: string, jobId: string) {
+  const job = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
+  if (!job) return null;
+  return prisma.cronJob.create({
+    data: {
+      tenantId,
+      groupId: job.groupId,
+      name: `${job.name} copy`,
+      description: job.description,
+      type: job.type,
+      tags: job.tags,
+      cronExpr: job.cronExpr,
+      timezone: job.timezone,
+      enabled: false,
+      method: job.method,
+      url: job.url,
+      headers: job.headers ?? undefined,
+      body: job.body,
+      timeoutMs: job.timeoutMs,
+      retryMax: job.retryMax,
+      retryDelaySec: job.retryDelaySec,
+      notifyUrl: job.notifyUrl,
+      nextRunAt: null,
+    },
+  });
+}
+
+export async function bulkJobs(
+  tenantId: string,
+  action: "pause" | "resume" | "delete" | "move" | "run",
+  ids: string[],
+  groupId?: string | null,
+) {
+  const unique = [...new Set(ids)].slice(0, 100);
+  if (unique.length === 0) return { count: 0 };
+  const existing = await prisma.cronJob.findMany({
+    where: { tenantId, id: { in: unique } },
+  });
+  const found = existing.map((job) => job.id);
+  if (action === "delete") {
+    const result = await prisma.cronJob.deleteMany({
+      where: { tenantId, id: { in: found } },
+    });
+    return { count: result.count };
+  }
+  if (action === "pause" || action === "resume") {
+    const enabled = action === "resume";
+    let count = 0;
+    for (const job of existing) {
+      await toggleJob(tenantId, job.id, enabled);
+      count += 1;
+    }
+    return { count };
+  }
+  if (action === "move") {
+    if (groupId) {
+      const group = await prisma.jobGroup.findFirst({
+        where: { id: groupId, tenantId },
+      });
+      if (!group) throw new Error("Group not found");
+    }
+    const result = await prisma.cronJob.updateMany({
+      where: { tenantId, id: { in: found } },
+      data: { groupId: groupId || null },
+    });
+    return { count: result.count };
+  }
+  return { count: 0, ids: found };
 }

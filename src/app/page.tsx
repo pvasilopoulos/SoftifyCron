@@ -4,45 +4,49 @@ import { Logo } from "@/components/logo";
 const FEATURES = [
   {
     title: "Tenant walls",
-    copy: "Every query is scoped to the workspace in the session. Jobs, runs, and settings never leak across organizations.",
+    copy: "Every query is scoped to the workspace in the session. Jobs, runs, secrets, and invites never leak across organizations.",
   },
   {
-    title: "MySQL as source of truth",
-    copy: "Tenants, members, cron definitions, and execution history live in MySQL. The worker claims due rows instead of keeping schedules in memory.",
+    title: "Groups, types, tags",
+    copy: "Folder jobs into Ops, Billing, or your own groups. Mark them HTTP, heartbeat, or webhook and filter the board instantly.",
   },
   {
-    title: "HTTP jobs you can steer",
-    copy: "Create, pause, edit, and fire webhooks with cron expressions, timezones, headers, and a full run log.",
+    title: "Retries and secrets",
+    copy: "Failed runs retry on a delay, notify a webhook, and interpolate {{SECRET:KEY}} from encrypted tenant secrets.",
+  },
+  {
+    title: "Built for your phone",
+    copy: "Bottom navigation, 44px targets, and card layouts so you can pause a failing job from the train.",
   },
 ];
 
 export default function HomePage() {
   return (
-    <div className="relative z-10 overflow-hidden">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
+    <div className="relative z-10 overflow-x-hidden">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-5 sm:px-6">
         <Logo />
-        <nav className="flex items-center gap-3">
-          <Link href="/login" className="btn btn-ghost">
+        <nav className="flex items-center gap-2">
+          <Link href="/login" className="btn btn-ghost px-3 text-sm">
             Sign in
           </Link>
-          <Link href="/register" className="btn btn-gold">
-            Create workspace
+          <Link href="/register" className="btn btn-gold px-3 text-sm">
+            Start
           </Link>
         </nav>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-6 pb-24 pt-10">
+      <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-10">
         <p className="text-xs uppercase tracking-[0.28em] text-gold">
           Multi-tenant control plane
         </p>
-        <h1 className="mt-6 max-w-4xl font-display text-5xl leading-[1.05] tracking-tight sm:text-7xl">
+        <h1 className="mt-5 max-w-4xl font-display text-[2.6rem] leading-[1.05] tracking-tight sm:text-7xl">
           Scheduled work,{" "}
           <span className="italic text-gold-2">isolated per tenant.</span>
         </h1>
-        <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-dim">
+        <p className="mt-5 max-w-2xl text-base leading-7 text-ink-dim sm:text-lg sm:leading-8">
           SoftifyCron is a modern workspace for HTTP cron jobs. Register an
-          organization, invite nobody else if you do not want to, and manage
-          schedules that cannot see another tenant&apos;s queue.
+          organization, invite teammates, and manage schedules that cannot see
+          another tenant&apos;s queue.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link href="/register" className="btn btn-gold">
@@ -57,16 +61,16 @@ export default function HomePage() {
           <span className="mono text-ink">Demo1234!</span>
         </p>
 
-        <section className="mt-16 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="card p-6 sm:p-8">
+        <section className="mt-14 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="card p-5 sm:p-8">
             <p className="text-xs uppercase tracking-[0.2em] text-ink-dim">
               Upcoming in Aurora Studio
             </p>
             <div className="mt-6 space-y-4">
               {[
-                ["Status page ping", "*/15 * * * *", "in 4 min"],
-                ["Morning digest", "0 9 * * 1-5", "tomorrow 09:00"],
-                ["Paused backup probe", "0 3 * * *", "paused"],
+                ["Status page ping", "HEARTBEAT · Ops", "in 4 min"],
+                ["Morning digest", "WEBHOOK · Billing", "tomorrow 09:00"],
+                ["Paused backup probe", "HTTP · Integrations", "paused"],
               ].map(([name, cron, eta]) => (
                 <div
                   key={name}
@@ -74,7 +78,7 @@ export default function HomePage() {
                 >
                   <div>
                     <p className="font-medium">{name}</p>
-                    <p className="mono mt-1 text-xs text-ink-dim">{cron}</p>
+                    <p className="mt-1 text-xs text-ink-dim">{cron}</p>
                   </div>
                   <span className="rounded-full bg-gold/10 px-3 py-1 text-xs text-gold-2">
                     {eta}
@@ -83,24 +87,26 @@ export default function HomePage() {
               ))}
             </div>
           </div>
-          <div className="card p-6 sm:p-8">
+          <div className="card p-5 sm:p-8">
             <p className="text-xs uppercase tracking-[0.2em] text-ink-dim">
-              Last execution
+              Phone-ready
             </p>
-            <p className="mt-5 font-display text-5xl italic text-sage">200</p>
+            <p className="mt-5 font-display text-5xl italic text-sage">Home</p>
             <p className="mt-2 text-sm text-ink-dim">
-              GET example.com · 184ms · tenant-scoped run row written to MySQL
+              Failing jobs sit on the dashboard. Search, bulk pause, and run
+              history all work on a 390px screen.
             </p>
-            <pre className="mono mt-6 overflow-x-auto rounded-2xl bg-bg p-4 text-xs text-gold-2">
-{`INSERT INTO JobRun
-  (tenantId, jobId, status)
-VALUES
-  (?, ?, 'SUCCESS');`}
-            </pre>
+            <div className="mt-6 grid grid-cols-4 gap-2 text-center text-[11px] text-ink-dim">
+              {["Home", "Jobs", "Runs", "More"].map((label) => (
+                <div key={label} className="rounded-2xl bg-bg px-2 py-3">
+                  {label}
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
-        <section className="mt-16 grid gap-4 md:grid-cols-3">
+        <section className="mt-14 grid gap-4 sm:grid-cols-2">
           {FEATURES.map((feature) => (
             <article key={feature.title} className="card p-6">
               <h2 className="font-display text-2xl italic">{feature.title}</h2>

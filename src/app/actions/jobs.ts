@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { createJob, updateJob } from "@/lib/jobs";
 import { jobInputSchema } from "@/lib/validators";
+import { canManage } from "@/lib/acl";
 
 function readHeaders(raw: string) {
   const trimmed = raw.trim();
@@ -27,6 +28,8 @@ export async function saveJobAction(
   formData: FormData,
 ) {
   const session = await requireSession();
+  if (!canManage(session.role)) return { error: "Members cannot edit jobs" };
+
   let headers: Record<string, string> | null = null;
   try {
     headers = readHeaders(String(formData.get("headers") ?? ""));
@@ -37,6 +40,9 @@ export async function saveJobAction(
   const parsed = jobInputSchema.safeParse({
     name: formData.get("name"),
     description: String(formData.get("description") ?? "") || null,
+    groupId: String(formData.get("groupId") ?? "") || null,
+    type: formData.get("type") || "HTTP",
+    tags: String(formData.get("tags") ?? ""),
     cronExpr: formData.get("cronExpr"),
     timezone: formData.get("timezone"),
     method: formData.get("method"),
@@ -44,6 +50,9 @@ export async function saveJobAction(
     headers,
     body: String(formData.get("body") ?? "") || null,
     timeoutMs: Number(formData.get("timeoutMs") ?? 30000),
+    retryMax: Number(formData.get("retryMax") ?? 0),
+    retryDelaySec: Number(formData.get("retryDelaySec") ?? 60),
+    notifyUrl: String(formData.get("notifyUrl") ?? "") || null,
     enabled: formData.get("enabled") === "on",
   });
   if (!parsed.success) {
