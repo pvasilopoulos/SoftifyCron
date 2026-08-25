@@ -1,4 +1,4 @@
-import type { SparkDay } from "@/lib/sparkline";
+import { emptySpark, type SparkDay } from "@/lib/sparkline";
 
 export function Sparkline({
   days,
@@ -7,10 +7,12 @@ export function Sparkline({
   days?: SparkDay[] | null;
   title?: string;
 }) {
-  if (!days?.length) return null;
+  const series = days?.length ? days : emptySpark(7);
+  const fails = series.reduce((sum, day) => sum + day.bad, 0);
+  const oks = series.reduce((sum, day) => sum + day.ok, 0);
   return (
-    <span className="spark" title={title} aria-label={title}>
-      {days.map((day, index) => {
+    <span className="spark" title={`${title}: ${oks} ok, ${fails} failed`} aria-label={title}>
+      {series.map((day, index) => {
         const total = day.ok + day.bad;
         const cls = total === 0 ? "spark-empty" : day.bad > 0 ? "spark-bad" : "spark-ok";
         return <span key={index} className={`spark-bar ${cls}`} />;
