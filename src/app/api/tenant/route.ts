@@ -19,7 +19,14 @@ export async function GET() {
     },
   });
   if (!tenant) return jsonError("Workspace not found", 404);
-  return NextResponse.json({ tenant });
+  const { smtpPassEnc, telegramBotTokenEnc, ...safe } = tenant;
+  return NextResponse.json({
+    tenant: {
+      ...safe,
+      smtpHasPassword: Boolean(smtpPassEnc),
+      telegramHasToken: Boolean(telegramBotTokenEnc),
+    },
+  });
 }
 
 export async function PUT(request: Request) {
@@ -38,7 +45,6 @@ export async function PUT(request: Request) {
     data: {
       name: parsed.data.name,
       timezone: parsed.data.timezone,
-      notifyEmail: parsed.data.notifyEmail?.trim() ? parsed.data.notifyEmail.trim() : null,
     },
   });
 

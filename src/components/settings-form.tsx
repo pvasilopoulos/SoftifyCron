@@ -6,12 +6,10 @@ import { TIMEZONES } from "@/lib/format";
 export function SettingsForm({
   name,
   timezone,
-  notifyEmail,
   canEdit,
 }: {
   name: string;
   timezone: string;
-  notifyEmail: string;
   canEdit: boolean;
 }) {
   const [status, setStatus] = useState<string | null>(null);
@@ -28,7 +26,6 @@ export function SettingsForm({
       body: JSON.stringify({
         name: String(form.get("name") ?? ""),
         timezone: String(form.get("timezone") ?? ""),
-        notifyEmail: String(form.get("notifyEmail") ?? ""),
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -50,20 +47,6 @@ export function SettingsForm({
           ))}
         </select>
       </label>
-      <label className="block">
-        <span className="field-label">Alert email</span>
-        <input
-          className="field"
-          type="email"
-          name="notifyEmail"
-          defaultValue={notifyEmail}
-          disabled={!canEdit}
-          placeholder="ops@example.com"
-        />
-      </label>
-      <p className="text-xs text-ink-dim">
-        Optional. Used when a job fails or auto-pauses. SMTP must be configured on the server.
-      </p>
       {canEdit ? (
         <button className="btn btn-gold" type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save workspace"}

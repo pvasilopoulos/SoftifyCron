@@ -9,11 +9,13 @@ import { WorkspacePanels } from "@/components/workspace-panels";
 import { SecurityPanel } from "@/components/security-panel";
 import { ApiTokensPanel } from "@/components/api-tokens-panel";
 import { JobIoPanel } from "@/components/job-io-panel";
+import { NotificationsPanel, type NotifySettings } from "@/components/notifications-panel";
 
 const TABS = [
   { id: "people", label: "People" },
   { id: "roles", label: "Roles" },
   { id: "workspace", label: "Workspace" },
+  { id: "notifications", label: "Notifications" },
   { id: "security", label: "Security" },
   { id: "appearance", label: "Appearance" },
 ] as const;
@@ -51,8 +53,9 @@ export function WorkspaceSettings({
   platform = false,
   totpEnabled = false,
   tokens = [],
+  notify,
 }: {
-  tenant: { name: string; slug: string; timezone: string; notifyEmail: string };
+  tenant: { name: string; slug: string; timezone: string };
   members: Parameters<typeof PeopleBoard>[0]["members"];
   invites: Parameters<typeof PeopleBoard>[0]["invites"];
   roles: TenantRoleView[];
@@ -67,6 +70,7 @@ export function WorkspaceSettings({
   platform?: boolean;
   totpEnabled?: boolean;
   tokens?: Parameters<typeof ApiTokensPanel>[0]["tokens"];
+  notify: NotifySettings;
 }) {
   const tab = useSyncExternalStore(subscribeHash, tabFromHash, () => "people");
 
@@ -125,7 +129,6 @@ export function WorkspaceSettings({
               <SettingsForm
                 name={tenant.name}
                 timezone={tenant.timezone}
-                notifyEmail={tenant.notifyEmail}
                 canEdit={canEditSettings}
               />
             </div>
@@ -138,6 +141,10 @@ export function WorkspaceSettings({
             canManageSecrets={canManageSecrets}
           />
         </div>
+      ) : null}
+
+      {tab === "notifications" ? (
+        <NotificationsPanel initial={notify} canEdit={canEditSettings} />
       ) : null}
 
       {tab === "security" ? (

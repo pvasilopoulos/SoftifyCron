@@ -12,6 +12,7 @@ import { jobAccess } from "@/lib/acl";
 import { buildCurl } from "@/lib/curl";
 import { listTenantOptions } from "@/lib/admin";
 import { MoveJobForm } from "@/components/move-job-form";
+import { summarizeNotify, NOTIFY_EVENT_LABELS } from "@/lib/notify-events";
 
 export const metadata = { title: "Job" };
 
@@ -50,6 +51,7 @@ export default async function JobDetailPage({
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean);
+  const notifyRows = summarizeNotify(job);
 
   return (
     <div className="space-y-8">
@@ -148,9 +150,26 @@ export default async function JobDetailPage({
               </dd>
             </div>
           </dl>
-          {job.notifyUrl ? (
-            <p className="mono mt-4 break-all text-xs text-ink-dim">Notify {job.notifyUrl}</p>
-          ) : null}
+          {notifyRows.length > 0 || job.notifyUrl ? (
+              <div className="mt-6 space-y-2 text-sm">
+                <p className="text-ink-dim">Notifications</p>
+                {notifyRows.length === 0 ? (
+                  <p className="text-ink-dim">No events selected.</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {notifyRows.map((row) => (
+                      <li key={row.event}>
+                        {NOTIFY_EVENT_LABELS[row.event].title}
+                        <span className="text-ink-dim"> · {row.channels.join(", ")}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {job.notifyUrl ? (
+                  <p className="mono break-all text-xs text-ink-dim">{job.notifyUrl}</p>
+                ) : null}
+              </div>
+            ) : null}
           <pre className="mono mt-6 overflow-x-auto rounded-2xl bg-bg p-4 text-xs text-gold-2">
             {headers}
           </pre>

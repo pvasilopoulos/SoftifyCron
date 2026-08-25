@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getNextRunAt } from "@/lib/cron";
 import { assertSafeUrl } from "@/lib/ssrf";
 import { resolveSecrets } from "@/lib/secrets";
-import { notifyFailure } from "@/lib/notify";
+import { notifyJob } from "@/lib/notify";
 import { recordWorkerHeartbeat } from "@/lib/heartbeat";
 import { decodeHttpBody } from "@/lib/decode";
 
@@ -183,13 +183,15 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
     },
   });
 
-  if (failed && !shouldRetry) {
-    await notifyFailure({
+  if (!shouldRetry) {
+    await notifyJob({
       ...job,
       consecutiveFailures,
       lastStatus: status,
       error,
+      httpStatus,
       paused: autoPause,
+      previousFailures: job.consecutiveFailures,
     });
   }
 

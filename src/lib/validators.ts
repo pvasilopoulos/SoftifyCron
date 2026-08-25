@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { JOB_TYPES, PERMISSIONS } from "@/lib/acl";
 import { HTTP_METHODS } from "@/lib/constants";
+import {
+  DEFAULT_NOTIFY_EMAIL_ON,
+  DEFAULT_NOTIFY_TELEGRAM_ON,
+  DEFAULT_NOTIFY_WEBHOOK_ON,
+  serializeNotifyList,
+} from "@/lib/notify-events";
 
 export const registerSchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -18,7 +24,23 @@ export const loginSchema = z.object({
 export const tenantUpdateSchema = z.object({
   name: z.string().trim().min(2).max(80),
   timezone: z.string().trim().min(1).max(80),
+});
+
+export const tenantNotifySchema = z.object({
   notifyEmail: z.union([z.email().max(160), z.literal("")]).optional(),
+  smtpHost: z.string().trim().max(255).optional().or(z.literal("")),
+  smtpPort: z.coerce.number().int().min(1).max(65535).optional(),
+  smtpSecure: z.boolean().optional(),
+  smtpUser: z.string().trim().max(160).optional().or(z.literal("")),
+  smtpPass: z.string().max(400).optional().or(z.literal("")),
+  smtpFrom: z.string().trim().max(190).optional().or(z.literal("")),
+  telegramChatId: z.string().trim().max(80).optional().or(z.literal("")),
+  telegramBotToken: z.string().trim().max(200).optional().or(z.literal("")),
+  clearTelegramToken: z.boolean().optional(),
+});
+
+export const notifyTestSchema = z.object({
+  channel: z.enum(["email", "telegram"]),
 });
 
 export const passwordChangeSchema = z.object({
@@ -44,6 +66,11 @@ export const apiTokenNameSchema = z.object({
   name: z.string().trim().min(2).max(80),
 });
 
+const notifyListSchema = z
+  .union([z.array(z.string()), z.string()])
+  .optional()
+  .transform((value) => serializeNotifyList(value ?? []));
+
 export const jobInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().max(2000).optional().nullable(),
@@ -61,6 +88,9 @@ export const jobInputSchema = z.object({
   retryMax: z.number().int().min(0).max(10).default(0),
   retryDelaySec: z.number().int().min(10).max(86_400).default(60),
   notifyUrl: z.union([z.url().max(2048), z.literal(""), z.null()]).optional(),
+  notifyEmailOn: notifyListSchema.default(DEFAULT_NOTIFY_EMAIL_ON),
+  notifyTelegramOn: notifyListSchema.default(DEFAULT_NOTIFY_TELEGRAM_ON),
+  notifyWebhookOn: notifyListSchema.default(DEFAULT_NOTIFY_WEBHOOK_ON),
   keepResponse: z.boolean().default(false),
   pauseAfter: z.number().int().min(0).max(100).default(0),
   enabled: z.boolean().default(true),

@@ -260,6 +260,55 @@ details > summary::-webkit-details-marker { display: none; }
   background: var(--bg-elev);
   color: var(--ink);
 }
+.notify-matrix {
+  display: grid;
+  gap: 0.55rem;
+}
+.notify-head {
+  display: none;
+}
+.notify-row {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.notify-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 36px;
+  font-size: 0.82rem;
+  color: var(--ink-dim);
+}
+@media (min-width: 640px) {
+  .notify-head,
+  .notify-row {
+    grid-template-columns: minmax(9rem, 1.35fr) repeat(3, minmax(0, 0.7fr));
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .notify-head {
+    display: grid;
+    padding: 0 0.75rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .notify-check span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+  .notify-check {
+    justify-content: center;
+  }
+}
 .perm-chip {
   display: inline-flex;
   align-items: center;

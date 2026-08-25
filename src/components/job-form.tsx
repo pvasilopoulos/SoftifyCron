@@ -5,6 +5,12 @@ import { saveJobAction } from "@/app/actions/jobs";
 import { HTTP_METHODS, CRON_PRESETS } from "@/lib/constants";
 import { TIMEZONES } from "@/lib/format";
 import { JOB_TYPES } from "@/lib/acl";
+import { NotifyMatrix } from "@/components/notify-matrix";
+import {
+  DEFAULT_NOTIFY_EMAIL_ON,
+  DEFAULT_NOTIFY_TELEGRAM_ON,
+  DEFAULT_NOTIFY_WEBHOOK_ON,
+} from "@/lib/notify-events";
 
 type Group = { id: string; name: string };
 
@@ -24,6 +30,9 @@ type JobFormValues = {
   retryMax: number;
   retryDelaySec: number;
   notifyUrl: string;
+  notifyEmailOn: string;
+  notifyTelegramOn: string;
+  notifyWebhookOn: string;
   keepResponse: boolean;
   pauseAfter: number;
   enabled: boolean;
@@ -45,6 +54,9 @@ const DEFAULTS: JobFormValues = {
   retryMax: 0,
   retryDelaySec: 60,
   notifyUrl: "",
+  notifyEmailOn: DEFAULT_NOTIFY_EMAIL_ON,
+  notifyTelegramOn: DEFAULT_NOTIFY_TELEGRAM_ON,
+  notifyWebhookOn: DEFAULT_NOTIFY_WEBHOOK_ON,
   keepResponse: false,
   pauseAfter: 0,
   enabled: true,
@@ -161,10 +173,23 @@ export function JobForm({
             <input className="field" type="number" name="retryDelaySec" defaultValue={values.retryDelaySec} />
           </label>
         </div>
-        <label className="block">
-          <span className="field-label">Failure webhook</span>
-          <input className="field mono" name="notifyUrl" defaultValue={values.notifyUrl} placeholder="https://…" />
-        </label>
+        <div className="space-y-3">
+          <div>
+            <p className="field-label">Notifications</p>
+            <p className="mb-3 text-xs text-ink-dim">
+              Pick channels per event. Email and Telegram use Workspace → Notifications. Webhook uses the URL below.
+            </p>
+            <NotifyMatrix
+              emailOn={values.notifyEmailOn}
+              telegramOn={values.notifyTelegramOn}
+              webhookOn={values.notifyWebhookOn}
+            />
+          </div>
+          <label className="block">
+            <span className="field-label">Webhook URL</span>
+            <input className="field mono" name="notifyUrl" defaultValue={values.notifyUrl} placeholder="https://…" />
+          </label>
+        </div>
         <label className="flex min-h-12 items-center gap-3">
           <input type="checkbox" name="enabled" defaultChecked={values.enabled} />
           <span>Armed — worker will fire this job</span>
@@ -205,6 +230,9 @@ export function JobForm({
         </p>
         <p className="mt-4 text-sm text-ink-dim">
           Skip next jumps over one fire. Auto-pause stops a flapping job after N failures so it stops paging you.
+        </p>
+        <p className="mt-4 text-sm text-ink-dim">
+          Configure SMTP and Telegram under Workspace → Notifications, then tick events on this job.
         </p>
       </aside>
     </form>
