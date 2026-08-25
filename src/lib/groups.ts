@@ -10,11 +10,28 @@ export async function listGroups(tenantId: string) {
   });
 }
 
+const HEX = /^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/;
+
+function resolveColor(color?: string) {
+  const value = color?.trim() ?? "";
+  if (HEX.test(value)) {
+    if (value.length === 4) {
+      const r = value[1];
+      const g = value[2];
+      const b = value[3];
+      return `#${r}${r}${g}${g}${b}${b}`;
+    }
+    return value;
+  }
+  if (GROUP_COLORS.includes(value)) return value;
+  return GROUP_COLORS[0];
+}
+
 export async function createGroup(
   tenantId: string,
   input: { name: string; color?: string },
 ) {
-  const base = slugify(input.name);
+  const base = slugify(input.name) || "group";
   let slug = base;
   for (let i = 0; i < 6; i += 1) {
     const exists = await prisma.jobGroup.findFirst({ where: { tenantId, slug } });
@@ -26,11 +43,32 @@ export async function createGroup(
       tenantId,
       name: input.name.trim(),
       slug,
-      color: input.color && GROUP_COLORS.includes(input.color)
-        ? input.color
-        : GROUP_COLORS[0],
+      color: resolveColor(input.color),
     },
   });
+}
+
+export async function resolveGroupId(
+  tenantId: string,
+  input: { groupId?: string | null; groupName?: string | null },
+) {
+  const name = input.groupName?.trim();
+  if (name) {
+    const existing = await prisma.jobGroup.findFirst({
+      where: { tenantId, name },
+    });
+    if (existing) return existing.id;
+    const created = await createGroup(tenantId, { name });
+    return created.id;
+  }
+  if (input.groupId) {
+    const group = await prisma.jobGroup.findFirst({
+      where: { id: input.groupId, tenantId },
+    });
+    if (!group) throw new Error("Group not found");
+    return group.id;
+  }
+  return null;
 }
 
 export async function updateGroup(
@@ -44,7 +82,7 @@ export async function updateGroup(
     where: { id },
     data: {
       name: input.name.trim(),
-      color: input.color ?? group.color,
+      color: input.color ? resolveColor(input.color) : group.color,
     },
   });
 }

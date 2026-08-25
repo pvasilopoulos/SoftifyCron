@@ -24,6 +24,7 @@ export const jobInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().max(2000).optional().nullable(),
   groupId: z.string().optional().nullable(),
+  groupName: z.string().trim().max(60).optional().nullable(),
   type: z.enum(JOB_TYPES).default("HTTP"),
   tags: z.string().max(500).optional().default(""),
   cronExpr: z.string().trim().min(1).max(120),
@@ -36,6 +37,7 @@ export const jobInputSchema = z.object({
   retryMax: z.number().int().min(0).max(10).default(0),
   retryDelaySec: z.number().int().min(10).max(86_400).default(60),
   notifyUrl: z.union([z.url().max(2048), z.literal(""), z.null()]).optional(),
+  keepResponse: z.boolean().default(false),
   enabled: z.boolean().default(true),
 });
 

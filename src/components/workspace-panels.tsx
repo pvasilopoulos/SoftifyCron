@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { GROUP_COLORS } from "@/lib/acl";
 import { formatDateTime } from "@/lib/format";
 
 type Group = {
@@ -140,13 +139,12 @@ export function WorkspacePanels({
         {canManage ? (
           <form className="mt-5 grid gap-3 sm:grid-cols-[1fr_120px_auto]" onSubmit={addGroup}>
             <input className="field" name="name" placeholder="Group name" required />
-            <select className="field" name="color" defaultValue={GROUP_COLORS[0]}>
-              {GROUP_COLORS.map((color) => (
-                <option key={color} value={color}>
-                  {color}
-                </option>
-              ))}
-            </select>
+            <input
+              className="field mono"
+              name="color"
+              placeholder="#7dffce"
+              defaultValue="#7dffce"
+            />
             <button className="btn btn-ghost" type="submit">
               Add
             </button>

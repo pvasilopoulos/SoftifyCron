@@ -72,6 +72,14 @@ export default async function JobDetailPage({
               </span>
             ))}
             {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
+            {job.keepResponse ? (
+              <Link
+                href={`/jobs/${job.id}/response`}
+                className="rounded-full bg-gold/15 px-2.5 py-1 text-gold-2"
+              >
+                View response
+              </Link>
+            ) : null}
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -80,7 +88,12 @@ export default async function JobDetailPage({
               Edit
             </Link>
           ) : null}
-          <JobActions jobId={job.id} enabled={job.enabled} canManage={manage} />
+          <JobActions
+            jobId={job.id}
+            enabled={job.enabled}
+            canManage={manage}
+            keepResponse={job.keepResponse}
+          />
         </div>
       </div>
 

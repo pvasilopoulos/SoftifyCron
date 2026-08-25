@@ -133,7 +133,14 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
 
   await prisma.jobRun.update({
     where: { id: run.id },
-    data: { status, httpStatus, responseBody, error, finishedAt, durationMs },
+    data: {
+      status,
+      httpStatus,
+      responseBody: job.keepResponse ? responseBody : null,
+      error,
+      finishedAt,
+      durationMs,
+    },
   });
 
   let nextRunAt = job.nextRunAt;

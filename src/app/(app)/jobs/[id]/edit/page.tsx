@@ -38,7 +38,7 @@ export default async function EditJobPage({
         initial={{
           name: job.name,
           description: job.description ?? "",
-          groupId: job.groupId ?? "",
+          groupName: job.group?.name ?? "",
           type: job.type,
           tags: job.tags,
           cronExpr: job.cronExpr,
@@ -51,6 +51,7 @@ export default async function EditJobPage({
           retryMax: job.retryMax,
           retryDelaySec: job.retryDelaySec,
           notifyUrl: job.notifyUrl ?? "",
+          keepResponse: job.keepResponse,
           enabled: job.enabled,
         }}
       />

@@ -6,6 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 import { describeCron } from "@/lib/cron";
 import { formatDateTime } from "@/lib/format";
 import { StatusPill } from "@/components/status-pill";
+import { JobMenu } from "@/components/job-menu";
 
 type Group = { id: string; name: string; color: string; slug: string };
 type Job = {
@@ -18,11 +19,46 @@ type Job = {
   cronExpr: string;
   timezone: string;
   enabled: boolean;
+  keepResponse: boolean;
   nextRunAt: Date | string | null;
   lastRunAt: Date | string | null;
   lastStatus: string | null;
   group: Group | null;
 };
+
+type Section = { key: string; name: string; color: string; jobs: Job[] };
+
+function sectionsFrom(jobs: Job[], groups: Group[]): Section[] {
+  const byId = new Map<string, Job[]>();
+  const ungrouped: Job[] = [];
+  for (const job of jobs) {
+    if (job.group) {
+      const list = byId.get(job.group.id) ?? [];
+      list.push(job);
+      byId.set(job.group.id, list);
+    } else {
+      ungrouped.push(job);
+    }
+  }
+  const sections: Section[] = [];
+  const seen = new Set<string>();
+  for (const group of groups) {
+    const list = byId.get(group.id);
+    if (!list?.length) continue;
+    sections.push({ key: group.id, name: group.name, color: group.color, jobs: list });
+    seen.add(group.id);
+  }
+  for (const [id, list] of byId) {
+    if (seen.has(id) || list.length === 0) continue;
+    const group = list[0]!.group!;
+    sections.push({ key: id, name: group.name, color: group.color, jobs: list });
+  }
+  sections.sort((a, b) => a.name.localeCompare(b.name, "en"));
+  if (ungrouped.length > 0) {
+    sections.push({ key: "none", name: "Ungrouped", color: "#8b93a7", jobs: ungrouped });
+  }
+  return sections;
+}
 
 export function JobsBoard({
   jobs,
@@ -61,7 +97,13 @@ export function JobsBoard({
     startTransition(() => router.refresh());
   }
 
-  const allIds = useMemo(() => jobs.map((job) => job.id), [jobs]);
+  const sections = useMemo(() => sectionsFrom(jobs, groups), [jobs, groups]);
+
+  function toggleId(id: string, checked: boolean) {
+    setSelected((current) =>
+      checked ? [...current, id] : current.filter((item) => item !== id),
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -180,119 +222,131 @@ export function JobsBoard({
           ) : null}
         </div>
       ) : (
-        <>
-          <div className="grid gap-3 md:hidden">
-            {jobs.map((job) => (
-              <article key={job.id} className="card p-4">
-                <div className="flex items-start gap-3">
-                  {canManage ? (
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-5 w-5"
-                      checked={selected.includes(job.id)}
-                      onChange={(event) => {
-                        setSelected((current) =>
-                          event.target.checked
-                            ? [...current, job.id]
-                            : current.filter((id) => id !== job.id),
-                        );
-                      }}
-                    />
-                  ) : null}
-                  <div className="min-w-0 flex-1">
-                    <Link href={`/jobs/${job.id}`} className="font-medium">
-                      {job.name}
-                    </Link>
-                    <p className="mono mt-1 truncate text-xs text-ink-dim">
-                      {job.method} {job.url}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                      <span
-                        className="rounded-full px-2 py-1"
-                        style={{ background: `${job.group?.color ?? "#8b93a7"}22`, color: job.group?.color ?? "#8b93a7" }}
-                      >
-                        {job.group?.name ?? "Ungrouped"}
-                      </span>
-                      <span className="rounded-full bg-bg-mute px-2 py-1">{job.type}</span>
-                      <span className={job.enabled ? "text-sage" : "text-ink-dim"}>
-                        {job.enabled ? "armed" : "paused"}
-                      </span>
-                      {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
-                    </div>
-                    <p className="mt-2 text-xs text-ink-dim">
-                      Next {formatDateTime(job.nextRunAt, job.timezone)}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
+        <div className="space-y-6">
+          {sections.map((section) => (
+            <section key={section.key} className="space-y-3">
+              <div className="flex items-center gap-3 px-1">
+                <span className="h-3 w-3 rounded-full" style={{ background: section.color }} />
+                <h2 className="font-display text-2xl italic">{section.name}</h2>
+                <span className="text-xs text-ink-dim">{section.jobs.length}</span>
+              </div>
 
-          <div className="hidden overflow-hidden rounded-[1.35rem] border border-line md:block">
-            <table className="w-full min-w-[860px] text-left text-sm">
-              <thead className="bg-bg-mute text-xs uppercase tracking-[0.14em] text-ink-dim">
-                <tr>
-                  {canManage ? (
-                    <th className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selected.length === allIds.length && allIds.length > 0}
-                        onChange={(event) => setSelected(event.target.checked ? allIds : [])}
-                      />
-                    </th>
-                  ) : null}
-                  <th className="px-4 py-3 font-medium">Job</th>
-                  <th className="px-4 py-3 font-medium">Group</th>
-                  <th className="px-4 py-3 font-medium">Schedule</th>
-                  <th className="px-4 py-3 font-medium">Next</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {jobs.map((job) => (
-                  <tr key={job.id} className="border-t border-line bg-bg-elev/70">
-                    {canManage ? (
-                      <td className="px-4 py-3">
+              <div className="grid gap-3 md:hidden">
+                {section.jobs.map((job) => (
+                  <article key={job.id} className="card p-4">
+                    <div className="flex items-start gap-3">
+                      {canManage ? (
                         <input
                           type="checkbox"
+                          className="mt-1 h-5 w-5"
                           checked={selected.includes(job.id)}
-                          onChange={(event) => {
-                            setSelected((current) =>
-                              event.target.checked
-                                ? [...current, job.id]
-                                : current.filter((id) => id !== job.id),
-                            );
-                          }}
+                          onChange={(event) => toggleId(job.id, event.target.checked)}
                         />
-                      </td>
-                    ) : null}
-                    <td className="px-4 py-3">
-                      <Link href={`/jobs/${job.id}`} className="font-medium hover:text-gold">
-                        {job.name}
-                      </Link>
-                      <p className="mono mt-1 text-xs text-ink-dim">
-                        {job.type} · {job.method} {job.url}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3 text-ink-dim">{job.group?.name ?? "—"}</td>
-                    <td className="px-4 py-3 text-ink-dim">{describeCron(job.cronExpr)}</td>
-                    <td className="px-4 py-3 text-ink-dim">
-                      {formatDateTime(job.nextRunAt, job.timezone)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={job.enabled ? "text-sage" : "text-ink-dim"}>
-                          {job.enabled ? "armed" : "paused"}
-                        </span>
-                        {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
+                      ) : null}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <Link href={`/jobs/${job.id}`} className="font-medium">
+                            {job.name}
+                          </Link>
+                          <JobMenu
+                            jobId={job.id}
+                            keepResponse={job.keepResponse}
+                            canManage={canManage}
+                          />
+                        </div>
+                        <p className="mono mt-1 truncate text-xs text-ink-dim">
+                          {job.method} {job.url}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                          <span className="rounded-full bg-bg-mute px-2 py-1">{job.type}</span>
+                          <span className={job.enabled ? "text-sage" : "text-ink-dim"}>
+                            {job.enabled ? "armed" : "paused"}
+                          </span>
+                          {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
+                        </div>
+                        <p className="mt-2 text-xs text-ink-dim">
+                          Next {formatDateTime(job.nextRunAt, job.timezone)}
+                        </p>
                       </div>
-                    </td>
-                  </tr>
+                    </div>
+                  </article>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+              </div>
+
+              <div className="hidden overflow-hidden rounded-[1.35rem] border border-line md:block">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="bg-bg-mute text-xs uppercase tracking-[0.14em] text-ink-dim">
+                    <tr>
+                      {canManage ? (
+                        <th className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={section.jobs.every((job) => selected.includes(job.id))}
+                            onChange={(event) => {
+                              const ids = section.jobs.map((job) => job.id);
+                              setSelected((current) =>
+                                event.target.checked
+                                  ? [...new Set([...current, ...ids])]
+                                  : current.filter((id) => !ids.includes(id)),
+                              );
+                            }}
+                          />
+                        </th>
+                      ) : null}
+                      <th className="px-4 py-3 font-medium">Job</th>
+                      <th className="px-4 py-3 font-medium">Schedule</th>
+                      <th className="px-4 py-3 font-medium">Next</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium"> </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {section.jobs.map((job) => (
+                      <tr key={job.id} className="border-t border-line bg-bg-elev/70">
+                        {canManage ? (
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selected.includes(job.id)}
+                              onChange={(event) => toggleId(job.id, event.target.checked)}
+                            />
+                          </td>
+                        ) : null}
+                        <td className="px-4 py-3">
+                          <Link href={`/jobs/${job.id}`} className="font-medium hover:text-gold">
+                            {job.name}
+                          </Link>
+                          <p className="mono mt-1 text-xs text-ink-dim">
+                            {job.type} · {job.method} {job.url}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-ink-dim">{describeCron(job.cronExpr)}</td>
+                        <td className="px-4 py-3 text-ink-dim">
+                          {formatDateTime(job.nextRunAt, job.timezone)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={job.enabled ? "text-sage" : "text-ink-dim"}>
+                              {job.enabled ? "armed" : "paused"}
+                            </span>
+                            {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <JobMenu
+                            jobId={job.id}
+                            keepResponse={job.keepResponse}
+                            canManage={canManage}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ))}
+        </div>
       )}
     </div>
   );

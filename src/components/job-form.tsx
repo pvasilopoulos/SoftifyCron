@@ -11,7 +11,7 @@ type Group = { id: string; name: string };
 type JobFormValues = {
   name: string;
   description: string;
-  groupId: string;
+  groupName: string;
   type: string;
   tags: string;
   cronExpr: string;
@@ -24,13 +24,14 @@ type JobFormValues = {
   retryMax: number;
   retryDelaySec: number;
   notifyUrl: string;
+  keepResponse: boolean;
   enabled: boolean;
 };
 
 const DEFAULTS: JobFormValues = {
   name: "",
   description: "",
-  groupId: "",
+  groupName: "",
   type: "HTTP",
   tags: "",
   cronExpr: "*/5 * * * *",
@@ -43,6 +44,7 @@ const DEFAULTS: JobFormValues = {
   retryMax: 0,
   retryDelaySec: 60,
   notifyUrl: "",
+  keepResponse: false,
   enabled: true,
 };
 
@@ -73,14 +75,20 @@ export function JobForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
             <span className="field-label">Group</span>
-            <select className="field" name="groupId" defaultValue={values.groupId}>
-              <option value="">Ungrouped</option>
+            <input
+              className="field"
+              name="groupName"
+              defaultValue={values.groupName}
+              list="job-group-names"
+              placeholder="Type a group name"
+              autoComplete="off"
+            />
+            <datalist id="job-group-names">
               {groups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
+                <option key={group.id} value={group.name} />
               ))}
-            </select>
+            </datalist>
+            <p className="mt-2 text-xs text-ink-dim">Leave blank for ungrouped. A new name creates the group.</p>
           </label>
           <label className="block">
             <span className="field-label">Type</span>
@@ -159,6 +167,10 @@ export function JobForm({
           <input type="checkbox" name="enabled" defaultChecked={values.enabled} />
           <span>Armed — worker will fire this job</span>
         </label>
+        <label className="flex min-h-12 items-center gap-3">
+          <input type="checkbox" name="keepResponse" defaultChecked={values.keepResponse} />
+          <span>Keep last response — adds View response to the job menu</span>
+        </label>
         {state?.error ? <p className="text-sm text-rose">{state.error}</p> : null}
         <button className="btn btn-gold w-full sm:w-auto" type="submit" disabled={pending}>
           {pending ? "Saving…" : jobId ? "Save job" : "Create job"}
@@ -173,6 +185,9 @@ export function JobForm({
         </ul>
         <p className="mt-5 text-sm text-ink-dim">
           Put secrets in headers as <span className="mono text-gold-2">{"{{SECRET:API_TOKEN}}"}</span>.
+        </p>
+        <p className="mt-4 text-sm text-ink-dim">
+          Response bodies are stored only when Keep last response is on, so tokens in payloads stay out of MySQL by default.
         </p>
       </aside>
     </form>

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getNextRunAt, validateCron } from "@/lib/cron";
 import { assertSafeUrl } from "@/lib/ssrf";
+import { resolveGroupId } from "@/lib/groups";
 import type { JobInput } from "@/lib/validators";
 import type { JobType, Prisma, RunStatus } from "@prisma/client";
 
@@ -26,17 +27,12 @@ export async function createJob(tenantId: string, input: JobInput) {
   validateCron(data.cronExpr, data.timezone);
   await assertSafeUrl(data.url);
   if (data.notifyUrl) await assertSafeUrl(data.notifyUrl);
-  if (data.groupId) {
-    const group = await prisma.jobGroup.findFirst({
-      where: { id: data.groupId, tenantId },
-    });
-    if (!group) throw new Error("Group not found");
-  }
+  const groupId = await resolveGroupId(tenantId, data);
   const nextRunAt = data.enabled ? getNextRunAt(data.cronExpr, data.timezone) : null;
   return prisma.cronJob.create({
     data: {
       tenantId,
-      groupId: data.groupId || null,
+      groupId,
       name: data.name,
       description: data.description || null,
       type: data.type,
@@ -51,6 +47,7 @@ export async function createJob(tenantId: string, input: JobInput) {
       retryMax: data.retryMax,
       retryDelaySec: data.retryDelaySec,
       notifyUrl: data.notifyUrl || null,
+      keepResponse: data.keepResponse,
       enabled: data.enabled,
       nextRunAt,
     },
@@ -64,17 +61,12 @@ export async function updateJob(tenantId: string, jobId: string, input: JobInput
   if (data.notifyUrl) await assertSafeUrl(data.notifyUrl);
   const existing = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
   if (!existing) return null;
-  if (data.groupId) {
-    const group = await prisma.jobGroup.findFirst({
-      where: { id: data.groupId, tenantId },
-    });
-    if (!group) throw new Error("Group not found");
-  }
+  const groupId = await resolveGroupId(tenantId, data);
   const nextRunAt = data.enabled ? getNextRunAt(data.cronExpr, data.timezone) : null;
   return prisma.cronJob.update({
     where: { id: jobId },
     data: {
-      groupId: data.groupId || null,
+      groupId,
       name: data.name,
       description: data.description || null,
       type: data.type,
@@ -89,10 +81,18 @@ export async function updateJob(tenantId: string, jobId: string, input: JobInput
       retryMax: data.retryMax,
       retryDelaySec: data.retryDelaySec,
       notifyUrl: data.notifyUrl || null,
+      keepResponse: data.keepResponse,
       enabled: data.enabled,
       nextRunAt,
       lockedUntil: data.enabled ? existing.lockedUntil : null,
     },
+  });
+}
+
+export async function getLatestRun(tenantId: string, jobId: string) {
+  return prisma.jobRun.findFirst({
+    where: { tenantId, jobId },
+    orderBy: { startedAt: "desc" },
   });
 }
 
@@ -175,6 +175,7 @@ export async function duplicateJob(tenantId: string, jobId: string) {
       retryMax: job.retryMax,
       retryDelaySec: job.retryDelaySec,
       notifyUrl: job.notifyUrl,
+      keepResponse: job.keepResponse,
       nextRunAt: null,
     },
   });

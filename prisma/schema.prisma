@@ -114,6 +114,7 @@ model CronJob {
   retryMax             Int        @default(0)
   retryDelaySec        Int        @default(60)
   notifyUrl            String?    @db.VarChar(2048)
+  keepResponse         Boolean    @default(false)
   consecutiveFailures  Int        @default(0)
   lastStatus           RunStatus?
   lastRunAt            DateTime?

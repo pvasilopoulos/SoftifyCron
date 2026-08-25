@@ -2,15 +2,18 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Link from "next/link";
 
 export function JobActions({
   jobId,
   enabled,
   canManage,
+  keepResponse,
 }: {
   jobId: string;
   enabled: boolean;
   canManage: boolean;
+  keepResponse: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -69,6 +72,11 @@ export function JobActions({
       <button className="btn btn-gold" type="button" onClick={runNow} disabled={!!busy}>
         {busy === "run" ? "Running…" : "Run now"}
       </button>
+      {keepResponse ? (
+        <Link href={`/jobs/${jobId}/response`} className="btn btn-ghost">
+          View response
+        </Link>
+      ) : null}
       {canManage ? (
         <>
           <button className="btn btn-ghost" type="button" onClick={toggle} disabled={!!busy}>

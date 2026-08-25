@@ -41,6 +41,7 @@ export async function saveJobAction(
     name: formData.get("name"),
     description: String(formData.get("description") ?? "") || null,
     groupId: String(formData.get("groupId") ?? "") || null,
+    groupName: String(formData.get("groupName") ?? "") || null,
     type: formData.get("type") || "HTTP",
     tags: String(formData.get("tags") ?? ""),
     cronExpr: formData.get("cronExpr"),
@@ -53,6 +54,7 @@ export async function saveJobAction(
     retryMax: Number(formData.get("retryMax") ?? 0),
     retryDelaySec: Number(formData.get("retryDelaySec") ?? 60),
     notifyUrl: String(formData.get("notifyUrl") ?? "") || null,
+    keepResponse: formData.get("keepResponse") === "on",
     enabled: formData.get("enabled") === "on",
   });
   if (!parsed.success) {
