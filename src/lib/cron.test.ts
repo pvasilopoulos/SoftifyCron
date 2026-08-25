@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getNextRunAt, previewRuns, validateCron } from "./cron";
+import { getNextRunAt, previewRuns, skipNextFire, validateCron } from "./cron";
 
 describe("cron helpers", () => {
   it("parses a 5-field expression", () => {
@@ -21,5 +21,12 @@ describe("cron helpers", () => {
     const runs = previewRuns("0 * * * *", "UTC", 3, from);
     expect(runs).toHaveLength(3);
     expect(runs[1]!.getTime()).toBeGreaterThan(runs[0]!.getTime());
+  });
+
+  it("skips the upcoming fire", () => {
+    const from = new Date("2026-08-24T12:00:00.000Z");
+    const first = getNextRunAt("0 * * * *", "UTC", from);
+    const skipped = skipNextFire("0 * * * *", "UTC", first, from);
+    expect(skipped.getTime()).toBeGreaterThan(first.getTime());
   });
 });

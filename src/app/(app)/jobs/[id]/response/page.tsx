@@ -36,8 +36,9 @@ export default async function JobResponsePage({
         </Link>
         <h1 className="mt-2 font-display text-4xl italic">Last response</h1>
         <p className="mt-2 text-sm text-ink-dim">
-          Stored only for jobs with Keep last response on.
-        </p>
+        Stored only for jobs with Keep last response on. Bodies are decoded from UTF-8,
+        Windows-1253, ISO-8859-7, or Windows-1252 when the charset is missing or wrong.
+      </p>
       </div>
 
       {!job.keepResponse ? (
@@ -62,6 +63,7 @@ export default async function JobResponsePage({
           </div>
           <p className="mono mt-3 text-xs text-ink-dim">
             {formatAbsolute(run.startedAt, job.timezone)}
+            {run.responseCharset ? ` · decoded as ${run.responseCharset}` : ""}
           </p>
           {run.error ? <p className="mt-3 text-sm text-rose">{run.error}</p> : null}
           <div className="mt-5">

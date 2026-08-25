@@ -27,6 +27,10 @@ export async function deleteJobRequest(jobId: string) {
   return postJson(`/api/jobs/${jobId}`, { method: "DELETE" });
 }
 
+export async function skipJobRequest(jobId: string) {
+  return postJson(`/api/jobs/${jobId}/skip`, { method: "POST" });
+}
+
 export function confirmDeleteJob(name: string) {
   return confirm(`Delete “${name}” and its run history? This cannot be undone.`);
 }

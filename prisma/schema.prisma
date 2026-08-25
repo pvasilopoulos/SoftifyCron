@@ -121,6 +121,7 @@ model CronJob {
   retryDelaySec        Int        @default(60)
   notifyUrl            String?    @db.VarChar(2048)
   keepResponse         Boolean    @default(false)
+  pauseAfter           Int        @default(0)
   consecutiveFailures  Int        @default(0)
   lastStatus           RunStatus?
   lastRunAt            DateTime?
@@ -149,6 +150,7 @@ model JobRun {
   httpStatus   Int?
   durationMs   Int?
   responseBody String?    @db.MediumText
+  responseCharset String? @db.VarChar(40)
   error        String?    @db.Text
   job          CronJob    @relation(fields: [jobId], references: [id], onDelete: Cascade)
   tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)

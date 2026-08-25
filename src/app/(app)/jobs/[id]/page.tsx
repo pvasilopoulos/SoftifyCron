@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/session";
 import { getJobForTenant } from "@/lib/jobs";
 import { describeCron, previewRuns } from "@/lib/cron";
 import { formatAbsolute, formatDateTime, formatDuration } from "@/lib/format";
+import { RelativeTime } from "@/components/relative-time";
 import { prisma } from "@/lib/prisma";
 import { JobActions } from "@/components/job-actions";
 import { StatusPill } from "@/components/status-pill";
@@ -117,7 +118,12 @@ export default async function JobDetailPage({
             </div>
             <div>
               <dt className="text-ink-dim">Next run</dt>
-              <dd className="mt-1">{formatDateTime(job.nextRunAt, job.timezone)}</dd>
+              <dd className="mt-1">
+                <RelativeTime value={job.nextRunAt} timeZone={job.timezone} />
+                <span className="mt-1 block text-xs text-ink-dim">
+                  {formatDateTime(job.nextRunAt, job.timezone)}
+                </span>
+              </dd>
             </div>
             <div>
               <dt className="text-ink-dim">Timeout</dt>
@@ -131,7 +137,10 @@ export default async function JobDetailPage({
             </div>
             <div>
               <dt className="text-ink-dim">Failures</dt>
-              <dd className="mt-1">{job.consecutiveFailures}</dd>
+              <dd className="mt-1">
+                {job.consecutiveFailures}
+                {job.pauseAfter > 0 ? ` · auto-pause at ${job.pauseAfter}` : ""}
+              </dd>
             </div>
           </dl>
           {job.notifyUrl ? (
@@ -148,8 +157,9 @@ export default async function JobDetailPage({
               <li>Paused</li>
             ) : (
               upcoming.map((date) => (
-                <li key={date.toISOString()} className="mono">
-                  {formatAbsolute(date, job.timezone)}
+                <li key={date.toISOString()} className="flex items-center justify-between gap-3">
+                  <span className="mono">{formatAbsolute(date, job.timezone)}</span>
+                  <RelativeTime value={date} timeZone={job.timezone} />
                 </li>
               ))
             )}
@@ -172,7 +182,10 @@ export default async function JobDetailPage({
                     <StatusPill status={run.status} />
                     <span className="text-xs text-ink-dim">{run.trigger.toLowerCase()}</span>
                   </div>
-                  <p className="mono mt-2 text-xs text-ink-dim">
+                  <p className="mt-2 text-xs text-ink-dim">
+                    <RelativeTime value={run.startedAt} timeZone={job.timezone} />
+                  </p>
+                  <p className="mono mt-1 text-xs text-ink-dim">
                     {formatAbsolute(run.startedAt, job.timezone)}
                   </p>
                   <p className="mt-1 text-sm">
@@ -196,7 +209,10 @@ export default async function JobDetailPage({
                   {runs.map((run) => (
                     <tr key={run.id} className="border-t border-line">
                       <td className="px-6 py-3">
-                        {formatAbsolute(run.startedAt, job.timezone)}
+                        <RelativeTime value={run.startedAt} timeZone={job.timezone} />
+                        <p className="mono mt-1 text-xs text-ink-dim">
+                          {formatAbsolute(run.startedAt, job.timezone)}
+                        </p>
                       </td>
                       <td className="px-6 py-3 text-ink-dim">
                         {run.trigger.toLowerCase()}

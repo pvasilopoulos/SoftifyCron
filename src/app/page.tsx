@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const FEATURES = [
   {
@@ -18,6 +19,10 @@ const FEATURES = [
     title: "Built for your phone",
     copy: "Bottom navigation, 44px targets, and card layouts so you can pause a failing job from the train.",
   },
+  {
+    title: "Dark, light, and auto",
+    copy: "Mint on night or forest on paper. Theme stays on this device, compact density tightens the board, and ⌘K jumps to any job.",
+  },
 ];
 
 export default function HomePage() {
@@ -26,6 +31,7 @@ export default function HomePage() {
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-5 sm:px-6">
         <Logo />
         <nav className="flex items-center gap-2">
+          <ThemeToggle compact />
           <Link href="/login" className="btn btn-ghost px-3 text-sm">
             Sign in
           </Link>
@@ -112,7 +118,7 @@ export default function HomePage() {
 
         <section className="mt-14 grid gap-4 sm:grid-cols-2">
           {FEATURES.map((feature) => (
-            <article key={feature.title} className="card p-6">
+            <article key={feature.title} className="card card-hover p-6">
               <h2 className="font-display text-2xl italic">{feature.title}</h2>
               <p className="mt-3 text-sm leading-6 text-ink-dim">{feature.copy}</p>
             </article>

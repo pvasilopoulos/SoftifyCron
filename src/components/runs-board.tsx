@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { formatAbsolute, formatDuration } from "@/lib/format";
+import { RelativeTime } from "@/components/relative-time";
 import { StatusPill } from "@/components/status-pill";
 
 type Run = {
@@ -82,7 +83,10 @@ export function RunsBoard({
                   <p className="font-medium">{run.job.name}</p>
                   <StatusPill status={run.status} />
                 </div>
-                <p className="mono mt-2 text-xs text-ink-dim">
+                <p className="mt-2 text-xs text-ink-dim">
+                  <RelativeTime value={run.startedAt} timeZone={timezone} />
+                </p>
+                <p className="mono mt-1 text-xs text-ink-dim">
                   {formatAbsolute(run.startedAt, timezone)}
                 </p>
                 <p className="mt-2 text-sm text-ink-dim">
@@ -110,8 +114,11 @@ export function RunsBoard({
                 {runs.map((run) => (
                   <tr key={run.id} className="border-t border-line bg-bg-elev/70">
                     <td className="px-5 py-3 font-medium">{run.job.name}</td>
-                    <td className="px-5 py-3 mono text-ink-dim">
-                      {formatAbsolute(run.startedAt, timezone)}
+                    <td className="px-5 py-3">
+                      <RelativeTime value={run.startedAt} timeZone={timezone} />
+                      <p className="mono mt-1 text-xs text-ink-dim">
+                        {formatAbsolute(run.startedAt, timezone)}
+                      </p>
                     </td>
                     <td className="px-5 py-3 text-ink-dim">
                       {run.trigger.toLowerCase()}

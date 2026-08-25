@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { describeCron } from "@/lib/cron";
-import { formatDateTime } from "@/lib/format";
+import { RelativeTime } from "@/components/relative-time";
 import { StatusPill } from "@/components/status-pill";
 import { canManage } from "@/lib/acl";
 
@@ -78,7 +78,7 @@ export default async function DashboardPage() {
           ["Runs today", String(runsToday), "/runs"],
           ["Success today", rate, "/runs?status=SUCCESS"],
         ].map(([label, value, href]) => (
-          <Link key={label} href={href} className="card p-4 sm:p-5">
+          <Link key={label} href={href} className="card card-hover p-4 sm:p-5">
             <p className="text-xs uppercase tracking-[0.16em] text-ink-dim">
               {label}
             </p>
@@ -108,7 +108,7 @@ export default async function DashboardPage() {
                 </div>
                 <p className="mt-1 text-sm text-ink-dim">
                   {job.consecutiveFailures} consecutive ·{" "}
-                  {formatDateTime(job.lastRunAt, job.timezone)}
+                  <RelativeTime value={job.lastRunAt} timeZone={job.timezone} />
                 </p>
               </Link>
             ))}
@@ -138,8 +138,8 @@ export default async function DashboardPage() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-medium">{job.name}</p>
-                    <span className="text-xs text-ink-dim">
-                      {formatDateTime(job.nextRunAt, job.timezone)}
+                    <span className="text-xs text-gold-2">
+                      <RelativeTime value={job.nextRunAt} timeZone={job.timezone} />
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-ink-dim">
@@ -171,7 +171,7 @@ export default async function DashboardPage() {
                   <div>
                     <p className="font-medium">{run.job.name}</p>
                     <p className="text-xs text-ink-dim">
-                      {formatDateTime(run.startedAt, tz)}
+                      <RelativeTime value={run.startedAt} timeZone={tz} />
                     </p>
                   </div>
                   <StatusPill status={run.status} />

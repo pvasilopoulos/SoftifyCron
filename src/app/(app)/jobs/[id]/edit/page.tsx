@@ -52,6 +52,7 @@ export default async function EditJobPage({
           retryDelaySec: job.retryDelaySec,
           notifyUrl: job.notifyUrl ?? "",
           keepResponse: job.keepResponse,
+          pauseAfter: job.pauseAfter,
           enabled: job.enabled,
         }}
       />

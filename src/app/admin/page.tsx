@@ -24,7 +24,7 @@ export default async function AdminPage() {
           <div className="card p-8 text-ink-dim">No customers yet.</div>
         ) : (
           customers.map((customer) => (
-            <article key={customer.id} className="card p-5">
+            <article key={customer.id} className="card card-hover p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h2 className="font-display text-2xl italic">{customer.name}</h2>

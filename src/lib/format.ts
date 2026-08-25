@@ -33,6 +33,27 @@ export function formatDuration(ms: number | null | undefined) {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
+export function formatRelative(
+  value: Date | string | null | undefined,
+  now: Date = new Date(),
+) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  const diff = date.getTime() - now.getTime();
+  const past = diff < 0;
+  const sec = Math.round(Math.abs(diff) / 1000);
+  if (sec < 8) return past ? "just now" : "in a moment";
+  if (sec < 60) return past ? `${sec}s ago` : `in ${sec}s`;
+  const min = Math.round(sec / 60);
+  if (min < 60) return past ? `${min} min ago` : `in ${min} min`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return past ? `${hr}h ago` : `in ${hr}h`;
+  const day = Math.round(hr / 24);
+  if (day < 14) return past ? `${day}d ago` : `in ${day}d`;
+  return formatDateTime(date);
+}
+
 export function slugify(input: string) {
   const base = input
     .normalize("NFKD")

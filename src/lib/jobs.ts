@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getNextRunAt, validateCron } from "@/lib/cron";
+import { getNextRunAt, skipNextFire, validateCron } from "@/lib/cron";
 import { assertSafeUrl } from "@/lib/ssrf";
 import { resolveGroupId } from "@/lib/groups";
 import type { JobInput } from "@/lib/validators";
@@ -48,6 +48,7 @@ export async function createJob(tenantId: string, input: JobInput) {
       retryDelaySec: data.retryDelaySec,
       notifyUrl: data.notifyUrl || null,
       keepResponse: data.keepResponse,
+      pauseAfter: data.pauseAfter,
       enabled: data.enabled,
       nextRunAt,
     },
@@ -82,6 +83,7 @@ export async function updateJob(tenantId: string, jobId: string, input: JobInput
       retryDelaySec: data.retryDelaySec,
       notifyUrl: data.notifyUrl || null,
       keepResponse: data.keepResponse,
+      pauseAfter: data.pauseAfter,
       enabled: data.enabled,
       nextRunAt,
       lockedUntil: data.enabled ? existing.lockedUntil : null,
@@ -176,6 +178,7 @@ export async function duplicateJob(tenantId: string, jobId: string) {
       retryDelaySec: job.retryDelaySec,
       notifyUrl: job.notifyUrl,
       keepResponse: job.keepResponse,
+      pauseAfter: job.pauseAfter,
       nextRunAt: null,
     },
   });
@@ -222,4 +225,17 @@ export async function bulkJobs(
     return { count: result.count };
   }
   return { count: 0, ids: found };
+}
+
+export async function skipJobNextRun(tenantId: string, jobId: string) {
+  const job = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
+  if (!job) return null;
+  if (!job.enabled) throw new Error("Paused jobs have no upcoming fire to skip");
+  return prisma.cronJob.update({
+    where: { id: job.id },
+    data: {
+      nextRunAt: skipNextFire(job.cronExpr, job.timezone, job.nextRunAt),
+      lockedUntil: null,
+    },
+  });
 }

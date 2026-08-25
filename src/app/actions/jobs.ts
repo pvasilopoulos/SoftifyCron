@@ -55,6 +55,7 @@ export async function saveJobAction(
     retryDelaySec: Number(formData.get("retryDelaySec") ?? 60),
     notifyUrl: String(formData.get("notifyUrl") ?? "") || null,
     keepResponse: formData.get("keepResponse") === "on",
+    pauseAfter: Number(formData.get("pauseAfter") ?? 0),
     enabled: formData.get("enabled") === "on",
   });
   if (!parsed.success) {

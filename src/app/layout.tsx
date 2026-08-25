@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
-import { Fraunces, Geist_Mono, Outfit } from "next/font/google";
+import { Fraunces, Geist_Mono, Inter, Outfit } from "next/font/google";
+import { ThemeScript } from "@/components/theme-script";
+import { AppProviders } from "@/components/app-providers";
 import "./globals.css";
 
 const outfit = Outfit({
   variable: "--font-outfit",
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin", "latin-ext", "greek"],
 });
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext"],
   style: ["normal", "italic"],
 });
 
@@ -21,7 +28,10 @@ const geistMono = Geist_Mono({
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#07080c",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f3f6f2" },
+    { media: "(prefers-color-scheme: dark)", color: "#07080c" },
+  ],
   viewportFit: "cover",
 };
 
@@ -43,9 +53,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${fraunces.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+      data-theme="dark"
+      data-density="comfortable"
+      className={`${outfit.variable} ${inter.variable} ${fraunces.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full min-h-dvh flex flex-col text-ink">{children}</body>
+      <head>
+        <ThemeScript />
+      </head>
+      <body className="min-h-full min-h-dvh flex flex-col text-ink">
+        <AppProviders>{children}</AppProviders>
+      </body>
     </html>
   );
 }

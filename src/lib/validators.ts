@@ -38,6 +38,7 @@ export const jobInputSchema = z.object({
   retryDelaySec: z.number().int().min(10).max(86_400).default(60),
   notifyUrl: z.union([z.url().max(2048), z.literal(""), z.null()]).optional(),
   keepResponse: z.boolean().default(false),
+  pauseAfter: z.number().int().min(0).max(100).default(0),
   enabled: z.boolean().default(true),
 });
 

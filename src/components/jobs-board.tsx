@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { describeCron } from "@/lib/cron";
-import { formatDateTime } from "@/lib/format";
+import { RelativeTime } from "@/components/relative-time";
 import { StatusPill } from "@/components/status-pill";
 import { JobMenu } from "@/components/job-menu";
 
@@ -233,7 +233,7 @@ export function JobsBoard({
 
               <div className="grid gap-3 md:hidden">
                 {section.jobs.map((job) => (
-                  <article key={job.id} className="card p-4">
+                  <article key={job.id} className="card card-hover p-4">
                     <div className="flex items-start gap-3">
                       {canManage ? (
                         <input
@@ -267,7 +267,7 @@ export function JobsBoard({
                           {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
                         </div>
                         <p className="mt-2 text-xs text-ink-dim">
-                          Next {formatDateTime(job.nextRunAt, job.timezone)}
+                          Next <RelativeTime value={job.nextRunAt} timeZone={job.timezone} />
                         </p>
                       </div>
                     </div>
@@ -304,7 +304,7 @@ export function JobsBoard({
                   </thead>
                   <tbody>
                     {section.jobs.map((job) => (
-                      <tr key={job.id} className="border-t border-line bg-bg-elev/70">
+                      <tr key={job.id} className="row-hover border-t border-line bg-bg-elev/70">
                         {canManage ? (
                           <td className="px-4 py-3">
                             <input
@@ -324,7 +324,7 @@ export function JobsBoard({
                         </td>
                         <td className="px-4 py-3 text-ink-dim">{describeCron(job.cronExpr)}</td>
                         <td className="px-4 py-3 text-ink-dim">
-                          {formatDateTime(job.nextRunAt, job.timezone)}
+                          <RelativeTime value={job.nextRunAt} timeZone={job.timezone} />
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap items-center gap-2">

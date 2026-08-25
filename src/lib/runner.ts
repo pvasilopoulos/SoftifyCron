@@ -4,6 +4,7 @@ import { getNextRunAt } from "@/lib/cron";
 import { assertSafeUrl } from "@/lib/ssrf";
 import { resolveSecrets } from "@/lib/secrets";
 import { notifyFailure } from "@/lib/notify";
+import { decodeHttpBody } from "@/lib/decode";
 
 const MAX_BODY = 32_768;
 
@@ -49,6 +50,9 @@ async function performRequest(job: CronJob) {
   if (!headers.has("user-agent")) {
     headers.set("user-agent", "SoftifyCron/1.0");
   }
+  if (!headers.has("accept-charset")) {
+    headers.set("accept-charset", "utf-8, windows-1253, iso-8859-7, windows-1252;q=0.8");
+  }
   const method = job.type === "HEARTBEAT" ? "GET" : job.method;
   const canHaveBody = method !== "GET" && method !== "DELETE";
   const body = canHaveBody
@@ -63,10 +67,12 @@ async function performRequest(job: CronJob) {
     { method, headers, body: canHaveBody ? body || undefined : undefined },
     job.timeoutMs,
   );
-  const raw = await response.text();
+  const buffer = new Uint8Array(await response.arrayBuffer());
+  const decoded = decodeHttpBody(buffer, response.headers.get("content-type"));
   return {
     httpStatus: response.status,
-    responseBody: truncate(raw),
+    responseBody: truncate(decoded.text),
+    encoding: decoded.encoding,
     ok: response.ok,
   };
 }
@@ -92,12 +98,14 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
   let status: "SUCCESS" | "FAILED" | "TIMEOUT" | "BLOCKED" = "FAILED";
   let httpStatus: number | null = null;
   let responseBody: string | null = null;
+  let responseCharset: string | null = null;
   let error: string | null = null;
 
   try {
     const result = await performRequest(job);
     httpStatus = result.httpStatus;
     responseBody = result.responseBody;
+    responseCharset = result.encoding;
     status = result.ok ? "SUCCESS" : "FAILED";
     if (!result.ok) error = `HTTP ${result.httpStatus}`;
   } catch (err) {
@@ -137,18 +145,26 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
       status,
       httpStatus,
       responseBody: job.keepResponse ? responseBody : null,
+      responseCharset: job.keepResponse ? responseCharset : null,
       error,
       finishedAt,
       durationMs,
     },
   });
 
+  const autoPause =
+    failed &&
+    !shouldRetry &&
+    job.pauseAfter > 0 &&
+    consecutiveFailures >= job.pauseAfter;
+  const stillArmed = job.enabled && !autoPause;
+
   let nextRunAt = job.nextRunAt;
-  if (trigger === "MANUAL") {
+  if (trigger === "MANUAL" && stillArmed) {
     nextRunAt = job.nextRunAt;
   } else if (shouldRetry) {
     nextRunAt = new Date(Date.now() + job.retryDelaySec * 1000);
-  } else if (job.enabled) {
+  } else if (stillArmed) {
     nextRunAt = getNextRunAt(job.cronExpr, job.timezone, finishedAt);
   } else {
     nextRunAt = null;
@@ -160,6 +176,7 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
       lastRunAt: startedAt,
       lastStatus: status,
       consecutiveFailures,
+      enabled: stillArmed,
       nextRunAt,
       lockedUntil: null,
     },

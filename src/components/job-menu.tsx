@@ -8,8 +8,10 @@ import {
   deleteJobRequest,
   duplicateJobRequest,
   runJobRequest,
+  skipJobRequest,
   toggleJobRequest,
 } from "@/lib/job-client";
+import { toast } from "@/components/toaster";
 
 function Item({
   children,
@@ -79,7 +81,7 @@ export function JobMenu({
       setOpen(false);
       router.refresh();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Action failed");
+      toast(error instanceof Error ? error.message : "Action failed", "err");
     } finally {
       setBusy(false);
     }
@@ -120,9 +122,22 @@ export function JobMenu({
               View response
             </Link>
           ) : null}
-          <Item disabled={busy} onClick={() => run(async () => { await runJobRequest(jobId); })}>
+          <Item disabled={busy} onClick={() => run(async () => { await runJobRequest(jobId); toast("Run finished"); })}>
             Run now
           </Item>
+          {canManage && enabled ? (
+            <Item
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  await skipJobRequest(jobId);
+                  toast("Skipped next fire");
+                })
+              }
+            >
+              Skip next
+            </Item>
+          ) : null}
           {canManage ? (
             <>
               <div className="my-1 border-t border-line" />

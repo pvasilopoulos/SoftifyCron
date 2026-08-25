@@ -6,6 +6,7 @@ import type { SessionPayload } from "@/lib/session";
 import { Logo } from "@/components/logo";
 import { logoutAction } from "@/app/actions/auth";
 import { exitCustomerAction } from "@/app/actions/admin";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV = [
   { href: "/dashboard", label: "Home", icon: HomeIcon },
@@ -98,6 +99,9 @@ export function AppShell({
               Sign out
             </button>
           </form>
+          <div className="mt-4">
+            <ThemeToggle compact />
+          </div>
         </div>
       </aside>
 
@@ -106,29 +110,35 @@ export function AppShell({
           <Link href="/dashboard">
             <Logo />
           </Link>
-          {session.platform ? (
-            <form action={exitCustomerAction}>
-              <button type="submit" className="text-xs text-gold">
-                Customers
-              </button>
-            </form>
-          ) : (
-            <p className="max-w-[45%] truncate text-xs text-ink-dim">{session.tname}</p>
-          )}
+          <div className="flex items-center gap-2">
+            <ThemeToggle compact />
+            {session.platform ? (
+              <form action={exitCustomerAction}>
+                <button type="submit" className="text-xs text-gold">
+                  Customers
+                </button>
+              </form>
+            ) : (
+              <p className="max-w-[36%] truncate text-xs text-ink-dim">{session.tname}</p>
+            )}
+          </div>
         </header>
         <header className="hidden items-center justify-between border-b border-line px-10 py-4 lg:flex">
           <p className="text-sm text-ink-dim">
             {session.platform
               ? `Viewing customer ${session.tname} as platform admin`
-              : `Customer workspace · ${session.role.toLowerCase()}`}
+              : `Customer workspace · ${session.role.toLowerCase()} · ⌘K to jump`}
           </p>
-          {session.platform ? (
-            <form action={exitCustomerAction}>
-              <button type="submit" className="text-sm text-gold">
-                Back to customers
-              </button>
-            </form>
-          ) : null}
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            {session.platform ? (
+              <form action={exitCustomerAction}>
+                <button type="submit" className="text-sm text-gold">
+                  Back to customers
+                </button>
+              </form>
+            ) : null}
+          </div>
         </header>
         <main className="px-4 py-6 lg:px-10 lg:py-10">{children}</main>
       </div>

@@ -8,8 +8,10 @@ import {
   deleteJobRequest,
   duplicateJobRequest,
   runJobRequest,
+  skipJobRequest,
   toggleJobRequest,
 } from "@/lib/job-client";
+import { toast } from "@/components/toaster";
 
 export function JobActions({
   jobId,
@@ -36,7 +38,9 @@ export function JobActions({
     try {
       await action();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Action failed");
+      const text = error instanceof Error ? error.message : "Action failed";
+      setMessage(text);
+      toast(text, "err");
     } finally {
       setBusy(null);
     }
@@ -52,12 +56,30 @@ export function JobActions({
           wrap("run", async () => {
             const data = await runJobRequest(jobId);
             setMessage(`Finished with ${String(data.status).toLowerCase()}`);
+            toast(`Finished with ${String(data.status).toLowerCase()}`);
             router.refresh();
           })
         }
       >
         {busy === "run" ? "Running…" : "Run now"}
       </button>
+      {canManage && enabled ? (
+        <button
+          className="btn btn-ghost"
+          type="button"
+          disabled={!!busy}
+          onClick={() =>
+            wrap("skip", async () => {
+              await skipJobRequest(jobId);
+              setMessage("Skipped next fire");
+              toast("Skipped next fire");
+              router.refresh();
+            })
+          }
+        >
+          {busy === "skip" ? "Skipping…" : "Skip next"}
+        </button>
+      ) : null}
       {keepResponse ? (
         <Link href={`/jobs/${jobId}/response`} className="btn btn-ghost">
           View response
@@ -70,6 +92,7 @@ export function JobActions({
           onClick={async () => {
             await navigator.clipboard.writeText(curl);
             setMessage("Copied curl");
+            toast("Copied curl");
           }}
         >
           Copy curl

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { logoutAction } from "@/app/actions/auth";
+import { ThemeToggle } from "@/components/theme-toggle";
 import type { SessionPayload } from "@/lib/session";
 
 export function AdminShell({
@@ -34,6 +35,9 @@ export function AdminShell({
               Sign out
             </button>
           </form>
+          <div className="mt-4">
+            <ThemeToggle compact />
+          </div>
         </div>
       </aside>
       <div className="min-w-0">
@@ -41,7 +45,11 @@ export function AdminShell({
           <Link href="/admin">
             <Logo />
           </Link>
-          <p className="text-xs text-ink-dim">Admin</p>
+          <ThemeToggle compact />
+        </header>
+        <header className="hidden items-center justify-between border-b border-line px-10 py-4 lg:flex">
+          <p className="text-sm text-ink-dim">Platform · every customer</p>
+          <ThemeToggle />
         </header>
         <main className="px-4 py-6 lg:px-10 lg:py-10">{children}</main>
       </div>

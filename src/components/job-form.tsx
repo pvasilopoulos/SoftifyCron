@@ -25,6 +25,7 @@ type JobFormValues = {
   retryDelaySec: number;
   notifyUrl: string;
   keepResponse: boolean;
+  pauseAfter: number;
   enabled: boolean;
 };
 
@@ -45,6 +46,7 @@ const DEFAULTS: JobFormValues = {
   retryDelaySec: 60,
   notifyUrl: "",
   keepResponse: false,
+  pauseAfter: 0,
   enabled: true,
 };
 
@@ -171,6 +173,18 @@ export function JobForm({
           <input type="checkbox" name="keepResponse" defaultChecked={values.keepResponse} />
           <span>Keep last response — adds View response to the job menu</span>
         </label>
+        <label className="block">
+          <span className="field-label">Auto-pause after N failures</span>
+          <input
+            className="field"
+            type="number"
+            name="pauseAfter"
+            min={0}
+            max={100}
+            defaultValue={values.pauseAfter}
+          />
+          <p className="mt-2 text-xs text-ink-dim">0 keeps the job armed forever. 3 pauses it after three consecutive failures.</p>
+        </label>
         {state?.error ? <p className="text-sm text-rose">{state.error}</p> : null}
         <button className="btn btn-gold w-full sm:w-auto" type="submit" disabled={pending}>
           {pending ? "Saving…" : jobId ? "Save job" : "Create job"}
@@ -188,6 +202,9 @@ export function JobForm({
         </p>
         <p className="mt-4 text-sm text-ink-dim">
           Response bodies are stored only when Keep last response is on, so tokens in payloads stay out of MySQL by default.
+        </p>
+        <p className="mt-4 text-sm text-ink-dim">
+          Skip next jumps over one fire. Auto-pause stops a flapping job after N failures so it stops paging you.
         </p>
       </aside>
     </form>

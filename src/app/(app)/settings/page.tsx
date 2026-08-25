@@ -2,6 +2,7 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { SettingsForm } from "@/components/settings-form";
 import { WorkspacePanels } from "@/components/workspace-panels";
+import { AppearancePanel } from "@/components/appearance-panel";
 import { listGroups } from "@/lib/groups";
 import { listSecrets } from "@/lib/secrets";
 import { listInvites } from "@/lib/invites";
@@ -36,6 +37,7 @@ export default async function SettingsPage() {
         <p className="text-xs uppercase tracking-[0.2em] text-gold">Tenant</p>
         <h1 className="mt-2 font-display text-4xl italic">Workspace</h1>
       </div>
+      <AppearancePanel />
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="card p-6">
           <h2 className="font-display text-2xl italic">Details</h2>

@@ -20,6 +20,18 @@ export function getNextRunAt(
   return expression.next().toDate();
 }
 
+/** Jump past the upcoming fire (or an overdue slot) to the following schedule. */
+export function skipNextFire(
+  cronExpr: string,
+  timezone: string,
+  scheduled: Date | null | undefined,
+  now: Date = new Date(),
+): Date {
+  const from =
+    scheduled && scheduled.getTime() > now.getTime() ? scheduled : now;
+  return getNextRunAt(cronExpr, timezone, from);
+}
+
 export function previewRuns(
   cronExpr: string,
   timezone: string,
