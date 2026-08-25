@@ -273,7 +273,7 @@ export function JobsBoard({
                 ))}
               </div>
 
-              <div className="hidden overflow-hidden rounded-[1.35rem] border border-line md:block">
+              <div className="hidden rounded-[1.35rem] border border-line md:block">
                 <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="bg-bg-mute text-xs uppercase tracking-[0.14em] text-ink-dim">
                     <tr>
