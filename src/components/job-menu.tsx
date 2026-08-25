@@ -1,18 +1,58 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
+import {
+  confirmDeleteJob,
+  deleteJobRequest,
+  duplicateJobRequest,
+  runJobRequest,
+  toggleJobRequest,
+} from "@/lib/job-client";
+
+function Item({
+  children,
+  onClick,
+  disabled,
+  danger,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      disabled={disabled}
+      onClick={onClick}
+      className={`block w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-bg-mute disabled:opacity-50 ${
+        danger ? "text-rose" : ""
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 export function JobMenu({
   jobId,
+  name,
+  enabled,
   keepResponse,
   canManage,
 }: {
   jobId: string;
+  name: string;
+  enabled: boolean;
   keepResponse: boolean;
   canManage: boolean;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const labelId = useId();
 
@@ -32,6 +72,19 @@ export function JobMenu({
     };
   }, [open]);
 
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    try {
+      await action();
+      setOpen(false);
+      router.refresh();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Action failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="relative" ref={root}>
       <button
@@ -47,7 +100,7 @@ export function JobMenu({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-40 mt-2 min-w-44 rounded-2xl border border-line bg-bg-elev p-2 shadow-lg"
+          className="absolute right-0 z-40 mt-2 min-w-48 rounded-2xl border border-line bg-bg-elev p-2 shadow-lg"
         >
           <Link
             href={`/jobs/${jobId}`}
@@ -67,15 +120,55 @@ export function JobMenu({
               View response
             </Link>
           ) : null}
+          <Item disabled={busy} onClick={() => run(async () => { await runJobRequest(jobId); })}>
+            Run now
+          </Item>
           {canManage ? (
-            <Link
-              href={`/jobs/${jobId}/edit`}
-              role="menuitem"
-              className="block rounded-xl px-3 py-2 text-sm hover:bg-bg-mute"
-              onClick={() => setOpen(false)}
-            >
-              Edit
-            </Link>
+            <>
+              <div className="my-1 border-t border-line" />
+              <Link
+                href={`/jobs/${jobId}/edit`}
+                role="menuitem"
+                className="block rounded-xl px-3 py-2 text-sm hover:bg-bg-mute"
+                onClick={() => setOpen(false)}
+              >
+                Edit
+              </Link>
+              <Item
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    await toggleJobRequest(jobId, !enabled);
+                  })
+                }
+              >
+                {enabled ? "Pause" : "Resume"}
+              </Item>
+              <Item
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    const data = await duplicateJobRequest(jobId);
+                    router.push(`/jobs/${data.job.id}/edit`);
+                  })
+                }
+              >
+                Duplicate
+              </Item>
+              <div className="my-1 border-t border-line" />
+              <Item
+                danger
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    if (!confirmDeleteJob(name)) return;
+                    await deleteJobRequest(jobId);
+                  })
+                }
+              >
+                Delete job
+              </Item>
+            </>
           ) : null}
         </div>
       ) : null}

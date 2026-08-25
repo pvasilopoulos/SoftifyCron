@@ -3,73 +3,59 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
+import {
+  confirmDeleteJob,
+  deleteJobRequest,
+  duplicateJobRequest,
+  runJobRequest,
+  toggleJobRequest,
+} from "@/lib/job-client";
 
 export function JobActions({
   jobId,
+  name,
   enabled,
   canManage,
   keepResponse,
+  curl,
 }: {
   jobId: string;
+  name: string;
   enabled: boolean;
   canManage: boolean;
   keepResponse: boolean;
+  curl?: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  async function runNow() {
-    setBusy("run");
+  async function wrap(key: string, action: () => Promise<void>) {
+    setBusy(key);
     setMessage(null);
-    const response = await fetch(`/api/jobs/${jobId}/run`, { method: "POST" });
-    const data = await response.json().catch(() => ({}));
-    setBusy(null);
-    if (!response.ok) {
-      setMessage(data.error ?? "Run failed");
-      return;
+    try {
+      await action();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Action failed");
+    } finally {
+      setBusy(null);
     }
-    setMessage(`Finished with ${String(data.status).toLowerCase()}`);
-    router.refresh();
-  }
-
-  async function toggle() {
-    setBusy("toggle");
-    await fetch(`/api/jobs/${jobId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ enabled: !enabled }),
-    });
-    setBusy(null);
-    router.refresh();
-  }
-
-  async function duplicate() {
-    setBusy("copy");
-    const response = await fetch(`/api/jobs/${jobId}/duplicate`, { method: "POST" });
-    const data = await response.json().catch(() => ({}));
-    setBusy(null);
-    if (!response.ok) {
-      setMessage(data.error ?? "Could not duplicate");
-      return;
-    }
-    router.push(`/jobs/${data.job.id}/edit`);
-    router.refresh();
-  }
-
-  async function remove() {
-    if (!confirm("Delete this job and its run history?")) return;
-    setBusy("delete");
-    const response = await fetch(`/api/jobs/${jobId}`, { method: "DELETE" });
-    setBusy(null);
-    if (!response.ok) return;
-    router.push("/jobs");
-    router.refresh();
   }
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button className="btn btn-gold" type="button" onClick={runNow} disabled={!!busy}>
+      <button
+        className="btn btn-gold"
+        type="button"
+        disabled={!!busy}
+        onClick={() =>
+          wrap("run", async () => {
+            const data = await runJobRequest(jobId);
+            setMessage(`Finished with ${String(data.status).toLowerCase()}`);
+            router.refresh();
+          })
+        }
+      >
         {busy === "run" ? "Running…" : "Run now"}
       </button>
       {keepResponse ? (
@@ -77,16 +63,61 @@ export function JobActions({
           View response
         </Link>
       ) : null}
+      {curl ? (
+        <button
+          className="btn btn-ghost"
+          type="button"
+          onClick={async () => {
+            await navigator.clipboard.writeText(curl);
+            setMessage("Copied curl");
+          }}
+        >
+          Copy curl
+        </button>
+      ) : null}
       {canManage ? (
         <>
-          <button className="btn btn-ghost" type="button" onClick={toggle} disabled={!!busy}>
+          <button
+            className="btn btn-ghost"
+            type="button"
+            disabled={!!busy}
+            onClick={() =>
+              wrap("toggle", async () => {
+                await toggleJobRequest(jobId, !enabled);
+                router.refresh();
+              })
+            }
+          >
             {enabled ? "Pause" : "Resume"}
           </button>
-          <button className="btn btn-ghost" type="button" onClick={duplicate} disabled={!!busy}>
+          <button
+            className="btn btn-ghost"
+            type="button"
+            disabled={!!busy}
+            onClick={() =>
+              wrap("copy", async () => {
+                const data = await duplicateJobRequest(jobId);
+                router.push(`/jobs/${data.job.id}/edit`);
+                router.refresh();
+              })
+            }
+          >
             {busy === "copy" ? "Copying…" : "Duplicate"}
           </button>
-          <button className="btn btn-danger" type="button" onClick={remove} disabled={!!busy}>
-            Delete
+          <button
+            className="btn btn-danger"
+            type="button"
+            disabled={!!busy}
+            onClick={() =>
+              wrap("delete", async () => {
+                if (!confirmDeleteJob(name)) return;
+                await deleteJobRequest(jobId);
+                router.push("/jobs");
+                router.refresh();
+              })
+            }
+          >
+            Delete job
           </button>
         </>
       ) : null}

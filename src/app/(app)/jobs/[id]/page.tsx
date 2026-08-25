@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { JobActions } from "@/components/job-actions";
 import { StatusPill } from "@/components/status-pill";
 import { canManage } from "@/lib/acl";
+import { buildCurl } from "@/lib/curl";
 
 export const metadata = { title: "Job" };
 
@@ -90,9 +91,11 @@ export default async function JobDetailPage({
           ) : null}
           <JobActions
             jobId={job.id}
+            name={job.name}
             enabled={job.enabled}
             canManage={manage}
             keepResponse={job.keepResponse}
+            curl={buildCurl(job)}
           />
         </div>
       </div>

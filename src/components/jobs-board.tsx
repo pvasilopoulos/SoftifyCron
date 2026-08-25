@@ -250,6 +250,8 @@ export function JobsBoard({
                           </Link>
                           <JobMenu
                             jobId={job.id}
+                            name={job.name}
+                            enabled={job.enabled}
                             keepResponse={job.keepResponse}
                             canManage={canManage}
                           />
@@ -335,6 +337,8 @@ export function JobsBoard({
                         <td className="px-4 py-3 text-right">
                           <JobMenu
                             jobId={job.id}
+                            name={job.name}
+                            enabled={job.enabled}
                             keepResponse={job.keepResponse}
                             canManage={canManage}
                           />
