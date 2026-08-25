@@ -6,7 +6,7 @@ import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SignOutButton } from "@/components/sign-out-button";
 import { TenantSwitcher, type WorkspaceChoice } from "@/components/tenant-switcher";
-import type { SessionPayload } from "@/lib/session";
+import type { SessionPayload } from "@/lib/session-token";
 
 const NAV = [
   { href: "/admin", label: "Tenants", match: (path: string) => path === "/admin" || path.startsWith("/admin/tenants") },

@@ -7,8 +7,7 @@ import { requirePlatformAdmin } from "@/lib/session";
 import { enterCustomerAction } from "@/app/actions/admin";
 import { DeleteTenantButton } from "@/components/delete-tenant-button";
 import { listTenantRoles } from "@/lib/roles";
-import { PeopleBoard } from "@/components/people-board";
-import { RolesBoard } from "@/components/roles-board";
+import { AdminTenantBoards } from "@/components/admin-tenant-boards";
 import { TenantDetailsForm } from "@/components/tenant-details-form";
 import { formatDateTime } from "@/lib/format";
 
@@ -64,28 +63,27 @@ export default async function TenantDetailPage({
         </div>
       </section>
 
-      <RolesBoard
-        roles={roles}
-        canManage
-        endpoints={{
-          list: `/api/admin/tenants/${tenant.id}/roles`,
-          item: (roleId) => `/api/admin/tenants/${tenant.id}/roles/${roleId}`,
-        }}
-      />
-
-      <PeopleBoard
-        members={members}
-        invites={invites}
-        roles={roles}
-        canManagePeople
-        actorRole="OWNER"
-        allowOwnerRole
-        endpoints={{
-          members: `/api/admin/tenants/${tenant.id}/members`,
-          member: (membershipId) => `/api/admin/tenants/${tenant.id}/members/${membershipId}`,
-          invites: `/api/admin/tenants/${tenant.id}/invites`,
-          invite: (inviteId) => `/api/admin/tenants/${tenant.id}/invites?id=${inviteId}`,
-        }}
+      <AdminTenantBoards
+        tenantId={tenant.id}
+        members={members.map((member) => ({
+          ...member,
+          createdAt: member.createdAt instanceof Date ? member.createdAt.toISOString() : member.createdAt,
+        }))}
+        invites={invites.map((invite) => ({
+          ...invite,
+          expiresAt: invite.expiresAt instanceof Date ? invite.expiresAt.toISOString() : invite.expiresAt,
+        }))}
+        roles={roles.map((role) => ({
+          id: role.id,
+          key: role.key,
+          name: role.name,
+          description: role.description,
+          permissions: role.permissions,
+          system: role.system,
+          locked: role.locked,
+          sortOrder: role.sortOrder,
+          _count: role._count,
+        }))}
       />
     </div>
   );

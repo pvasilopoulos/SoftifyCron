@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
-import type { SessionPayload } from "@/lib/session";
+import type { SessionPayload } from "@/lib/session-token";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TenantSwitcher, type WorkspaceChoice } from "@/components/tenant-switcher";
