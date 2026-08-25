@@ -171,6 +171,52 @@ a.card:hover {
 details > summary { list-style: none; }
 details > summary::-webkit-details-marker { display: none; }
 
+.ws-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-mute);
+}
+.ws-tabs button {
+  min-height: 36px;
+  padding: 0.3rem 0.95rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-dim);
+  font-size: 0.85rem;
+}
+.ws-tabs button.is-on {
+  background: var(--bg-elev);
+  color: var(--ink);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--line) 70%, transparent);
+}
+.perm-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink-dim);
+  font-size: 0.7rem;
+  padding: 0.2rem 0.55rem;
+}
+.badge-quiet {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--bg-mute);
+  color: var(--ink-dim);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+}
 .theme-toggle {
   display: inline-flex;
   gap: 2px;

@@ -6,6 +6,7 @@ export type MemberActor = {
   userId: string;
   platform?: boolean;
   grants?: string;
+  rolePerms?: string;
 };
 
 function effectiveRole(actor: MemberActor): Role {
@@ -64,7 +65,7 @@ export function assertCanRemoveMember(input: {
 
 export function memberCapabilities(
   actor: MemberActor,
-  member: { userId: string; role: Role },
+  member: { userId: string; role: Role; roleKey?: string },
   ownerCount: number,
 ) {
   const actorRole = effectiveRole(actor);
@@ -84,6 +85,6 @@ export function memberCapabilities(
     canRemove = false;
   }
   const canChangeGrants =
-    member.role === "MEMBER" && hasPermission(actor, "people.manage");
+    (member.roleKey ?? member.role) === "MEMBER" && hasPermission(actor, "people.manage");
   return { canChangeRole, canChangeGrants, canRemove, self };
 }

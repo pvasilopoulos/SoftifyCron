@@ -42,7 +42,7 @@ export default async function InvitePage({
         <h1 className="mt-3 font-display text-4xl italic">{invite.tenant.name}</h1>
         <p className="mt-3 text-sm text-ink-dim">
           This link is for <span className="text-ink">{invite.email}</span> as{" "}
-          {invite.role.toLowerCase()}.
+          {(invite.roleRef?.name ?? invite.role).toLowerCase()}.
         </p>
         {error ? <p className="mt-4 text-sm text-rose">{error}</p> : null}
         {session ? (

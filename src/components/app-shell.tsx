@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
 import type { SessionPayload } from "@/lib/session";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -13,8 +14,24 @@ const NAV = [
   { href: "/jobs", label: "Jobs", icon: JobsIcon },
   { href: "/runs", label: "Runs", icon: RunsIcon },
   { href: "/settings#people", label: "People", icon: PeopleIcon },
-  { href: "/settings", label: "Settings", icon: SettingsIcon },
+  { href: "/settings#roles", label: "Roles", icon: RolesIcon },
+  { href: "/settings#workspace", label: "Settings", icon: SettingsIcon },
 ];
+
+function useHash() {
+  return useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener("hashchange", onChange);
+      window.addEventListener("popstate", onChange);
+      return () => {
+        window.removeEventListener("hashchange", onChange);
+        window.removeEventListener("popstate", onChange);
+      };
+    },
+    () => window.location.hash,
+    () => "",
+  );
+}
 
 function HomeIcon() {
   return (
@@ -49,6 +66,15 @@ function PeopleIcon() {
     </svg>
   );
 }
+function RolesIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="8" cy="8" r="2.4" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="16" cy="8" r="2.4" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M4.5 18c.5-2.6 2.2-4 4.5-4s4 1.4 4.5 4M13.2 14.2c.4-.1.8-.2 1.3-.2 2.3 0 4 1.4 4.5 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
 function SettingsIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -74,6 +100,7 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const hash = useHash();
 
   return (
     <div className="app-frame">
@@ -90,16 +117,26 @@ export function AppShell({
         />
         <nav className="mt-6 flex flex-col gap-1">
           {NAV.map((item) => {
-            const path = item.href.split("#")[0] ?? item.href;
-            const active =
-              item.href.includes("#")
-                ? false
-                : path === "/dashboard"
-                  ? pathname === "/dashboard"
-                  : pathname === path || pathname.startsWith(`${path}/`);
+            const [path, itemHash] = item.href.split("#");
+            const active = itemHash
+              ? pathname === "/settings" &&
+                (hash === `#${itemHash}` || (itemHash === "people" && hash === ""))
+              : path === "/dashboard"
+                ? pathname === "/dashboard"
+                : pathname === path || pathname.startsWith(`${path}/`);
             const Icon = item.icon;
             return (
-              <Link key={item.href} href={item.href} className={`rail-link${active ? " is-on" : ""}`}>
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`rail-link${active ? " is-on" : ""}`}
+                onClick={() => {
+                  if (!itemHash) return;
+                  window.setTimeout(() => {
+                    window.dispatchEvent(new HashChangeEvent("hashchange"));
+                  }, 0);
+                }}
+              >
                 <Icon />
                 {item.label}
               </Link>

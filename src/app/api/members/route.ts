@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       email: parsed.data.email,
       name: parsed.data.name || undefined,
       password: parsed.data.password || undefined,
-      role: parsed.data.role,
+      roleKey: parsed.data.role,
     });
     return NextResponse.json(
       { member: result.membership, createdUser: result.createdUser },

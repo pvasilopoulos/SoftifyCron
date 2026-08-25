@@ -28,7 +28,10 @@ describe("permissions", () => {
     expect(perms).toContain("people.manage");
   });
 
-  it("ignores extra grants on admins because the role already has them", () => {
-    expect(hasPermission({ role: "ADMIN", grants: "" }, "jobs.run")).toBe(true);
+  it("lets a custom role template shrink admin-rank permissions", () => {
+    expect(hasPermission({ role: "ADMIN", rolePerms: "jobs.view,runs.view" }, "people.manage")).toBe(
+      false,
+    );
+    expect(hasPermission({ role: "ADMIN", rolePerms: "jobs.view,runs.view" }, "jobs.view")).toBe(true);
   });
 });

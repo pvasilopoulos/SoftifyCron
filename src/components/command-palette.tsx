@@ -23,6 +23,7 @@ const STATIC: Hit[] = [
   { href: "/runs", label: "Runs" },
   { href: "/settings", label: "Workspace settings" },
   { href: "/settings#people", label: "People and roles" },
+  { href: "/settings#roles", label: "Roles" },
   { href: "/admin", label: "Tenants" },
   { href: "/admin/tenants/new", label: "New tenant" },
   { href: "/admin/users", label: "Users" },

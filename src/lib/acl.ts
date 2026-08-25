@@ -35,6 +35,19 @@ export const EXTRA_GRANTS: Permission[] = [
   "settings.edit",
 ];
 
+export const PERMISSION_GROUPS: { id: string; label: string; permissions: Permission[] }[] = [
+  {
+    id: "jobs",
+    label: "Jobs",
+    permissions: ["jobs.view", "jobs.run", "jobs.edit", "jobs.delete", "runs.view"],
+  },
+  {
+    id: "workspace",
+    label: "Workspace",
+    permissions: ["people.view", "people.manage", "secrets.manage", "settings.edit"],
+  },
+];
+
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   OWNER: PERMISSIONS,
   ADMIN: [
@@ -68,20 +81,33 @@ export function rolePermissions(role: Role): Permission[] {
   return [...ROLE_PERMISSIONS[role]];
 }
 
-export function effectivePermissions(role: Role, grants = "", platform = false): Permission[] {
+export function effectivePermissions(
+  role: Role,
+  grants = "",
+  platform = false,
+  rolePerms?: string,
+): Permission[] {
   if (platform || role === "OWNER") return [...PERMISSIONS];
-  const extras = role === "MEMBER" ? parseGrants(grants) : [];
-  return [...new Set([...ROLE_PERMISSIONS[role], ...extras])];
+  const base =
+    rolePerms != null && rolePerms !== "" ? parseGrants(rolePerms) : [...ROLE_PERMISSIONS[role]];
+  const extras = parseGrants(grants);
+  return [...new Set([...base, ...extras])];
 }
 
 export type PermissionActor = {
   role: Role;
   platform?: boolean;
   grants?: string;
+  rolePerms?: string;
 };
 
 export function hasPermission(actor: PermissionActor, permission: Permission) {
-  return effectivePermissions(actor.role, actor.grants, actor.platform).includes(permission);
+  return effectivePermissions(
+    actor.role,
+    actor.grants,
+    actor.platform,
+    actor.rolePerms,
+  ).includes(permission);
 }
 
 export function canManage(role: Role) {

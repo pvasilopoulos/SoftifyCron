@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { hashPassword, uniqueSlug } from "@/lib/auth";
 import { ensureDefaultGroups } from "@/lib/groups";
+import { ensureDefaultRoles } from "@/lib/roles";
 import { provisionTenantPerson } from "@/lib/members";
 import { assertOwnerProvision } from "./admin-rules";
-import type { Role } from "@prisma/client";
 
 export { assertOwnerProvision };
 
@@ -78,6 +78,7 @@ export async function createCustomer(input: {
     return { user, tenant };
   });
   await ensureDefaultGroups(created.tenant.id);
+  await ensureDefaultRoles(created.tenant.id);
   return created;
 }
 
@@ -145,12 +146,12 @@ export async function createPlatformUser(input: {
   name?: string;
   password?: string;
   tenantId: string;
-  role: Role;
+  role: string;
 }) {
   return provisionTenantPerson(input.tenantId, {
     email: input.email,
     name: input.name,
     password: input.password,
-    role: input.role,
+    roleKey: input.role,
   });
 }

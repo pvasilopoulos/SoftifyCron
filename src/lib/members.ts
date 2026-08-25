@@ -13,6 +13,7 @@ import {
   serializeGrants,
   type Permission,
 } from "@/lib/acl";
+import { resolveTenantRole } from "@/lib/roles";
 import type { Role } from "@prisma/client";
 
 function actorFrom(session: {
@@ -20,19 +21,24 @@ function actorFrom(session: {
   role: Role;
   platform?: boolean;
   grants?: string;
+  rolePerms?: string;
 }): MemberActor {
   return {
     userId: session.sub,
     role: session.role,
     platform: session.platform,
     grants: session.grants,
+    rolePerms: session.rolePerms,
   };
 }
 
 export async function listMembers(tenantId: string) {
   return prisma.membership.findMany({
     where: { tenantId },
-    include: { user: { select: { id: true, name: true, email: true } } },
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      roleRef: true,
+    },
     orderBy: [{ role: "asc" }, { createdAt: "asc" }],
   });
 }
@@ -43,32 +49,54 @@ async function ownerCount(tenantId: string) {
 
 export async function membersForClient(
   tenantId: string,
-  session: { sub: string; role: Role; platform?: boolean; grants?: string },
+  session: { sub: string; role: Role; platform?: boolean; grants?: string; rolePerms?: string },
 ) {
   const [rows, owners] = await Promise.all([listMembers(tenantId), ownerCount(tenantId)]);
   const actor = actorFrom(session);
   const rank: Record<Role, number> = { OWNER: 0, ADMIN: 1, MEMBER: 2 };
   return rows
-    .map((row) => ({
-      id: row.id,
-      userId: row.userId,
-      role: row.role,
-      grants: row.grants,
-      createdAt: row.createdAt,
-      name: row.user.name,
-      email: row.user.email,
-      permissions: effectivePermissions(row.role, row.grants),
-      ...memberCapabilities(actor, { userId: row.userId, role: row.role }, owners),
-    }))
-    .sort((a, b) => rank[a.role] - rank[b.role] || a.name.localeCompare(b.name, "en"));
+    .map((row) => {
+      const roleKey = row.roleRef?.key ?? row.role;
+      const caps = memberCapabilities(
+        actor,
+        { userId: row.userId, role: row.role, roleKey },
+        owners,
+      );
+      return {
+        id: row.id,
+        userId: row.userId,
+        role: row.role,
+        roleKey,
+        roleName: row.roleRef?.name ?? row.role,
+        roleId: row.roleId,
+        grants: row.grants,
+        createdAt: row.createdAt,
+        name: row.user.name,
+        email: row.user.email,
+        permissions: effectivePermissions(
+          row.role,
+          row.grants,
+          false,
+          row.roleRef?.permissions,
+        ),
+        ...caps,
+      };
+    })
+    .sort(
+      (a, b) =>
+        rank[a.role] - rank[b.role] ||
+        a.roleName.localeCompare(b.roleName, "en") ||
+        a.name.localeCompare(b.name, "en"),
+    );
 }
 
 export async function provisionTenantPerson(
   tenantId: string,
-  input: { email: string; name?: string; password?: string; role: Role },
+  input: { email: string; name?: string; password?: string; role?: Role; roleKey?: string },
 ) {
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
   if (!tenant) throw new Error("Tenant not found");
+  const resolved = await resolveTenantRole(tenantId, input.roleKey ?? input.role ?? "MEMBER");
   const email = input.email.trim().toLowerCase();
   const existing = await prisma.user.findUnique({
     where: { email },
@@ -83,8 +111,13 @@ export async function provisionTenantPerson(
 
   if (existing) {
     const membership = await prisma.membership.create({
-      data: { userId: existing.id, tenantId, role: input.role },
-      include: { user: { select: { id: true, name: true, email: true } } },
+      data: {
+        userId: existing.id,
+        tenantId,
+        role: resolved.rank,
+        roleId: resolved.id,
+      },
+      include: { user: { select: { id: true, name: true, email: true } }, roleRef: true },
     });
     return { membership, createdUser: false };
   }
@@ -99,12 +132,14 @@ export async function provisionTenantPerson(
       email,
       name,
       passwordHash: await hashPassword(password),
-      memberships: { create: { tenantId, role: input.role } },
+      memberships: {
+        create: { tenantId, role: resolved.rank, roleId: resolved.id },
+      },
     },
     include: {
       memberships: {
         where: { tenantId },
-        include: { user: { select: { id: true, name: true, email: true } } },
+        include: { user: { select: { id: true, name: true, email: true } }, roleRef: true },
       },
     },
   });
@@ -115,42 +150,48 @@ export async function provisionTenantPerson(
 
 export async function addExistingOrCreateMember(
   tenantId: string,
-  session: { sub: string; role: Role; platform?: boolean },
-  input: { email: string; name?: string; password?: string; role: Role },
+  session: { sub: string; role: Role; platform?: boolean; grants?: string; rolePerms?: string },
+  input: { email: string; name?: string; password?: string; role?: Role; roleKey?: string },
 ) {
-  assertCanInvite(actorFrom(session), input.role);
-  return provisionTenantPerson(tenantId, input);
+  const resolved = await resolveTenantRole(tenantId, input.roleKey ?? input.role ?? "MEMBER");
+  assertCanInvite(actorFrom(session), resolved.rank);
+  return provisionTenantPerson(tenantId, { ...input, roleKey: resolved.key });
 }
 
 export async function changeMemberRole(
   tenantId: string,
   membershipId: string,
-  session: { sub: string; role: Role; platform?: boolean; grants?: string },
-  nextRole: Role,
+  session: { sub: string; role: Role; platform?: boolean; grants?: string; rolePerms?: string },
+  nextKey: string,
 ) {
   const membership = await prisma.membership.findFirst({
     where: { id: membershipId, tenantId },
   });
   if (!membership) return null;
+  const resolved = await resolveTenantRole(tenantId, nextKey);
   const owners = await ownerCount(tenantId);
   assertCanChangeRole({
     actor: actorFrom(session),
     targetUserId: membership.userId,
     targetRole: membership.role,
-    nextRole,
+    nextRole: resolved.rank,
     ownerCount: owners,
   });
   return prisma.membership.update({
     where: { id: membership.id },
-    data: { role: nextRole, grants: nextRole === "MEMBER" ? membership.grants : "" },
-    include: { user: { select: { id: true, name: true, email: true } } },
+    data: {
+      role: resolved.rank,
+      roleId: resolved.id,
+      grants: resolved.key === "MEMBER" ? membership.grants : "",
+    },
+    include: { user: { select: { id: true, name: true, email: true } }, roleRef: true },
   });
 }
 
 export async function changeMemberGrants(
   tenantId: string,
   membershipId: string,
-  session: { sub: string; role: Role; platform?: boolean; grants?: string },
+  session: { sub: string; role: Role; platform?: boolean; grants?: string; rolePerms?: string },
   grants: Permission[],
 ) {
   if (!hasPermission(session, "people.manage") && !session.platform) {
@@ -158,22 +199,24 @@ export async function changeMemberGrants(
   }
   const membership = await prisma.membership.findFirst({
     where: { id: membershipId, tenantId },
+    include: { roleRef: true },
   });
   if (!membership) return null;
-  if (membership.role !== "MEMBER") {
+  const key = membership.roleRef?.key ?? membership.role;
+  if (key !== "MEMBER") {
     throw new Error("Extra permissions apply to members. Change the role instead.");
   }
   return prisma.membership.update({
     where: { id: membership.id },
     data: { grants: serializeGrants(grants) },
-    include: { user: { select: { id: true, name: true, email: true } } },
+    include: { user: { select: { id: true, name: true, email: true } }, roleRef: true },
   });
 }
 
 export async function removeMember(
   tenantId: string,
   membershipId: string,
-  session: { sub: string; role: Role; platform?: boolean },
+  session: { sub: string; role: Role; platform?: boolean; grants?: string; rolePerms?: string },
 ) {
   const membership = await prisma.membership.findFirst({
     where: { id: membershipId, tenantId },

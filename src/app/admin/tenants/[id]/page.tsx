@@ -5,7 +5,9 @@ import { listInvites } from "@/lib/invites";
 import { membersForClient } from "@/lib/members";
 import { requirePlatformAdmin } from "@/lib/session";
 import { enterCustomerAction } from "@/app/actions/admin";
+import { listTenantRoles } from "@/lib/roles";
 import { PeopleBoard } from "@/components/people-board";
+import { RolesBoard } from "@/components/roles-board";
 import { TenantDetailsForm } from "@/components/tenant-details-form";
 import { formatDateTime } from "@/lib/format";
 
@@ -20,9 +22,10 @@ export default async function TenantDetailPage({
   const { id } = await params;
   const tenant = await getCustomer(id);
   if (!tenant) notFound();
-  const [members, invites] = await Promise.all([
+  const [members, invites, roles] = await Promise.all([
     membersForClient(id, { ...session, role: "OWNER", platform: true }),
     listInvites(id),
+    listTenantRoles(id),
   ]);
 
   return (
@@ -59,9 +62,19 @@ export default async function TenantDetailPage({
         </div>
       </section>
 
+      <RolesBoard
+        roles={roles}
+        canManage
+        endpoints={{
+          list: `/api/admin/tenants/${tenant.id}/roles`,
+          item: (roleId) => `/api/admin/tenants/${tenant.id}/roles/${roleId}`,
+        }}
+      />
+
       <PeopleBoard
         members={members}
         invites={invites}
+        roles={roles}
         canManagePeople
         actorRole="OWNER"
         allowOwnerRole

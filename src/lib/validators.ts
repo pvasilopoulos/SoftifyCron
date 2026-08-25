@@ -55,18 +55,19 @@ export const secretInputSchema = z.object({
 
 export const inviteInputSchema = z.object({
   email: z.email(),
-  role: z.enum(["ADMIN", "MEMBER"]).default("MEMBER"),
+  role: z.string().trim().min(1).max(40).default("MEMBER"),
 });
 
 export const memberCreateSchema = z.object({
   email: z.email().max(160),
   name: z.string().trim().min(2).max(80).optional().or(z.literal("")),
   password: z.string().min(8).max(128).optional().or(z.literal("")),
-  role: z.enum(["ADMIN", "MEMBER"]).default("MEMBER"),
+  role: z.string().trim().min(1).max(40).default("MEMBER"),
 });
 
 export const memberRoleSchema = z.object({
-  role: z.enum(["OWNER", "ADMIN", "MEMBER"]).optional(),
+  role: z.string().trim().min(1).max(40).optional(),
+  roleKey: z.string().trim().min(1).max(40).optional(),
   grants: z.array(z.enum(PERMISSIONS)).optional(),
 });
 
@@ -98,13 +99,26 @@ export const platformPersonSchema = z.object({
   email: z.email().max(160),
   name: z.string().trim().min(2).max(80).optional().or(z.literal("")),
   password: z.string().min(8).max(128).optional().or(z.literal("")),
-  tenantId: z.string().min(1),
-  role: z.enum(["OWNER", "ADMIN", "MEMBER"]).default("MEMBER"),
+  tenantId: z.string().min(1, "Select a tenant"),
+  role: z.string().trim().min(1).max(40).default("MEMBER"),
 });
 
 export const platformInviteSchema = z.object({
   email: z.email(),
-  role: z.enum(["OWNER", "ADMIN", "MEMBER"]).default("MEMBER"),
+  role: z.string().trim().min(1).max(40).default("MEMBER"),
+});
+
+export const tenantRoleInputSchema = z.object({
+  name: z.string().trim().min(2).max(60),
+  description: z.string().trim().max(240).optional().or(z.literal("")),
+  permissions: z.array(z.enum(PERMISSIONS)).default([]),
+});
+
+export const tenantRoleUpdateSchema = z.object({
+  name: z.string().trim().min(2).max(60).optional(),
+  description: z.string().trim().max(240).optional(),
+  permissions: z.array(z.enum(PERMISSIONS)).optional(),
+  reassignTo: z.string().trim().min(1).max(40).optional(),
 });
 
 export const bulkSchema = z.object({

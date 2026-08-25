@@ -5,6 +5,7 @@ import { inviteInputSchema } from "@/lib/validators";
 import { jsonError, zodError } from "@/lib/http";
 import { hasPermission } from "@/lib/acl";
 import { assertCanInvite } from "@/lib/member-acl";
+import { resolveTenantRole } from "@/lib/roles";
 
 export async function GET() {
   const session = await getTenantSession();
@@ -21,11 +22,12 @@ export async function POST(request: Request) {
   const parsed = inviteInputSchema.safeParse(body);
   if (!parsed.success) return zodError(parsed.error);
   try {
+    const resolved = await resolveTenantRole(session.tid, parsed.data.role);
     assertCanInvite(
       { userId: session.sub, role: session.role, platform: session.platform, grants: session.grants },
-      parsed.data.role,
+      resolved.rank,
     );
-    const { invite, url } = await createInvite(session.tid, parsed.data.email, parsed.data.role);
+    const { invite, url } = await createInvite(session.tid, parsed.data.email, resolved.key);
     return NextResponse.json({ invite, url }, { status: 201 });
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : "Could not invite", 400);

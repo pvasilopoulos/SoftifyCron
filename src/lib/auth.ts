@@ -4,6 +4,7 @@ import { slugify } from "@/lib/format";
 import { signSession, type SessionPayload } from "@/lib/session";
 import { acceptInvite, getInviteByToken } from "@/lib/invites";
 import { ensureDefaultGroups } from "@/lib/groups";
+import { ensureDefaultRoles } from "@/lib/roles";
 import type { PlatformRole, Role } from "@prisma/client";
 
 export async function hashPassword(password: string) {
@@ -105,6 +106,7 @@ export async function registerUser(input: {
     return { createdUser, tenant };
   });
   await ensureDefaultGroups(user.tenant.id);
+  await ensureDefaultRoles(user.tenant.id);
   const payload: SessionPayload = {
     sub: user.createdUser.id,
     tid: user.tenant.id,

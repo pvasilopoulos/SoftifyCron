@@ -60,6 +60,7 @@ model Tenant {
   groups      JobGroup[]
   secrets     Secret[]
   invites     Invite[]
+  roles       TenantRole[]
 }
 
 model User {
@@ -74,16 +75,39 @@ model User {
 }
 
 model Membership {
-  id        String   @id @default(cuid())
+  id        String      @id @default(cuid())
   userId    String
   tenantId  String
-  role      Role     @default(OWNER)
-  grants    String   @default("") @db.VarChar(500)
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role      Role        @default(OWNER)
+  roleId    String?
+  grants    String      @default("") @db.VarChar(500)
+  createdAt DateTime    @default(now())
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roleRef   TenantRole? @relation(fields: [roleId], references: [id], onDelete: SetNull)
 
   @@unique([userId, tenantId])
+  @@index([tenantId])
+  @@index([roleId])
+}
+
+model TenantRole {
+  id          String       @id @default(cuid())
+  tenantId    String
+  key         String
+  name        String
+  description String       @default("") @db.VarChar(240)
+  permissions String       @default("") @db.VarChar(500)
+  system      Boolean      @default(false)
+  locked      Boolean      @default(false)
+  sortOrder   Int          @default(100)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  memberships Membership[]
+  invites     Invite[]
+
+  @@unique([tenantId, key])
   @@index([tenantId])
 }
 
@@ -176,15 +200,18 @@ model Secret {
 }
 
 model Invite {
-  id        String    @id @default(cuid())
-  tenantId  String
-  email     String
-  role      Role      @default(MEMBER)
-  tokenHash String    @unique
-  expiresAt DateTime
+  id         String      @id @default(cuid())
+  tenantId   String
+  email      String
+  role       Role        @default(MEMBER)
+  roleId     String?
+  tokenHash  String      @unique
+  expiresAt  DateTime
   acceptedAt DateTime?
-  createdAt DateTime  @default(now())
-  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt  DateTime    @default(now())
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roleRef    TenantRole? @relation(fields: [roleId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, email])
+  @@index([roleId])
 }

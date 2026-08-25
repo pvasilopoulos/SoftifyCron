@@ -1,6 +1,7 @@
 import { requireTenantSession } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { ensureDefaultGroups } from "@/lib/groups";
+import { ensureDefaultRoles } from "@/lib/roles";
 import { listTenantOptions } from "@/lib/admin";
 import { listMyWorkspaces } from "@/lib/members";
 import { hasPermission } from "@/lib/acl";
@@ -14,6 +15,7 @@ export default async function AppGroupLayout({
 }) {
   const session = await requireTenantSession();
   await ensureDefaultGroups(session.tid);
+  await ensureDefaultRoles(session.tid);
   const workspaces = session.platform
     ? (await listTenantOptions()).map((tenant) => ({
         id: tenant.id,

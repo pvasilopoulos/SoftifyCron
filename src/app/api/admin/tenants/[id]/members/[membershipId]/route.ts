@@ -17,9 +17,17 @@ export async function PATCH(request: Request, { params }: Ctx) {
   try {
     let member = null;
     if (parsed.data.role) {
-      member = await changeMemberRole(id, membershipId, actor, parsed.data.role);
+      member = await changeMemberRole(
+        id,
+        membershipId,
+        actor,
+        parsed.data.roleKey ?? parsed.data.role,
+      );
     }
-    if (parsed.data.grants && (!parsed.data.role || parsed.data.role === "MEMBER")) {
+    if (
+      parsed.data.grants &&
+      (!parsed.data.role || parsed.data.role === "MEMBER" || parsed.data.roleKey === "MEMBER")
+    ) {
       member = await changeMemberGrants(id, membershipId, actor, parsed.data.grants);
     }
     if (!member) return jsonError("Member not found", 404);

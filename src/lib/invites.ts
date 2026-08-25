@@ -1,19 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { hashToken, randomToken } from "@/lib/crypto";
-import type { Role } from "@prisma/client";
+import { resolveTenantRole } from "@/lib/roles";
 
 const DAY = 1000 * 60 * 60 * 24;
 
-export async function createInvite(
-  tenantId: string,
-  email: string,
-  role: Role,
-) {
+export async function createInvite(tenantId: string, email: string, roleKey: string) {
   const normalized = email.trim().toLowerCase();
   const already = await prisma.membership.findFirst({
     where: { tenantId, user: { email: normalized } },
   });
   if (already) throw new Error("That person is already in this workspace");
+  const resolved = await resolveTenantRole(tenantId, roleKey);
   await prisma.invite.deleteMany({
     where: { tenantId, email: normalized, acceptedAt: null },
   });
@@ -22,10 +19,12 @@ export async function createInvite(
     data: {
       tenantId,
       email: normalized,
-      role,
+      role: resolved.rank,
+      roleId: resolved.id,
       tokenHash: hashToken(token),
       expiresAt: new Date(Date.now() + 7 * DAY),
     },
+    include: { roleRef: true },
   });
   const base = process.env.APP_URL ?? "http://localhost:3000";
   return { invite, url: `${base}/invite/${token}`, token };
@@ -34,6 +33,7 @@ export async function createInvite(
 export async function listInvites(tenantId: string) {
   return prisma.invite.findMany({
     where: { tenantId, acceptedAt: null, expiresAt: { gt: new Date() } },
+    include: { roleRef: true },
     orderBy: { createdAt: "desc" },
   });
 }
@@ -41,7 +41,7 @@ export async function listInvites(tenantId: string) {
 export async function getInviteByToken(token: string) {
   const invite = await prisma.invite.findUnique({
     where: { tokenHash: hashToken(token) },
-    include: { tenant: true },
+    include: { tenant: true, roleRef: true },
   });
   if (!invite) return null;
   if (invite.acceptedAt) return null;
@@ -58,8 +58,13 @@ export async function acceptInvite(token: string, userId: string, userEmail: str
   await prisma.$transaction(async (tx) => {
     await tx.membership.upsert({
       where: { userId_tenantId: { userId, tenantId: invite.tenantId } },
-      update: { role: invite.role },
-      create: { userId, tenantId: invite.tenantId, role: invite.role },
+      update: { role: invite.role, roleId: invite.roleId },
+      create: {
+        userId,
+        tenantId: invite.tenantId,
+        role: invite.role,
+        roleId: invite.roleId,
+      },
     });
     await tx.invite.update({
       where: { id: invite.id },

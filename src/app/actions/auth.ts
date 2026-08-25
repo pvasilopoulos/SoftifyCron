@@ -84,6 +84,7 @@ export async function acceptInviteAction(formData: FormData) {
         tname: invite.tenant.name,
         tslug: invite.tenant.slug,
         platform: session.platform,
+        rolePerms: invite.roleRef?.permissions ?? "",
       }),
     );
   } catch (error) {

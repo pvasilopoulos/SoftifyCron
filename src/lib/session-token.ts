@@ -13,6 +13,7 @@ export type SessionPayload = {
   tslug: string;
   platform: boolean;
   grants?: string;
+  rolePerms?: string;
 };
 
 function secretKey() {
@@ -57,6 +58,7 @@ export async function verifySessionToken(
       tslug: payload.tslug,
       platform: payload.platform === true,
       grants: typeof payload.grants === "string" ? payload.grants : "",
+      rolePerms: typeof payload.rolePerms === "string" ? payload.rolePerms : "",
     };
   } catch {
     return null;

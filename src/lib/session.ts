@@ -12,15 +12,23 @@ export { SESSION_COOKIE, signSession, verifySessionToken, type SessionPayload };
 
 async function hydrateSession(session: SessionPayload): Promise<SessionPayload | null> {
   if (!session.tid) return session;
-  if (session.platform) return { ...session, grants: session.grants ?? "" };
+  if (session.platform) {
+    return { ...session, grants: session.grants ?? "", rolePerms: session.rolePerms ?? "" };
+  }
   const membership = await prisma.membership.findUnique({
     where: { userId_tenantId: { userId: session.sub, tenantId: session.tid } },
+    include: { roleRef: true },
   });
   if (!membership) {
     await clearSessionCookie();
     return null;
   }
-  return { ...session, role: membership.role, grants: membership.grants };
+  return {
+    ...session,
+    role: membership.role,
+    grants: membership.grants,
+    rolePerms: membership.roleRef?.permissions ?? "",
+  };
 }
 
 export async function getSession(): Promise<SessionPayload | null> {

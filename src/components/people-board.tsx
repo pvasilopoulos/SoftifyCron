@@ -8,14 +8,16 @@ import {
   EXTRA_GRANTS,
   PERMISSION_LABELS,
   parseGrants,
-  rolePermissions,
   type Permission,
 } from "@/lib/acl";
+import type { TenantRoleView } from "@/components/roles-board";
 
 type Member = {
   id: string;
   userId: string;
   role: "OWNER" | "ADMIN" | "MEMBER";
+  roleKey?: string;
+  roleName?: string;
   grants: string;
   createdAt: Date | string;
   name: string;
@@ -31,6 +33,7 @@ type Invite = {
   id: string;
   email: string;
   role: string;
+  roleRef?: { name: string; key: string } | null;
   expiresAt: Date | string;
 };
 
@@ -48,9 +51,18 @@ const DEFAULT_ENDPOINTS: PeopleEndpoints = {
   invite: (id) => `/api/invites?id=${id}`,
 };
 
+function assignableRoles(roles: TenantRoleView[], actorRole: string, allowOwnerRole: boolean) {
+  return roles.filter((role) => {
+    if (role.key === "OWNER") return allowOwnerRole;
+    if (role.key === "ADMIN") return actorRole === "OWNER" || allowOwnerRole;
+    return true;
+  });
+}
+
 export function PeopleBoard({
   members,
   invites,
+  roles,
   canManagePeople,
   actorRole,
   allowOwnerRole = false,
@@ -58,6 +70,7 @@ export function PeopleBoard({
 }: {
   members: Member[];
   invites: Invite[];
+  roles: TenantRoleView[];
   canManagePeople: boolean;
   actorRole: string;
   allowOwnerRole?: boolean;
@@ -67,6 +80,8 @@ export function PeopleBoard({
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [mode, setMode] = useState<"invite" | "create" | "attach">("invite");
   const [busy, setBusy] = useState<string | null>(null);
+  const choices = assignableRoles(roles, actorRole, allowOwnerRole);
+  const defaultKey = choices.some((role) => role.key === "MEMBER") ? "MEMBER" : (choices[0]?.key ?? "MEMBER");
 
   function refresh() {
     router.refresh();
@@ -83,10 +98,10 @@ export function PeopleBoard({
     refresh();
   }
 
-  async function onRole(id: string, role: string) {
+  async function onRole(id: string, roleKey: string) {
     setBusy(id);
     try {
-      await patchMember(id, { role });
+      await patchMember(id, { role: roleKey, roleKey });
       toast("Role updated");
     } catch (error) {
       toast(error instanceof Error ? error.message : "Could not change role", "err");
@@ -180,129 +195,132 @@ export function PeopleBoard({
 
   return (
     <div className="space-y-4">
-      <section className="card p-6">
-        <h2 className="font-display text-2xl italic">People</h2>
-        <p className="mt-1 text-sm text-ink-dim">
-          Roles set the baseline. Extra permissions can be granted to members without promoting them
-          to admin.
-        </p>
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          {(["OWNER", "ADMIN", "MEMBER"] as const).map((role) => (
-            <div key={role} className="rounded-2xl border border-line bg-bg p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-gold">{role.toLowerCase()}</p>
-              <ul className="mt-3 space-y-1 text-xs text-ink-dim">
-                {rolePermissions(role).map((permission) => (
-                  <li key={permission}>{PERMISSION_LABELS[permission]}</li>
-                ))}
-              </ul>
-            </div>
-          ))}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-2xl italic">People</h2>
+          <p className="mt-1 text-sm text-ink-dim">
+            {members.length} {members.length === 1 ? "person" : "people"} in this workspace.
+          </p>
         </div>
-      </section>
+      </div>
 
-      <section className="space-y-3">
-        {members.map((member) => (
-          <article key={member.id} className="card p-5">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="font-medium">
-                  {member.name}
-                  {member.self ? <span className="ml-2 text-xs text-gold">you</span> : null}
-                </p>
-                <p className="text-sm text-ink-dim">{member.email}</p>
-                <p className="mt-1 text-xs text-ink-dim">
-                  Joined {formatDateTime(member.createdAt, "UTC")}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {member.canChangeRole ? (
-                  <select
-                    className="field max-w-40"
-                    value={member.role}
-                    disabled={busy === member.id}
-                    onChange={(event) => onRole(member.id, event.target.value)}
-                  >
-                    <option value="OWNER">Owner</option>
-                    <option value="ADMIN">Admin</option>
-                    <option value="MEMBER">Member</option>
-                  </select>
-                ) : (
-                  <span className="rounded-full bg-gold/12 px-3 py-1 text-xs uppercase tracking-[0.14em] text-gold">
-                    {member.role.toLowerCase()}
-                  </span>
-                )}
-                {member.canRemove ? (
-                  <button
-                    className="btn btn-danger"
-                    type="button"
-                    disabled={busy === member.id}
-                    onClick={() => onRemove(member)}
-                  >
-                    {member.self ? "Leave" : "Remove"}
-                  </button>
+      <section className="card overflow-hidden">
+        <ul className="divide-y divide-line">
+          {members.map((member) => {
+            const roleKey = member.roleKey ?? member.role;
+            return (
+              <li key={member.id} className="p-4 sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="rail-avatar">{member.name.slice(0, 1).toUpperCase()}</span>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
+                        {member.name}
+                        {member.self ? <span className="ml-2 text-xs text-gold">you</span> : null}
+                      </p>
+                      <p className="truncate text-sm text-ink-dim">{member.email}</p>
+                      <p className="mt-1 text-xs text-ink-dim">
+                        Joined {formatDateTime(member.createdAt, "UTC")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {member.canChangeRole ? (
+                      <select
+                        className="field max-w-44"
+                        value={roleKey}
+                        disabled={busy === member.id}
+                        onChange={(event) => onRole(member.id, event.target.value)}
+                      >
+                        {roles.map((role) => (
+                          <option key={role.key} value={role.key}>
+                            {role.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="rounded-full bg-gold/12 px-3 py-1 text-xs uppercase tracking-[0.14em] text-gold">
+                        {(member.roleName ?? member.role).toLowerCase()}
+                      </span>
+                    )}
+                    {member.canRemove ? (
+                      <button
+                        className="btn btn-danger"
+                        type="button"
+                        disabled={busy === member.id}
+                        onClick={() => onRemove(member)}
+                      >
+                        {member.self ? "Leave" : "Remove"}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                {member.canChangeGrants ||
+                (roleKey === "MEMBER" && member.permissions.length > 3) ? (
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    {EXTRA_GRANTS.map((permission) => {
+                      const on = member.permissions.includes(permission);
+                      return (
+                        <label key={permission} className="flex min-h-9 items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            disabled={!member.canChangeGrants || busy === member.id}
+                            onChange={(event) => onGrant(member, permission, event.target.checked)}
+                          />
+                          {PERMISSION_LABELS[permission]}
+                        </label>
+                      );
+                    })}
+                  </div>
                 ) : null}
-              </div>
-            </div>
-            {member.role === "MEMBER" && (member.canChangeGrants || member.permissions.length > 0) ? (
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {EXTRA_GRANTS.map((permission) => {
-                  const locked = rolePermissions("MEMBER").includes(permission);
-                  const on = member.permissions.includes(permission);
-                  return (
-                    <label key={permission} className="flex min-h-10 items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        disabled={locked || !member.canChangeGrants || busy === member.id}
-                        onChange={(event) => onGrant(member, permission, event.target.checked)}
-                      />
-                      {PERMISSION_LABELS[permission]}
-                    </label>
-                  );
-                })}
-              </div>
-            ) : null}
-          </article>
-        ))}
+              </li>
+            );
+          })}
+        </ul>
       </section>
 
       {canManagePeople ? (
-        <section className="card p-6">
+        <section className="card p-5">
           <div className="flex flex-wrap gap-2">
-            <button
-              className={`btn ${mode === "invite" ? "btn-gold" : "btn-ghost"}`}
-              type="button"
-              onClick={() => setMode("invite")}
-            >
-              Invite link
-            </button>
-            <button
-              className={`btn ${mode === "create" ? "btn-gold" : "btn-ghost"}`}
-              type="button"
-              onClick={() => setMode("create")}
-            >
-              Create login
-            </button>
-            <button
-              className={`btn ${mode === "attach" ? "btn-gold" : "btn-ghost"}`}
-              type="button"
-              onClick={() => setMode("attach")}
-            >
-              Add existing
-            </button>
+            {(
+              [
+                ["invite", "Invite link"],
+                ["create", "Create login"],
+                ["attach", "Add existing"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                className={`btn ${mode === value ? "btn-gold" : "btn-ghost"}`}
+                type="button"
+                onClick={() => setMode(value)}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-          <form className="mt-5 grid gap-3 sm:grid-cols-2" onSubmit={onInvite}>
+          <form className="mt-4 grid gap-3 sm:grid-cols-2" onSubmit={onInvite}>
             {mode === "create" ? (
               <input className="field" name="name" placeholder="Full name" required minLength={2} />
             ) : null}
             <input className="field" type="email" name="email" placeholder="colleague@company.com" required />
             {mode === "create" ? (
-              <input className="field" type="password" name="password" placeholder="Temporary password" required minLength={8} />
+              <input
+                className="field"
+                type="password"
+                name="password"
+                placeholder="Temporary password"
+                required
+                minLength={8}
+              />
             ) : null}
-            <select className="field" name="role" defaultValue="MEMBER">
-              <option value="MEMBER">Member</option>
-              {actorRole === "OWNER" || allowOwnerRole ? <option value="ADMIN">Admin</option> : null}
-              {allowOwnerRole ? <option value="OWNER">Owner</option> : null}
+            <select className="field" name="role" defaultValue={defaultKey}>
+              {choices.map((role) => (
+                <option key={role.key} value={role.key}>
+                  {role.name}
+                </option>
+              ))}
             </select>
             <button className="btn btn-gold sm:col-span-2 sm:w-fit" type="submit" disabled={busy === "add"}>
               {mode === "invite" ? "Send invite" : mode === "attach" ? "Add existing" : "Create login"}
@@ -321,25 +339,26 @@ export function PeopleBoard({
               </button>
             </div>
           ) : null}
-          <ul className="mt-5 space-y-3">
-            {invites.length === 0 ? (
-              <li className="text-sm text-ink-dim">No pending invites.</li>
-            ) : (
-              invites.map((invite) => (
+          {invites.length > 0 ? (
+            <ul className="mt-5 space-y-3">
+              {invites.map((invite) => (
                 <li key={invite.id} className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="font-medium">{invite.email}</p>
                     <p className="text-xs uppercase tracking-[0.14em] text-gold">
-                      {invite.role.toLowerCase()} · expires {formatDateTime(invite.expiresAt, "UTC")}
+                      {(invite.roleRef?.name ?? invite.role).toLowerCase()} · expires{" "}
+                      {formatDateTime(invite.expiresAt, "UTC")}
                     </p>
                   </div>
                   <button className="text-xs text-rose" type="button" onClick={() => revoke(invite.id)}>
                     Revoke
                   </button>
                 </li>
-              ))
-            )}
-          </ul>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-ink-dim">No pending invites.</p>
+          )}
         </section>
       ) : null}
     </div>
