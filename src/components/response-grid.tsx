@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent } from "react";
 import { toast } from "@/components/toaster";
 import {
   applyGridQuery,
@@ -18,7 +18,7 @@ import {
   type ResponseGrid,
   type SortState,
 } from "@/lib/response-grid";
-import { diffGrids } from "@/lib/grid-diff";
+import { changedSourceRows, diffGrids, diffHoverText } from "@/lib/grid-diff";
 import { jsonLineDiff, prettyJsonText } from "@/lib/json-diff";
 import { parseGridViews, type GridView } from "@/lib/grid-views";
 import { deleteJobViewRequest, saveJobViewRequest } from "@/lib/job-client";
@@ -106,6 +106,7 @@ export function ResponseGridView({
   const [diffOn, setDiffOn] = useState(Boolean(previousRaw));
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [views, setViews] = useState<GridView[]>(() => parseGridViews(savedViews));
+  const [hover, setHover] = useState<{ prev: string; next: string; x: number; y: number } | null>(null);
   const jsonDiff = useMemo(
     () => (raw && previousRaw && diffOn ? jsonLineDiff(raw, previousRaw) : null),
     [raw, previousRaw, diffOn],
@@ -116,10 +117,13 @@ export function ResponseGridView({
     return prevSets.find((item) => item.id === active.id)?.grid ?? prevSets[0]?.grid ?? null;
   }, [previousRaw, active.id]);
   const diff = useMemo(
-    () => (diffOn && previousGrid ? diffGrids(source, previousGrid) : null),
-    [diffOn, previousGrid, source],
+    () => (previousGrid ? diffGrids(source, previousGrid) : null),
+    [previousGrid, source],
   );
-  const canMapDiff = Boolean(diff) && !query.trim() && !sort && filters.length === 0;
+  const working = useMemo(
+    () => (diffOn && diff ? changedSourceRows(source, diff) : { grid: source, origin: source.rows.map((_, index) => index) }),
+    [diffOn, diff, source],
+  );
   const subscribe = useMemo(() => subscribePrefs(storageKey), [storageKey]);
   const prefsRaw = useSyncExternalStore(subscribe, () => prefsSnapshot(storageKey), () => "");
   const prefs = useMemo(() => parsePrefs(prefsRaw), [prefsRaw]);
@@ -150,8 +154,8 @@ export function ResponseGridView({
     [prefs.visible, source.columns],
   );
   const view = useMemo(
-    () => applyGridQuery(source, { query, filters, sort, visible }),
-    [source, query, filters, sort, visible],
+    () => applyGridQuery(working.grid, { query, filters, sort, visible }),
+    [working.grid, query, filters, sort, visible],
   );
   const pageSize = prefs.pageSize ?? 50;
   const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(view.rows.length / pageSize)) : 1;
@@ -162,6 +166,23 @@ export function ResponseGridView({
       : view.rows;
   const pageOffset = pageSize > 0 ? (safePage - 1) * pageSize : 0;
   const isPairs = view.source === "json-pairs" && view.columns.length === 2;
+  const diffActive = Boolean(diffOn && diff);
+
+  function sourceIndex(viewRow: number) {
+    const workingIndex = view.origin[viewRow] ?? viewRow;
+    return working.origin[workingIndex] ?? workingIndex;
+  }
+
+  function cellDiff(viewRow: number, viewCol: number) {
+    if (!diff) return null;
+    const origCol = source.columns.indexOf(view.columns[viewCol] ?? "");
+    if (origCol < 0) return null;
+    return diff.rows[sourceIndex(viewRow)]?.cells[origCol] ?? null;
+  }
+
+  function showTip(event: ReactMouseEvent, prev: string, next: string) {
+    setHover({ prev: prev || "—", next: next || "—", x: event.clientX, y: event.clientY });
+  }
 
   function patchPrefs(next: Prefs) {
     const merged = { ...prefs, ...next };
@@ -339,7 +360,11 @@ export function ResponseGridView({
             <button
               className={`btn btn-sm ${diffOn ? "btn-gold" : "btn-ghost"}`}
               type="button"
-              onClick={() => setDiffOn((value) => !value)}
+              onClick={() => {
+                setDiffOn((value) => !value);
+                setPage(1);
+                setHover(null);
+              }}
             >
               Diff{diff ? ` · ${diff.changedCount}` : ""}
             </button>
@@ -353,6 +378,7 @@ export function ResponseGridView({
         {view.columns.length} cols · {source.source.replace("-", " ")}
         {selected.size ? ` · ${selected.size} selected` : ""}
         {diff ? ` · ${diff.changedCount} cells changed vs previous run` : ""}
+        {diffActive ? " · showing changes only" : ""}
       </p>
 
       {panel === "columns" ? (
@@ -598,14 +624,31 @@ export function ResponseGridView({
         <pre className="grid-code">{raw}</pre>
       ) : view.columns.length === 0 ? (
         <p className="text-sm text-ink-dim">Empty payload.</p>
+      ) : diffActive && view.rows.length === 0 ? (
+        <p className="text-sm text-ink-dim">No cells changed vs the previous run.</p>
       ) : isPairs ? (
         <dl className="grid-pairs">
-          {pageRows.map((row, index) => (
-            <div key={`${row[0]}-${pageOffset + index}`}>
-              <dt>{row[0]}</dt>
-              <dd>{row[1] || "—"}</dd>
-            </div>
-          ))}
+          {pageRows.map((row, index) => {
+            const abs = pageOffset + index;
+            const cell = cellDiff(abs, 1);
+            const changed = Boolean(cell?.changed);
+            return (
+              <div
+                key={`${row[0]}-${abs}`}
+                className={changed ? "is-changed" : diffActive ? "is-same" : undefined}
+                title={cell?.changed ? diffHoverText(cell) : undefined}
+                onMouseEnter={changed && cell ? (event) => showTip(event, cell.previous, cell.value) : undefined}
+                onMouseMove={changed && cell ? (event) => showTip(event, cell.previous, cell.value) : undefined}
+                onMouseLeave={() => setHover(null)}
+              >
+                <dt>{row[0]}</dt>
+                <dd>
+                  {row[1] || "—"}
+                  {changed && cell ? <span className="grid-was md:hidden">Was {cell.previous || "—"}</span> : null}
+                </dd>
+              </div>
+            );
+          })}
         </dl>
       ) : (
         <>
@@ -625,14 +668,22 @@ export function ResponseGridView({
                     })
                   }
                 >
-                  <p className="grid-card-index">#{abs + 1}</p>
+                  <p className="grid-card-index">#{sourceIndex(abs) + 1}</p>
                   <dl>
-                    {view.columns.map((column, col) => (
-                      <div key={column}>
-                        <dt>{column}</dt>
-                        <dd>{row[col] || "—"}</dd>
-                      </div>
-                    ))}
+                    {view.columns.map((column, col) => {
+                      const cell = cellDiff(abs, col);
+                      const changed = Boolean(cell?.changed);
+                      if (diffActive && cell && !changed) return null;
+                      return (
+                        <div key={column} className={changed ? "is-changed" : undefined}>
+                          <dt>{column}</dt>
+                          <dd>
+                            {row[col] || "—"}
+                            {changed && cell ? <span className="grid-was">Was {cell.previous || "—"}</span> : null}
+                          </dd>
+                        </div>
+                      );
+                    })}
                   </dl>
                 </article>
               );
@@ -690,22 +741,29 @@ export function ResponseGridView({
                               return next;
                             });
                           }}
-                          aria-label={`Select row ${abs + 1}`}
+                          aria-label={`Select row ${sourceIndex(abs) + 1}`}
                         />
                       </td>
-                      <td className="grid-index-col">{abs + 1}</td>
-                      {row.map((cell, col) => {
-                        const origCol = source.columns.indexOf(view.columns[col] ?? "");
-                        const changed =
-                          canMapDiff && origCol >= 0 && Boolean(diff?.rows[abs]?.cells[origCol]?.changed);
+                      <td className="grid-index-col">{sourceIndex(abs) + 1}</td>
+                      {row.map((value, col) => {
+                        const cell = cellDiff(abs, col);
+                        const changed = Boolean(cell?.changed);
                         return (
                         <td
                           key={col}
-                          title={cell}
-                          className={changed ? "is-changed" : undefined}
-                          onDoubleClick={() => copyText(cell, view.columns[col] ?? "Cell")}
+                          title={changed ? undefined : value}
+                          aria-label={cell?.changed ? diffHoverText(cell) : undefined}
+                          className={changed ? "is-changed" : diffActive ? "is-same" : undefined}
+                          onMouseEnter={
+                            changed && cell ? (event) => showTip(event, cell.previous, cell.value) : undefined
+                          }
+                          onMouseMove={
+                            changed && cell ? (event) => showTip(event, cell.previous, cell.value) : undefined
+                          }
+                          onMouseLeave={() => setHover(null)}
+                          onDoubleClick={() => copyText(value, view.columns[col] ?? "Cell")}
                         >
-                          {cell || "—"}
+                          {value || "—"}
                         </td>
                         );
                       })}
@@ -772,6 +830,20 @@ export function ResponseGridView({
               Last
             </button>
           </div>
+        </div>
+      ) : null}
+      {hover ? (
+        <div
+          className="grid-hover-tip"
+          style={{
+            left: Math.min(hover.x + 14, typeof window === "undefined" ? hover.x : window.innerWidth - 260),
+            top: Math.min(hover.y + 16, typeof window === "undefined" ? hover.y : window.innerHeight - 130),
+          }}
+        >
+          <p className="grid-hover-k">Was</p>
+          <p className="grid-hover-v">{hover.prev}</p>
+          <p className="grid-hover-k">Now</p>
+          <p className="grid-hover-v">{hover.next}</p>
         </div>
       ) : null}
     </div>

@@ -422,25 +422,27 @@ export function applyGridQuery(
     sort?: SortState;
     visible?: string[] | null;
   } = {},
-): ResponseGrid {
+): ResponseGrid & { origin: number[] } {
   const needle = options.query?.trim().toLowerCase() ?? "";
   const filters = options.filters ?? [];
-  let rows = grid.rows;
+  let indexed = grid.rows.map((row, index) => ({ row, index }));
 
   if (needle) {
-    rows = rows.filter((row) => row.some((cell) => cell.toLowerCase().includes(needle)));
+    indexed = indexed.filter((item) => item.row.some((cell) => cell.toLowerCase().includes(needle)));
   }
 
   for (const filter of filters) {
     const index = columnIndex(grid.columns, filter.column);
     if (index < 0) continue;
-    rows = rows.filter((row) => matchFilter(row[index] ?? "", filter.op, filter.value));
+    indexed = indexed.filter((item) => matchFilter(item.row[index] ?? "", filter.op, filter.value));
   }
 
   if (options.sort && columnIndex(grid.columns, options.sort.column) >= 0) {
     const index = columnIndex(grid.columns, options.sort.column);
     const dir = options.sort.dir === "desc" ? -1 : 1;
-    rows = [...rows].sort((left, right) => dir * compareCells(left[index] ?? "", right[index] ?? ""));
+    indexed = [...indexed].sort(
+      (left, right) => dir * compareCells(left.row[index] ?? "", right.row[index] ?? ""),
+    );
   }
 
   const visible = (options.visible ?? grid.columns).filter((column) => grid.columns.includes(column));
@@ -450,7 +452,8 @@ export function applyGridQuery(
   return {
     ...grid,
     columns,
-    rows: rows.map((row) => indexes.map((index) => row[index] ?? "")),
+    rows: indexed.map((item) => indexes.map((index) => item.row[index] ?? "")),
+    origin: indexed.map((item) => item.index),
   };
 }
 

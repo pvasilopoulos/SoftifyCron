@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { greekHolidaySet, isGreekHoliday, orthodoxEaster } from "./holidays-gr";
 import { checkAssertions, readJsonPath } from "./assert-response";
-import { diffGrids } from "./grid-diff";
+import { changedSourceRows, diffGrids } from "./grid-diff";
 import { isOverdueSlot, nextAllowedFire } from "./schedule-policy";
 
 describe("greek holidays", () => {
@@ -37,6 +37,30 @@ describe("grid diff", () => {
     );
     expect(diff.changedCount).toBe(1);
     expect(diff.rows[0]?.cells[1]?.changed).toBe(true);
+    expect(diff.rows[0]?.cells[1]?.previous).toBe("1");
+    expect(diff.rows[0]?.cells[1]?.value).toBe("2");
+  });
+
+  it("drops unchanged rows for the change-only view", () => {
+    const current = {
+      columns: ["name", "qty"],
+      rows: [
+        ["A", "1"],
+        ["B", "3"],
+      ],
+      source: "json-table" as const,
+    };
+    const previous = {
+      columns: ["name", "qty"],
+      rows: [
+        ["A", "1"],
+        ["B", "2"],
+      ],
+      source: "json-table" as const,
+    };
+    const filtered = changedSourceRows(current, diffGrids(current, previous));
+    expect(filtered.grid.rows).toEqual([["B", "3"]]);
+    expect(filtered.origin).toEqual([1]);
   });
 });
 

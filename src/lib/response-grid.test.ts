@@ -82,6 +82,7 @@ describe("parseResponseGrid", () => {
     );
     const sorted = applyGridQuery(grid, { sort: { column: "qty", dir: "desc" } });
     expect(sorted.rows[0]).toEqual(["Athens", "10"]);
+    expect(sorted.origin[0]).toBe(1);
     const filtered = applyGridQuery(grid, {
       filters: [{ id: "1", column: "name", op: "contains", value: "ath" }],
     });

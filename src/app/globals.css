@@ -719,6 +719,50 @@ details > summary::-webkit-details-marker { display: none; }
 .grid-table-wrap td.is-changed {
   background: color-mix(in srgb, var(--gold) 22%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 35%, transparent);
+  cursor: help;
+}
+.grid-table-wrap td.is-same {
+  color: var(--ink-dim);
+  opacity: 0.62;
+}
+.grid-was {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: var(--ink-dim);
+}
+.grid-card .is-changed dd,
+.grid-pairs > div.is-changed dd {
+  color: var(--gold-2);
+}
+.grid-pairs > div.is-changed {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 35%, transparent);
+}
+.grid-hover-tip {
+  position: fixed;
+  z-index: 80;
+  min-width: 10rem;
+  max-width: 18rem;
+  pointer-events: none;
+  border-radius: 1rem;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  padding: 0.7rem 0.85rem;
+  box-shadow: 0 12px 40px color-mix(in srgb, #000 28%, transparent);
+}
+.grid-hover-k {
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.grid-hover-k + .grid-hover-v + .grid-hover-k {
+  margin-top: 0.45rem;
+}
+.grid-hover-v {
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
 }
 .grid-check-col,
 .grid-index-col {
