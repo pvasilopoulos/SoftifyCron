@@ -71,7 +71,7 @@ export function WorkspaceSettings({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-gold">Tenant</p>
-          <h1 className="mt-2 font-display text-4xl italic">Workspace</h1>
+          <h1 className="mt-2 font-display text-4xl">Workspace</h1>
           <p className="mt-2 max-w-xl text-sm text-ink-dim">
             {tenant.name} · {members.length} {members.length === 1 ? "person" : "people"} ·{" "}
             {roles.length} roles
@@ -107,7 +107,7 @@ export function WorkspaceSettings({
       {tab === "workspace" ? (
         <div className="space-y-4">
           <section className="card p-6">
-            <h2 className="font-display text-2xl italic">Details</h2>
+            <h2 className="font-display text-2xl">Details</h2>
             <p className="mt-1 text-sm text-ink-dim">
               Slug <span className="mono text-ink">{tenant.slug}</span>
             </p>

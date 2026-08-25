@@ -42,12 +42,12 @@ export default function HomePage() {
       </header>
 
       <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-10">
-        <p className="text-xs uppercase tracking-[0.28em] text-gold">
+        <p className="text-xs font-medium tracking-[0.08em] text-gold">
           Multi-tenant control plane
         </p>
         <h1 className="mt-5 max-w-4xl font-display text-[2.6rem] leading-[1.05] tracking-tight sm:text-7xl">
           Scheduled work,{" "}
-          <span className="italic text-gold-2">isolated per tenant.</span>
+          <span className="text-gold-2">isolated per tenant.</span>
         </h1>
         <p className="mt-5 max-w-2xl text-base leading-7 text-ink-dim sm:text-lg sm:leading-8">
           SoftifyCron is a modern workspace for HTTP cron jobs. Register an
@@ -101,7 +101,7 @@ export default function HomePage() {
             <p className="text-xs uppercase tracking-[0.2em] text-ink-dim">
               Phone-ready
             </p>
-            <p className="mt-5 font-display text-5xl italic text-sage">Home</p>
+            <p className="mt-5 font-display text-5xl text-sage">Home</p>
             <p className="mt-2 text-sm text-ink-dim">
               Failing jobs sit on the dashboard. Search, bulk pause, and run
               history all work on a 390px screen.
@@ -119,7 +119,7 @@ export default function HomePage() {
         <section className="mt-14 grid gap-4 sm:grid-cols-2">
           {FEATURES.map((feature) => (
             <article key={feature.title} className="card card-hover p-6">
-              <h2 className="font-display text-2xl italic">{feature.title}</h2>
+              <h2 className="font-display text-2xl">{feature.title}</h2>
               <p className="mt-3 text-sm leading-6 text-ink-dim">{feature.copy}</p>
             </article>
           ))}

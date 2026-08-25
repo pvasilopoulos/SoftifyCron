@@ -19,6 +19,11 @@ async function main() {
     },
   });
 
+  await prisma.user.updateMany({
+    where: { email: "info@softify.gr" },
+    data: { platformRole: "SUPERADMIN" },
+  });
+
   const demo = await prisma.user.upsert({
     where: { email: "demo@softifycron.dev" },
     update: {},

@@ -22,7 +22,7 @@ export default async function NewPlatformUserPage({
           ← Users
         </Link>
         <p className="mt-4 text-xs uppercase tracking-[0.2em] text-gold">Platform</p>
-        <h1 className="mt-2 font-display text-4xl italic">New user</h1>
+        <h1 className="mt-2 font-display text-4xl">New user</h1>
         <p className="mt-2 max-w-2xl text-ink-dim">
           Every customer user belongs to at least one tenant. Create a login or attach an existing
           email.

@@ -142,7 +142,7 @@ export function RolesBoard({
     <section className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="font-display text-2xl italic">Roles</h2>
+          <h2 className="font-display text-2xl">Roles</h2>
           <p className="mt-1 max-w-xl text-sm text-ink-dim">
             Built-in roles can be edited. Create custom roles for operators, billing, or read-only
             access.
@@ -279,7 +279,7 @@ function RoleEditor({
 }) {
   return (
     <div className="rounded-2xl border border-line bg-bg p-5">
-      <h3 className="font-display text-xl italic">{title}</h3>
+      <h3 className="font-display text-xl">{title}</h3>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="block">
           <span className="field-label">Name</span>

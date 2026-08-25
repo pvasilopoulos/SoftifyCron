@@ -78,7 +78,7 @@ export function WorkspacePanels({
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <section className="card p-6">
-        <h2 className="font-display text-2xl italic">Groups</h2>
+        <h2 className="font-display text-2xl">Groups</h2>
         <p className="mt-1 text-sm text-ink-dim">Folders for ops, billing, and integrations.</p>
         <ul className="mt-5 space-y-3">
           {groups.map((group) => (
@@ -120,7 +120,7 @@ export function WorkspacePanels({
       </section>
 
       <section className="card p-6">
-        <h2 className="font-display text-2xl italic">Secrets</h2>
+        <h2 className="font-display text-2xl">Secrets</h2>
         <p className="mt-1 text-sm text-ink-dim">
           Encrypted at rest. Interpolate with <span className="mono text-gold-2">{"{{SECRET:API_TOKEN}}"}</span>
         </p>

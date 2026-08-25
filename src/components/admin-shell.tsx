@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SignOutButton } from "@/components/sign-out-button";
+import { TenantSwitcher, type WorkspaceChoice } from "@/components/tenant-switcher";
 import type { SessionPayload } from "@/lib/session";
 
 const NAV = [
@@ -14,12 +15,18 @@ const NAV = [
 
 export function AdminShell({
   session,
+  workspaces,
   children,
 }: {
   session: SessionPayload;
+  workspaces: WorkspaceChoice[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const parts = pathname.split("/");
+  const maybeId = parts[1] === "admin" && parts[2] === "tenants" ? (parts[3] ?? "") : "";
+  const currentId = maybeId && maybeId !== "new" ? maybeId : "";
+  const current = workspaces.find((row) => row.id === currentId);
 
   return (
     <div className="app-frame">
@@ -27,8 +34,14 @@ export function AdminShell({
         <Link href="/admin">
           <Logo />
         </Link>
-        <p className="mt-8 text-[11px] uppercase tracking-[0.18em] text-ink-dim">Platform</p>
-        <p className="mt-1 font-display text-xl">All customers</p>
+        <TenantSwitcher
+          currentId={currentId}
+          currentName={current?.name ?? "All tenants"}
+          currentSlug={current?.slug ?? "platform"}
+          workspaces={workspaces}
+          platform
+          intent="manage"
+        />
         <nav className="mt-6 flex flex-col gap-1">
           {NAV.map((item) => {
             const active = item.match(pathname);
@@ -71,7 +84,18 @@ export function AdminShell({
           <Link href="/admin">
             <Logo />
           </Link>
-          <ThemeToggle compact />
+          <div className="flex items-center gap-2">
+            <ThemeToggle compact />
+            <TenantSwitcher
+              compact
+              intent="manage"
+              currentId={currentId}
+              currentName={current?.name ?? "All tenants"}
+              currentSlug={current?.slug ?? "platform"}
+              workspaces={workspaces}
+              platform
+            />
+          </div>
         </header>
         <header className="hidden items-center justify-between border-b border-line px-10 py-4 lg:flex">
           <p className="text-sm text-ink-dim">Platform · tenants and users</p>

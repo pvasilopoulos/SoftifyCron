@@ -33,6 +33,16 @@ function useHash() {
   );
 }
 
+function TenantsIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3.5" y="4.5" width="7" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.7" />
+      <rect x="13.5" y="4.5" width="7" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.7" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.7" />
+      <rect x="13.5" y="13.5" width="7" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
 function HomeIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -101,6 +111,9 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const hash = useHash();
+  const nav = session.platform
+    ? [{ href: "/admin", label: "Tenants", icon: TenantsIcon }, ...NAV]
+    : NAV;
 
   return (
     <div className="app-frame">
@@ -116,7 +129,7 @@ export function AppShell({
           platform={session.platform}
         />
         <nav className="mt-6 flex flex-col gap-1">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const [path, itemHash] = item.href.split("#");
             const active = itemHash
               ? pathname === "/settings" &&
@@ -147,6 +160,11 @@ export function AppShell({
           {canCreateJob ? (
             <Link href="/jobs/new" className="btn btn-gold w-full">
               New job
+            </Link>
+          ) : null}
+          {session.platform ? (
+            <Link href="/admin/tenants/new" className="btn btn-ghost w-full">
+              New tenant
             </Link>
           ) : null}
           <button type="button" className="rail-link w-full" onClick={openPalette}>

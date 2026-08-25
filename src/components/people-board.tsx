@@ -197,7 +197,7 @@ export function PeopleBoard({
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="font-display text-2xl italic">People</h2>
+          <h2 className="font-display text-2xl">People</h2>
           <p className="mt-1 text-sm text-ink-dim">
             {members.length} {members.length === 1 ? "person" : "people"} in this workspace.
           </p>

@@ -30,7 +30,7 @@ export default async function EditJobPage({
     <div className="space-y-8">
       <div>
         <p className="text-xs uppercase tracking-[0.2em] text-gold">Edit</p>
-        <h1 className="mt-2 font-display text-4xl italic">{job.name}</h1>
+        <h1 className="mt-2 font-display text-4xl">{job.name}</h1>
       </div>
       <JobForm
         jobId={job.id}

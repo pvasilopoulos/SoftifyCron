@@ -34,7 +34,7 @@ export default async function JobResponsePage({
         <Link href={`/jobs/${job.id}`} className="text-xs uppercase tracking-[0.16em] text-ink-dim">
           ← {job.name}
         </Link>
-        <h1 className="mt-2 font-display text-4xl italic">Last response</h1>
+        <h1 className="mt-2 font-display text-4xl">Last response</h1>
         <p className="mt-2 text-sm text-ink-dim">
         Stored only for jobs with Keep last response on. Bodies are decoded from UTF-8,
         Windows-1253, ISO-8859-7, or Windows-1252 when the charset is missing or wrong.

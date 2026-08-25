@@ -92,6 +92,13 @@ export async function updateCustomer(
   });
 }
 
+export async function deleteCustomer(tenantId: string) {
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
+  if (!tenant) return false;
+  await prisma.tenant.delete({ where: { id: tenantId } });
+  return true;
+}
+
 export async function getCustomer(tenantId: string) {
   return prisma.tenant.findUnique({
     where: { id: tenantId },

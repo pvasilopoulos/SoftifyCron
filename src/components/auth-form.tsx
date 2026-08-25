@@ -112,7 +112,7 @@ export function AuthForm({
               ? "Accept invite"
               : "Create a workspace"}
         </p>
-        <h1 className="mt-3 font-display text-4xl italic">
+        <h1 className="mt-3 font-display text-4xl">
           {mode === "login"
             ? "Sign in"
             : joining

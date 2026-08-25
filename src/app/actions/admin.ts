@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { requirePlatformAdmin, requireSession, setSessionCookie, signSession } from "@/lib/session";
-import { createCustomer, createPlatformUser, getCustomer, updateCustomer } from "@/lib/admin";
+import { createCustomer, createPlatformUser, deleteCustomer, getCustomer, updateCustomer } from "@/lib/admin";
 import { getWorkspaceForUser } from "@/lib/members";
 import { customerCreateSchema, platformPersonSchema, tenantUpdateSchema } from "@/lib/validators";
 
@@ -157,4 +157,26 @@ export async function createPlatformUserAction(
     return { error: error instanceof Error ? error.message : "Could not create user" };
   }
   redirect(`/admin/tenants/${parsed.data.tenantId}`);
+}
+
+export async function deleteCustomerAction(formData: FormData) {
+  const session = await requirePlatformAdmin();
+  const tenantId = String(formData.get("tenantId") ?? "");
+  const tenant = await getCustomer(tenantId);
+  if (!tenant) redirect("/admin");
+  await deleteCustomer(tenantId);
+  if (session.tid === tenantId) {
+    await setSessionCookie(
+      await signSession({
+        ...session,
+        tid: "",
+        tname: "Platform",
+        tslug: "admin",
+        role: "OWNER",
+        grants: "",
+        platform: true,
+      }),
+    );
+  }
+  redirect("/admin");
 }

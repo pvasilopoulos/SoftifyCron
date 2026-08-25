@@ -23,7 +23,7 @@ export default async function InvitePage({
     return (
       <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6">
         <Logo />
-        <h1 className="mt-8 font-display text-4xl italic">Invite expired</h1>
+        <h1 className="mt-8 font-display text-4xl">Invite expired</h1>
         <p className="mt-3 text-ink-dim">Ask an admin to send a new link.</p>
         <Link href="/login" className="btn btn-gold mt-6 w-fit">
           Sign in
@@ -39,7 +39,7 @@ export default async function InvitePage({
       </Link>
       <div className="card mt-12 p-6 sm:p-8">
         <p className="text-xs uppercase tracking-[0.2em] text-gold">You&apos;re invited</p>
-        <h1 className="mt-3 font-display text-4xl italic">{invite.tenant.name}</h1>
+        <h1 className="mt-3 font-display text-4xl">{invite.tenant.name}</h1>
         <p className="mt-3 text-sm text-ink-dim">
           This link is for <span className="text-ink">{invite.email}</span> as{" "}
           {(invite.roleRef?.name ?? invite.role).toLowerCase()}.

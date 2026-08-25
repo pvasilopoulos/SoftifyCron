@@ -18,7 +18,7 @@ export default async function AdminUsersPage({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-gold">Platform</p>
-          <h1 className="mt-2 font-display text-4xl italic">Users</h1>
+          <h1 className="mt-2 font-display text-4xl">Users</h1>
           <p className="mt-2 max-w-2xl text-ink-dim">
             Create a login and put it in a tenant, or attach an existing account to another
             customer space.

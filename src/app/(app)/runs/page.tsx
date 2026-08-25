@@ -46,7 +46,7 @@ export default async function RunsPage({
     <div className="space-y-8">
       <div>
         <p className="text-xs uppercase tracking-[0.2em] text-gold">Audit</p>
-        <h1 className="mt-2 font-display text-4xl italic">Run history</h1>
+        <h1 className="mt-2 font-display text-4xl">Run history</h1>
       </div>
       <RunsBoard runs={runs} timezone={tz} query={{ q, status: status ?? "" }} />
     </div>

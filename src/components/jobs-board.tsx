@@ -215,7 +215,7 @@ export function JobsBoard({
 
       {jobs.length === 0 ? (
         <div className="card p-8 text-center">
-          <p className="font-display text-3xl italic">
+          <p className="font-display text-3xl">
             {query.q || query.group || query.type || query.state
               ? "No jobs match."
               : "This tenant is quiet."}
@@ -237,7 +237,7 @@ export function JobsBoard({
             <section key={section.key} className="space-y-3">
               <div className="flex items-center gap-3 px-1">
                 <span className="h-3 w-3 rounded-full" style={{ background: section.color }} />
-                <h2 className="font-display text-2xl italic">{section.name}</h2>
+                <h2 className="font-display text-2xl">{section.name}</h2>
                 <span className="text-xs text-ink-dim">{section.jobs.length}</span>
               </div>
 

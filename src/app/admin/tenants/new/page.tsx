@@ -11,7 +11,7 @@ export default function NewTenantPage() {
           ← Tenants
         </Link>
         <p className="mt-4 text-xs uppercase tracking-[0.2em] text-gold">Platform</p>
-        <h1 className="mt-2 font-display text-4xl italic">New tenant</h1>
+        <h1 className="mt-2 font-display text-4xl">New tenant</h1>
         <p className="mt-2 max-w-2xl text-ink-dim">
           Creates an isolated customer space and an owner. The owner login can only see this
           tenant unless you add them to another one later.

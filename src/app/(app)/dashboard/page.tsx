@@ -61,7 +61,7 @@ export default async function DashboardPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-gold">Overview</p>
-          <h1 className="mt-2 font-display text-4xl italic">{session.tname}</h1>
+          <h1 className="mt-2 font-display text-4xl">{session.tname}</h1>
         </div>
         {canCreate ? (
           <Link href="/jobs/new" className="btn btn-gold">
@@ -90,7 +90,7 @@ export default async function DashboardPage() {
       {failing.length > 0 ? (
         <section className="card border-rose/30 p-6">
           <div className="flex items-center justify-between">
-            <h2 className="font-display text-2xl italic text-rose">Needs attention</h2>
+            <h2 className="font-display text-2xl text-rose">Needs attention</h2>
             <Link href="/jobs?state=failing" className="text-sm text-gold">
               All failing
             </Link>
@@ -119,7 +119,7 @@ export default async function DashboardPage() {
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="card p-6">
           <div className="flex items-center justify-between">
-            <h2 className="font-display text-2xl italic">Next to fire</h2>
+            <h2 className="font-display text-2xl">Next to fire</h2>
             <Link href="/jobs" className="text-sm text-gold">
               All jobs
             </Link>
@@ -152,7 +152,7 @@ export default async function DashboardPage() {
         </div>
         <div className="card p-6">
           <div className="flex items-center justify-between">
-            <h2 className="font-display text-2xl italic">Recent runs</h2>
+            <h2 className="font-display text-2xl">Recent runs</h2>
             <Link href="/runs" className="text-sm text-gold">
               History
             </Link>

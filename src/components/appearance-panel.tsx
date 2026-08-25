@@ -19,7 +19,7 @@ export function AppearancePanel() {
 
   return (
     <div className="card p-6">
-      <h2 className="font-display text-2xl italic">Appearance</h2>
+      <h2 className="font-display text-2xl">Appearance</h2>
       <p className="mt-2 text-sm text-ink-dim">
         Theme follows this device. Compact density tightens cards and fields. Press ⌘K to jump
         anywhere.

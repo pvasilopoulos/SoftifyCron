@@ -53,7 +53,7 @@ export default async function JobDetailPage({
           <Link href="/jobs" className="text-xs uppercase tracking-[0.16em] text-ink-dim">
             ← Jobs
           </Link>
-          <h1 className="mt-2 font-display text-4xl italic">{job.name}</h1>
+          <h1 className="mt-2 font-display text-4xl">{job.name}</h1>
           <p className="mt-2 max-w-2xl text-ink-dim">
             {job.description || describeCron(job.cronExpr)}
           </p>
@@ -169,7 +169,7 @@ export default async function JobDetailPage({
 
       <section className="card overflow-hidden p-0">
         <div className="border-b border-line px-6 py-4">
-          <h2 className="font-display text-2xl italic">Runs</h2>
+          <h2 className="font-display text-2xl">Runs</h2>
         </div>
         {runs.length === 0 ? (
           <p className="px-6 py-8 text-sm text-ink-dim">No executions yet.</p>

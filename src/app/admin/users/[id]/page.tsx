@@ -28,13 +28,13 @@ export default async function PlatformUserPage({
         <Link href="/admin/users" className="text-xs uppercase tracking-[0.16em] text-ink-dim">
           ← Users
         </Link>
-        <h1 className="mt-2 font-display text-4xl italic">{user.name}</h1>
+        <h1 className="mt-2 font-display text-4xl">{user.name}</h1>
         <p className="mt-1 text-ink-dim">{user.email}</p>
         <p className="mt-2 text-xs text-ink-dim">Joined {formatDateTime(user.createdAt, "UTC")}</p>
       </div>
 
       <section className="card p-6">
-        <h2 className="font-display text-2xl italic">Tenants</h2>
+        <h2 className="font-display text-2xl">Tenants</h2>
         <ul className="mt-5 space-y-3">
           {user.memberships.length === 0 ? (
             <li className="text-sm text-ink-dim">Not in any tenant.</li>
@@ -60,7 +60,7 @@ export default async function PlatformUserPage({
 
       {available.length > 0 ? (
         <section className="card p-6 max-w-lg">
-          <h2 className="font-display text-2xl italic">Add to another tenant</h2>
+          <h2 className="font-display text-2xl">Add to another tenant</h2>
           <p className="mt-2 text-sm text-ink-dim">
             Attaches {user.email} without changing their password.
           </p>

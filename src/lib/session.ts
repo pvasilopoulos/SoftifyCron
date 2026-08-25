@@ -11,10 +11,47 @@ import {
 export { SESSION_COOKIE, signSession, verifySessionToken, type SessionPayload };
 
 async function hydrateSession(session: SessionPayload): Promise<SessionPayload | null> {
-  if (!session.tid) return session;
-  if (session.platform) {
-    return { ...session, grants: session.grants ?? "", rolePerms: session.rolePerms ?? "" };
+  const user = await prisma.user.findUnique({
+    where: { id: session.sub },
+    select: { platformRole: true, name: true, email: true },
+  });
+  if (!user) {
+    await clearSessionCookie();
+    return null;
   }
+  const platform = user.platformRole === "SUPERADMIN";
+  const base = {
+    ...session,
+    email: user.email,
+    name: user.name,
+    platform,
+  };
+
+  if (platform) {
+    return { ...base, role: "OWNER" as const, grants: "", rolePerms: "" };
+  }
+
+  if (!session.tid) {
+    const membership = await prisma.membership.findFirst({
+      where: { userId: session.sub },
+      include: { tenant: true, roleRef: true },
+      orderBy: { createdAt: "asc" },
+    });
+    if (!membership) {
+      await clearSessionCookie();
+      return null;
+    }
+    return {
+      ...base,
+      tid: membership.tenantId,
+      tname: membership.tenant.name,
+      tslug: membership.tenant.slug,
+      role: membership.role,
+      grants: membership.grants,
+      rolePerms: membership.roleRef?.permissions ?? "",
+    };
+  }
+
   const membership = await prisma.membership.findUnique({
     where: { userId_tenantId: { userId: session.sub, tenantId: session.tid } },
     include: { roleRef: true },
@@ -24,7 +61,7 @@ async function hydrateSession(session: SessionPayload): Promise<SessionPayload |
     return null;
   }
   return {
-    ...session,
+    ...base,
     role: membership.role,
     grants: membership.grants,
     rolePerms: membership.roleRef?.permissions ?? "",

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { exitCustomerAction, switchWorkspaceAction } from "@/app/actions/admin";
 
@@ -17,6 +18,7 @@ export function TenantSwitcher({
   workspaces,
   platform = false,
   compact = false,
+  intent = "switch",
 }: {
   currentId: string;
   currentName: string;
@@ -24,10 +26,11 @@ export function TenantSwitcher({
   workspaces: WorkspaceChoice[];
   platform?: boolean;
   compact?: boolean;
+  intent?: "switch" | "manage";
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
-  const canSwitch = platform || workspaces.length > 1;
+  const canSwitch = platform || workspaces.length > 1 || intent === "manage";
 
   useEffect(() => {
     if (!open) return;
@@ -80,27 +83,52 @@ export function TenantSwitcher({
       {open ? (
         <div className={`rail-menu${compact ? " is-compact" : ""}`} role="listbox" aria-label="Switch tenant">
           {platform ? (
-            <form action={exitCustomerAction}>
-              <button type="submit" className="rail-menu-item">
+            intent === "manage" ? (
+              <Link
+                href="/admin"
+                className={`rail-menu-item${!currentId ? " is-on" : ""}`}
+                onClick={() => setOpen(false)}
+              >
                 <span>All tenants</span>
                 <span className="hint">Platform</span>
-              </button>
-            </form>
+              </Link>
+            ) : (
+              <form action={exitCustomerAction}>
+                <button type="submit" className="rail-menu-item">
+                  <span>All tenants</span>
+                  <span className="hint">Platform</span>
+                </button>
+              </form>
+            )
           ) : null}
-          {workspaces.map((workspace) => (
-            <form key={workspace.id} action={switchWorkspaceAction}>
-              <input type="hidden" name="tenantId" value={workspace.id} />
-              <button
-                type="submit"
+          {workspaces.map((workspace) =>
+            intent === "manage" ? (
+              <Link
+                key={workspace.id}
+                href={`/admin/tenants/${workspace.id}`}
                 role="option"
                 aria-selected={workspace.id === currentId}
                 className={`rail-menu-item${workspace.id === currentId ? " is-on" : ""}`}
+                onClick={() => setOpen(false)}
               >
                 <span>{workspace.name}</span>
                 <span className="hint">{workspace.slug}</span>
-              </button>
-            </form>
-          ))}
+              </Link>
+            ) : (
+              <form key={workspace.id} action={switchWorkspaceAction}>
+                <input type="hidden" name="tenantId" value={workspace.id} />
+                <button
+                  type="submit"
+                  role="option"
+                  aria-selected={workspace.id === currentId}
+                  className={`rail-menu-item${workspace.id === currentId ? " is-on" : ""}`}
+                >
+                  <span>{workspace.name}</span>
+                  <span className="hint">{workspace.slug}</span>
+                </button>
+              </form>
+            ),
+          )}
         </div>
       ) : null}
     </div>

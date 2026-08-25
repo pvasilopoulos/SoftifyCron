@@ -5,6 +5,7 @@ import { listInvites } from "@/lib/invites";
 import { membersForClient } from "@/lib/members";
 import { requirePlatformAdmin } from "@/lib/session";
 import { enterCustomerAction } from "@/app/actions/admin";
+import { DeleteTenantButton } from "@/components/delete-tenant-button";
 import { listTenantRoles } from "@/lib/roles";
 import { PeopleBoard } from "@/components/people-board";
 import { RolesBoard } from "@/components/roles-board";
@@ -35,7 +36,7 @@ export default async function TenantDetailPage({
           <Link href="/admin" className="text-xs uppercase tracking-[0.16em] text-ink-dim">
             ← Tenants
           </Link>
-          <h1 className="mt-2 font-display text-4xl italic">{tenant.name}</h1>
+          <h1 className="mt-2 font-display text-4xl">{tenant.name}</h1>
           <p className="mono mt-1 text-xs text-ink-dim">{tenant.slug}</p>
           <p className="mt-3 text-sm text-ink-dim">
             {tenant._count.jobs} jobs · {tenant._count.memberships} users · {tenant._count.runs}{" "}
@@ -52,11 +53,12 @@ export default async function TenantDetailPage({
               Open workspace
             </button>
           </form>
+          <DeleteTenantButton id={tenant.id} name={tenant.name} />
         </div>
       </div>
 
       <section className="card p-6 max-w-lg">
-        <h2 className="font-display text-2xl italic">Tenant details</h2>
+        <h2 className="font-display text-2xl">Tenant details</h2>
         <div className="mt-6">
           <TenantDetailsForm tenantId={tenant.id} name={tenant.name} timezone={tenant.timezone} />
         </div>

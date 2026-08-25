@@ -42,7 +42,7 @@ export default async function JobsPage({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-gold">Scheduler</p>
-          <h1 className="mt-2 font-display text-4xl italic">Jobs</h1>
+          <h1 className="mt-2 font-display text-4xl">Jobs</h1>
         </div>
         {access.edit ? (
           <Link href="/jobs/new" className="btn btn-gold hidden sm:inline-flex">
