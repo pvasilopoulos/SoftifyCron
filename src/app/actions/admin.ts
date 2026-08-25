@@ -13,6 +13,7 @@ import {
   updatePlatformUser,
 } from "@/lib/admin";
 import { getWorkspaceForUser } from "@/lib/members";
+import { writeAudit } from "@/lib/audit";
 import { customerCreateSchema, platformPersonSchema, platformUserRoleSchema, platformUserUpdateSchema, tenantUpdateSchema } from "@/lib/validators";
 
 function safeAdminUserPath(next: string, userId: string) {
@@ -229,11 +230,16 @@ export async function updatePlatformUserRoleAction(
 }
 
 export async function deletePlatformUserAction(formData: FormData) {
-  await requirePlatformAdmin();
+  const session = await requirePlatformAdmin();
   const userId = String(formData.get("userId") ?? "");
   const fromList = String(formData.get("next") ?? "") === "/admin/users";
   try {
     await deletePlatformUser(userId);
+    await writeAudit({
+      actorId: session.sub,
+      action: "user.delete",
+      target: userId,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not delete user";
     if (fromList) {
@@ -252,6 +258,13 @@ export async function deleteCustomerAction(formData: FormData) {
   const tenant = await getCustomer(tenantId);
   if (!tenant) redirect("/admin");
   await deleteCustomer(tenantId);
+  await writeAudit({
+    tenantId,
+    actorId: session.sub,
+    action: "tenant.delete",
+    target: tenantId,
+    meta: { name: tenant.name },
+  });
   if (session.tid === tenantId) {
     await setSessionCookie(
       await signSession({

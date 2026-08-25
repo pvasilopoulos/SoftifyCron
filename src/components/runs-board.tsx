@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { formatAbsolute, formatDuration } from "@/lib/format";
@@ -78,11 +79,12 @@ export function RunsBoard({
         <>
           <div className="grid gap-3 md:hidden">
             {runs.map((run) => (
-              <article key={run.id} className="card p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="font-medium">{run.job.name}</p>
-                  <StatusPill status={run.status} />
-                </div>
+              <Link key={run.id} href={`/runs/${run.id}`} className="card p-4">
+                <article>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-medium">{run.job.name}</p>
+                    <StatusPill status={run.status} />
+                  </div>
                 <p className="mt-2 text-xs text-ink-dim">
                   <RelativeTime value={run.startedAt} timeZone={timezone} />
                 </p>
@@ -94,7 +96,8 @@ export function RunsBoard({
                   {formatDuration(run.durationMs)}
                 </p>
                 {run.error ? <p className="mt-2 text-sm text-rose">{run.error}</p> : null}
-              </article>
+                </article>
+              </Link>
             ))}
           </div>
           <div className="hidden overflow-hidden rounded-[1.25rem] border border-line md:block">
@@ -113,7 +116,11 @@ export function RunsBoard({
               <tbody>
                 {runs.map((run) => (
                   <tr key={run.id} className="border-t border-line bg-bg-elev/70">
-                    <td className="px-5 py-3 font-medium">{run.job.name}</td>
+                    <td className="px-5 py-3 font-medium">
+                      <Link href={`/runs/${run.id}`} className="hover:text-gold">
+                        {run.job.name}
+                      </Link>
+                    </td>
                     <td className="px-5 py-3">
                       <RelativeTime value={run.startedAt} timeZone={timezone} />
                       <p className="mono mt-1 text-xs text-ink-dim">

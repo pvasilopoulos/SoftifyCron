@@ -1,7 +1,11 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/format";
-import { signSession, type SessionPayload } from "@/lib/session";
+import { decryptSecret, encryptSecret, hashToken, randomToken } from "@/lib/crypto";
+import { generateTotpSecret, totpOtpauth, verifyTotp } from "@/lib/totp";
+import { sendMail } from "@/lib/mail";
+import { signSession, signTotpChallenge, type SessionPayload } from "@/lib/session";
+import { verifyTotpChallenge } from "@/lib/session-token";
 import { acceptInvite, getInviteByToken } from "@/lib/invites";
 import { ensureDefaultGroups } from "@/lib/groups";
 import { ensureDefaultRoles } from "@/lib/roles";
@@ -136,13 +140,57 @@ export async function loginUser(emailRaw: string, password: string, inviteToken?
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) throw new Error("Invalid email or password");
 
+  if (user.totpEnabled) {
+    return {
+      needsTotp: true as const,
+      challenge: await signTotpChallenge(user.id),
+    };
+  }
+
+  return finishLogin(user, inviteToken);
+}
+
+export async function loginWithTotp(challenge: string, code: string, inviteToken?: string | null) {
+  const userId = await verifyTotpChallenge(challenge);
+  if (!userId) throw new Error("That code expired. Sign in again.");
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      memberships: {
+        include: { tenant: true },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+  if (!user?.totpEnabled || !user.totpSecretEnc) {
+    throw new Error("Authenticator is not enabled");
+  }
+  const secret = decryptSecret(user.totpSecretEnc);
+  if (!verifyTotp(secret, code)) throw new Error("Invalid authenticator code");
+  return finishLogin(user, inviteToken);
+}
+
+async function finishLogin(
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    platformRole: PlatformRole;
+    memberships: {
+      tenantId: string;
+      role: Role;
+      tenant: { name: string; slug: string };
+    }[];
+  },
+  inviteToken?: string | null,
+) {
   if (user.platformRole === "SUPERADMIN" && !inviteToken) {
     const payload = platformSession(user);
     return { token: await signSession(payload), payload };
   }
 
   if (inviteToken) {
-    const invite = await acceptInvite(inviteToken, user.id, email);
+    const invite = await acceptInvite(inviteToken, user.id, user.email);
     const membership = await prisma.membership.findFirst({
       where: { userId: user.id, tenantId: invite.tenantId },
       include: { tenant: true },
@@ -156,4 +204,85 @@ export async function loginUser(emailRaw: string, password: string, inviteToken?
   if (!membership) throw new Error("This account has no workspace");
   const payload = await sessionFromMembership(user, membership);
   return { token: await signSession(payload), payload };
+}
+
+export async function changePassword(userId: string, current: string, next: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error("Account not found");
+  if (!(await verifyPassword(current, user.passwordHash))) {
+    throw new Error("Current password is wrong");
+  }
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: await hashPassword(next) },
+  });
+}
+
+export async function requestPasswordReset(emailRaw: string) {
+  const email = emailRaw.trim().toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) return;
+  const token = randomToken();
+  await prisma.passwordReset.create({
+    data: {
+      userId: user.id,
+      tokenHash: hashToken(token),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    },
+  });
+  const appUrl = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  await sendMail({
+    to: user.email,
+    subject: "Reset your SoftifyCron password",
+    text: `Reset your password:\n${appUrl}/reset?token=${encodeURIComponent(token)}\n\nThis link expires in one hour.`,
+  });
+}
+
+export async function resetPasswordWithToken(token: string, password: string) {
+  const row = await prisma.passwordReset.findUnique({ where: { tokenHash: hashToken(token) } });
+  if (!row || row.usedAt || row.expiresAt < new Date()) {
+    throw new Error("This reset link is invalid or expired");
+  }
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: row.userId },
+      data: { passwordHash: await hashPassword(password) },
+    }),
+    prisma.passwordReset.update({
+      where: { id: row.id },
+      data: { usedAt: new Date() },
+    }),
+  ]);
+}
+
+export async function beginTotp(userId: string, email: string) {
+  const secret = generateTotpSecret();
+  await prisma.user.update({
+    where: { id: userId },
+    data: { totpSecretEnc: encryptSecret(secret), totpEnabled: false },
+  });
+  return { secret, otpauth: totpOtpauth(email, secret) };
+}
+
+export async function confirmTotp(userId: string, code: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.totpSecretEnc) throw new Error("Start authenticator setup first");
+  const secret = decryptSecret(user.totpSecretEnc);
+  if (!verifyTotp(secret, code)) throw new Error("Invalid authenticator code");
+  await prisma.user.update({
+    where: { id: userId },
+    data: { totpEnabled: true },
+  });
+}
+
+export async function disableTotp(userId: string, password: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error("Account not found");
+  if (!(await verifyPassword(password, user.passwordHash))) {
+    throw new Error("Password is wrong");
+  }
+  await prisma.user.update({
+    where: { id: userId },
+    data: { totpEnabled: false, totpSecretEnc: null },
+  });
 }

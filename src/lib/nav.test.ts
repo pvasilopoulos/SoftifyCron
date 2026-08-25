@@ -13,6 +13,7 @@ describe("navForSession", () => {
   it("hides platform links for customers", () => {
     expect(navForSession(false).some((item) => item.id === "tenants")).toBe(false);
     expect(navForSession(true).some((item) => item.id === "tenants")).toBe(true);
+    expect(navForSession(true).some((item) => item.id === "monitor")).toBe(true);
   });
 });
 

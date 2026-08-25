@@ -10,6 +10,8 @@ import { JobActions } from "@/components/job-actions";
 import { StatusPill } from "@/components/status-pill";
 import { jobAccess } from "@/lib/acl";
 import { buildCurl } from "@/lib/curl";
+import { listTenantOptions } from "@/lib/admin";
+import { MoveJobForm } from "@/components/move-job-form";
 
 export const metadata = { title: "Job" };
 
@@ -24,11 +26,14 @@ export default async function JobDetailPage({
   if (!job) notFound();
   const access = jobAccess(session);
 
-  const runs = await prisma.jobRun.findMany({
-    where: { tenantId: session.tid, jobId: job.id },
-    orderBy: { startedAt: "desc" },
-    take: 20,
-  });
+  const [runs, tenants] = await Promise.all([
+    prisma.jobRun.findMany({
+      where: { tenantId: session.tid, jobId: job.id },
+      orderBy: { startedAt: "desc" },
+      take: 20,
+    }),
+    session.platform ? listTenantOptions() : Promise.resolve([]),
+  ]);
 
   let upcoming: Date[] = [];
   try {
@@ -177,7 +182,7 @@ export default async function JobDetailPage({
           <>
             <div className="grid gap-3 p-4 md:hidden">
               {runs.map((run) => (
-                <article key={run.id} className="rounded-2xl border border-line bg-bg p-4">
+                <Link key={run.id} href={`/runs/${run.id}`} className="rounded-2xl border border-line bg-bg p-4">
                   <div className="flex items-center justify-between gap-2">
                     <StatusPill status={run.status} />
                     <span className="text-xs text-ink-dim">{run.trigger.toLowerCase()}</span>
@@ -191,7 +196,7 @@ export default async function JobDetailPage({
                   <p className="mt-1 text-sm">
                     HTTP {run.httpStatus ?? "—"} · {formatDuration(run.durationMs)}
                   </p>
-                </article>
+                </Link>
               ))}
             </div>
             <div className="hidden overflow-x-auto md:block">
@@ -209,7 +214,9 @@ export default async function JobDetailPage({
                   {runs.map((run) => (
                     <tr key={run.id} className="border-t border-line">
                       <td className="px-6 py-3">
-                        <RelativeTime value={run.startedAt} timeZone={job.timezone} />
+                        <Link href={`/runs/${run.id}`} className="hover:text-gold">
+                          <RelativeTime value={run.startedAt} timeZone={job.timezone} />
+                        </Link>
                         <p className="mono mt-1 text-xs text-ink-dim">
                           {formatAbsolute(run.startedAt, job.timezone)}
                         </p>
@@ -230,6 +237,9 @@ export default async function JobDetailPage({
           </>
         )}
       </section>
+      {session.platform && tenants.length > 0 ? (
+        <MoveJobForm jobId={job.id} currentTenantId={session.tid} tenants={tenants} />
+      ) : null}
     </div>
   );
 }

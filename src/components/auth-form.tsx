@@ -4,7 +4,11 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { loginAction, registerAction } from "@/app/actions/auth";
+import {
+  loginAction,
+  registerAction,
+  totpLoginAction,
+} from "@/app/actions/auth";
 
 type Mode = "login" | "register";
 
@@ -23,7 +27,35 @@ export function AuthForm({
 }) {
   const action = mode === "login" ? loginAction : registerAction;
   const [state, formAction, pending] = useActionState(action, null);
+  const [totpState, totpAction, totpPending] = useActionState(totpLoginAction, null);
   const joining = Boolean(inviteToken);
+  const challenge = totpState?.challenge ?? state?.challenge;
+  const needsTotp = Boolean(challenge);
+  const error = totpState?.error ?? state?.error;
+
+  const totpForm = (
+    <form className="space-y-4" action={totpAction}>
+      {inviteToken ? <input type="hidden" name="invite" value={inviteToken} /> : null}
+      <input type="hidden" name="challenge" value={challenge ?? ""} />
+      <label className="block">
+        <span className="field-label">Authenticator code</span>
+        <input
+          className="field"
+          name="code"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          required
+          minLength={6}
+          maxLength={12}
+          autoFocus
+        />
+      </label>
+      {error ? <p className="text-sm text-rose">{error}</p> : null}
+      <button className="btn btn-gold w-full" type="submit" disabled={totpPending}>
+        {totpPending ? "Checking…" : "Verify"}
+      </button>
+    </form>
+  );
 
   const form = (
     <form className="space-y-4" action={formAction}>
@@ -70,7 +102,7 @@ export function AuthForm({
           minLength={mode === "register" ? 8 : 1}
         />
       </label>
-      {state?.error ? <p className="text-sm text-rose">{state.error}</p> : null}
+      {error ? <p className="text-sm text-rose">{error}</p> : null}
       <button className="btn btn-gold w-full" type="submit" disabled={pending}>
         {pending
           ? "Working…"
@@ -104,31 +136,44 @@ export function AuthForm({
       </div>
       <div className="mx-auto mt-12 w-full max-w-md card p-6 sm:mt-16 sm:p-8">
         <p className="text-xs uppercase tracking-[0.2em] text-gold">
-          {mode === "login"
-            ? joining
-              ? "Join workspace"
-              : "Welcome back"
-            : joining
-              ? "Accept invite"
-              : "Create a workspace"}
+          {needsTotp
+            ? "Two-factor"
+            : mode === "login"
+              ? joining
+                ? "Join workspace"
+                : "Welcome back"
+              : joining
+                ? "Accept invite"
+                : "Create a workspace"}
         </p>
         <h1 className="mt-3 font-display text-4xl">
-          {mode === "login"
-            ? "Sign in"
-            : joining
-              ? workspaceName ?? "You're invited"
-              : "Start isolated"}
+          {needsTotp
+            ? "Enter code"
+            : mode === "login"
+              ? "Sign in"
+              : joining
+                ? workspaceName ?? "You're invited"
+                : "Start isolated"}
         </h1>
         <p className="mt-3 text-sm text-ink-dim">
-          {mode === "login"
-            ? joining
-              ? "Sign in with the invited email to join this tenant."
-              : "Customer logins stay inside one tenant. Platform admins open the customer list."
-            : joining
-              ? `This account will join ${workspaceName ?? "the workspace"} as a member.`
-              : "Registration creates your tenant, owner account, and empty job board."}
+          {needsTotp
+            ? "Open your authenticator app and enter the 6-digit code."
+            : mode === "login"
+              ? joining
+                ? "Sign in with the invited email to join this tenant."
+                : "Customer logins stay inside one tenant. Platform admins open the customer list."
+              : joining
+                ? `This account will join ${workspaceName ?? "the workspace"} as a member.`
+                : "Registration creates your tenant, owner account, and empty job board."}
         </p>
-        <div className="mt-8">{form}</div>
+        <div className="mt-8">{needsTotp && mode === "login" ? totpForm : form}</div>
+        {mode === "login" && !needsTotp ? (
+          <p className="mt-4 text-sm">
+            <Link className="text-gold" href="/forgot">
+              Forgot password?
+            </Link>
+          </p>
+        ) : null}
         <p className="mt-6 text-sm text-ink-dim">
           {mode === "login" ? (
             <>

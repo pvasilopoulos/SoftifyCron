@@ -15,7 +15,12 @@ function isAppPath(pathname: string) {
 }
 
 function isAuthPath(pathname: string) {
-  return pathname === "/login" || pathname === "/register";
+  return (
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/forgot" ||
+    pathname === "/reset"
+  );
 }
 
 function isAdminPath(pathname: string) {
@@ -75,6 +80,8 @@ export const config = {
     "/admin/:path*",
     "/login",
     "/register",
+    "/forgot",
+    "/reset",
     "/invite/:path*",
   ],
 };

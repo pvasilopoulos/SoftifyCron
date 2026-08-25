@@ -4,6 +4,8 @@ import { requireSession } from "@/lib/session";
 import { describeCron } from "@/lib/cron";
 import { RelativeTime } from "@/components/relative-time";
 import { StatusPill } from "@/components/status-pill";
+import { WorkerHealthCard } from "@/components/worker-health-card";
+import { getWorkerHeartbeat } from "@/lib/heartbeat";
 import { hasPermission } from "@/lib/acl";
 
 export const metadata = { title: "Overview" };
@@ -16,7 +18,7 @@ export default async function DashboardPage() {
   startOfDay.setHours(0, 0, 0, 0);
   const canCreate = hasPermission(session, "jobs.edit");
 
-  const [tenant, jobs, active, failingCount, failing, upcoming, runsToday, successesToday, recent] =
+  const [tenant, jobs, active, failingCount, failing, upcoming, runsToday, successesToday, recent, heartbeat] =
     await Promise.all([
       prisma.tenant.findUnique({ where: { id: session.tid } }),
       prisma.cronJob.count({ where: { tenantId: session.tid } }),
@@ -50,6 +52,7 @@ export default async function DashboardPage() {
         orderBy: { startedAt: "desc" },
         take: 8,
       }),
+      getWorkerHeartbeat(),
     ]);
   const tz = tenant?.timezone ?? "UTC";
 
@@ -69,6 +72,11 @@ export default async function DashboardPage() {
           </Link>
         ) : null}
       </div>
+
+      <WorkerHealthCard
+        tickedAt={heartbeat?.tickedAt ?? null}
+        jobsClaimed={heartbeat?.jobsClaimed ?? 0}
+      />
 
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-5">
         {[
@@ -164,8 +172,9 @@ export default async function DashboardPage() {
               </p>
             ) : (
               recent.map((run) => (
-                <div
+                <Link
                   key={run.id}
+                  href={`/runs/${run.id}`}
                   className="flex items-center justify-between gap-3 border-b border-line pb-4 last:border-0 last:pb-0"
                 >
                   <div>
@@ -175,7 +184,7 @@ export default async function DashboardPage() {
                     </p>
                   </div>
                   <StatusPill status={run.status} />
-                </div>
+                </Link>
               ))
             )}
           </div>

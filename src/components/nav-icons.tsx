@@ -58,6 +58,14 @@ export function SettingsIcon() {
     </svg>
   );
 }
+export function MonitorIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M4 16l4-5 3.5 3.5L16 8l4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 19h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
 export function MoreIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -70,6 +78,7 @@ export function MoreIcon() {
 
 export const NAV_ICONS = {
   tenants: TenantsIcon,
+  monitor: MonitorIcon,
   home: HomeIcon,
   jobs: JobsIcon,
   runs: RunsIcon,

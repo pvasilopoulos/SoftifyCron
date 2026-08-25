@@ -41,6 +41,24 @@ export async function signSession(payload: SessionPayload) {
     .sign(secretKey());
 }
 
+export async function signTotpChallenge(userId: string) {
+  return new SignJWT({ sub: userId, purpose: "totp" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("5m")
+    .sign(secretKey());
+}
+
+export async function verifyTotpChallenge(token: string): Promise<string | null> {
+  try {
+    const { payload } = await jwtVerify(token, secretKey());
+    if (payload.purpose !== "totp" || typeof payload.sub !== "string") return null;
+    return payload.sub;
+  } catch {
+    return null;
+  }
+}
+
 export async function verifySessionToken(
   token: string,
 ): Promise<SessionPayload | null> {

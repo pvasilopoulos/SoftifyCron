@@ -239,3 +239,22 @@ export async function skipJobNextRun(tenantId: string, jobId: string) {
     },
   });
 }
+
+export async function moveJobToTenant(jobId: string, fromTenantId: string, toTenantId: string) {
+  if (fromTenantId === toTenantId) return getJobForTenant(fromTenantId, jobId);
+  const job = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId: fromTenantId } });
+  if (!job) return null;
+  const dest = await prisma.tenant.findUnique({ where: { id: toTenantId }, select: { id: true } });
+  if (!dest) throw new Error("Destination tenant not found");
+  await prisma.$transaction([
+    prisma.cronJob.update({
+      where: { id: jobId },
+      data: { tenantId: toTenantId, groupId: null },
+    }),
+    prisma.jobRun.updateMany({
+      where: { jobId },
+      data: { tenantId: toTenantId },
+    }),
+  ]);
+  return prisma.cronJob.findUnique({ where: { id: jobId } });
+}

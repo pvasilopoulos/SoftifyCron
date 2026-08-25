@@ -18,6 +18,30 @@ export const loginSchema = z.object({
 export const tenantUpdateSchema = z.object({
   name: z.string().trim().min(2).max(80),
   timezone: z.string().trim().min(1).max(80),
+  notifyEmail: z.union([z.email().max(160), z.literal("")]).optional(),
+});
+
+export const passwordChangeSchema = z.object({
+  currentPassword: z.string().min(1).max(128),
+  nextPassword: z.string().min(8).max(128),
+});
+
+export const forgotSchema = z.object({
+  email: z.email().max(160),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(10),
+  password: z.string().min(8).max(128),
+});
+
+export const totpCodeSchema = z.object({
+  challenge: z.string().min(10),
+  code: z.string().trim().min(6).max(12),
+});
+
+export const apiTokenNameSchema = z.object({
+  name: z.string().trim().min(2).max(80),
 });
 
 export const jobInputSchema = z.object({

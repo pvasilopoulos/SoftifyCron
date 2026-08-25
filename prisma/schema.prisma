@@ -52,6 +52,7 @@ model Tenant {
   name        String
   slug        String       @unique
   timezone    String       @default("Europe/Athens")
+  notifyEmail String?      @db.VarChar(160)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   memberships Membership[]
@@ -61,17 +62,23 @@ model Tenant {
   secrets     Secret[]
   invites     Invite[]
   roles       TenantRole[]
+  apiTokens   ApiToken[]
+  auditEvents AuditEvent[]
 }
 
 model User {
-  id           String       @id @default(cuid())
-  email        String       @unique
-  name         String
-  passwordHash String
-  platformRole PlatformRole @default(USER)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  memberships  Membership[]
+  id             String          @id @default(cuid())
+  email          String          @unique
+  name           String
+  passwordHash   String
+  platformRole   PlatformRole    @default(USER)
+  totpEnabled    Boolean         @default(false)
+  totpSecretEnc  String?         @db.Text
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  memberships    Membership[]
+  passwordResets PasswordReset[]
+  auditEvents    AuditEvent[]
 }
 
 model Membership {
@@ -214,4 +221,51 @@ model Invite {
 
   @@index([tenantId, email])
   @@index([roleId])
+}
+
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model ApiToken {
+  id         String    @id @default(cuid())
+  tenantId   String
+  name       String
+  tokenHash  String    @unique
+  prefix     String
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model AuditEvent {
+  id        String   @id @default(cuid())
+  tenantId  String?
+  actorId   String?
+  action    String
+  target    String?
+  meta      String?  @db.Text
+  createdAt DateTime @default(now())
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([createdAt])
+}
+
+model WorkerHeartbeat {
+  id          String   @id
+  tickedAt    DateTime
+  hostname    String?
+  jobsClaimed Int      @default(0)
 }

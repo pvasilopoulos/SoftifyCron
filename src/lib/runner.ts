@@ -4,6 +4,7 @@ import { getNextRunAt } from "@/lib/cron";
 import { assertSafeUrl } from "@/lib/ssrf";
 import { resolveSecrets } from "@/lib/secrets";
 import { notifyFailure } from "@/lib/notify";
+import { recordWorkerHeartbeat } from "@/lib/heartbeat";
 import { decodeHttpBody } from "@/lib/decode";
 
 const MAX_BODY = 32_768;
@@ -182,12 +183,13 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
     },
   });
 
-  if (failed && !shouldRetry && job.notifyUrl) {
+  if (failed && !shouldRetry) {
     await notifyFailure({
       ...job,
       consecutiveFailures,
       lastStatus: status,
       error,
+      paused: autoPause,
     });
   }
 
@@ -195,33 +197,41 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
 }
 
 export async function claimAndRunDueJobs(limit = 25) {
-  const now = new Date();
-  const due = await prisma.cronJob.findMany({
-    where: {
-      enabled: true,
-      nextRunAt: { lte: now },
-      OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }],
-    },
-    orderBy: { nextRunAt: "asc" },
-    take: limit,
-  });
-
   let ran = 0;
-  for (const job of due) {
-    const lockUntil = new Date(now.getTime() + job.timeoutMs + 10_000);
-    const claimed = await prisma.cronJob.updateMany({
+  try {
+    const now = new Date();
+    const due = await prisma.cronJob.findMany({
       where: {
-        id: job.id,
         enabled: true,
-        nextRunAt: job.nextRunAt,
+        nextRunAt: { lte: now },
         OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }],
       },
-      data: { lockedUntil: lockUntil },
+      orderBy: { nextRunAt: "asc" },
+      take: limit,
     });
-    if (claimed.count !== 1) continue;
-    const isRetry = job.consecutiveFailures > 0;
-    await executeJob(job, isRetry ? "RETRY" : "SCHEDULE");
-    ran += 1;
+
+    for (const job of due) {
+      const lockUntil = new Date(now.getTime() + job.timeoutMs + 10_000);
+      const claimed = await prisma.cronJob.updateMany({
+        where: {
+          id: job.id,
+          enabled: true,
+          nextRunAt: job.nextRunAt,
+          OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }],
+        },
+        data: { lockedUntil: lockUntil },
+      });
+      if (claimed.count !== 1) continue;
+      const isRetry = job.consecutiveFailures > 0;
+      await executeJob(job, isRetry ? "RETRY" : "SCHEDULE");
+      ran += 1;
+    }
+    return ran;
+  } finally {
+    try {
+      await recordWorkerHeartbeat(ran);
+    } catch (error) {
+      console.error("[worker] heartbeat failed", error);
+    }
   }
-  return ran;
 }

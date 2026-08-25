@@ -6,11 +6,15 @@ import { RolesBoard, type TenantRoleView } from "@/components/roles-board";
 import { AppearancePanel } from "@/components/appearance-panel";
 import { SettingsForm } from "@/components/settings-form";
 import { WorkspacePanels } from "@/components/workspace-panels";
+import { SecurityPanel } from "@/components/security-panel";
+import { ApiTokensPanel } from "@/components/api-tokens-panel";
+import { JobIoPanel } from "@/components/job-io-panel";
 
 const TABS = [
   { id: "people", label: "People" },
   { id: "roles", label: "Roles" },
   { id: "workspace", label: "Workspace" },
+  { id: "security", label: "Security" },
   { id: "appearance", label: "Appearance" },
 ] as const;
 
@@ -45,8 +49,10 @@ export function WorkspaceSettings({
   canEditJobs,
   actorRole,
   platform = false,
+  totpEnabled = false,
+  tokens = [],
 }: {
-  tenant: { name: string; slug: string; timezone: string };
+  tenant: { name: string; slug: string; timezone: string; notifyEmail: string };
   members: Parameters<typeof PeopleBoard>[0]["members"];
   invites: Parameters<typeof PeopleBoard>[0]["invites"];
   roles: TenantRoleView[];
@@ -59,6 +65,8 @@ export function WorkspaceSettings({
   canEditJobs: boolean;
   actorRole: string;
   platform?: boolean;
+  totpEnabled?: boolean;
+  tokens?: Parameters<typeof ApiTokensPanel>[0]["tokens"];
 }) {
   const tab = useSyncExternalStore(subscribeHash, tabFromHash, () => "people");
 
@@ -114,15 +122,28 @@ export function WorkspaceSettings({
               Slug <span className="mono text-ink">{tenant.slug}</span>
             </p>
             <div className="mt-5 max-w-lg">
-              <SettingsForm name={tenant.name} timezone={tenant.timezone} canEdit={canEditSettings} />
+              <SettingsForm
+                name={tenant.name}
+                timezone={tenant.timezone}
+                notifyEmail={tenant.notifyEmail}
+                canEdit={canEditSettings}
+              />
             </div>
           </section>
+          <JobIoPanel canEdit={canEditJobs} />
           <WorkspacePanels
             groups={groups}
             secrets={secrets}
             canManage={canEditJobs}
             canManageSecrets={canManageSecrets}
           />
+        </div>
+      ) : null}
+
+      {tab === "security" ? (
+        <div className="space-y-4">
+          <SecurityPanel totpEnabled={totpEnabled} platform={platform} />
+          <ApiTokensPanel tokens={tokens} canEdit={canEditSettings} />
         </div>
       ) : null}
 

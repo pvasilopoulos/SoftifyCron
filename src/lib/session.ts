@@ -5,7 +5,9 @@ import {
   SESSION_COOKIE,
   homePath,
   signSession,
+  signTotpChallenge,
   verifySessionToken,
+  verifyTotpChallenge,
   type SessionPayload,
 } from "@/lib/session-token";
 
@@ -13,7 +15,9 @@ export {
   SESSION_COOKIE,
   homePath,
   signSession,
+  signTotpChallenge,
   verifySessionToken,
+  verifyTotpChallenge,
   type SessionPayload,
 };
 

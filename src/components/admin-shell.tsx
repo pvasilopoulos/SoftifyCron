@@ -12,6 +12,8 @@ import type { SessionPayload } from "@/lib/session-token";
 const NAV = [
   { href: "/admin", label: "Tenants", match: (path: string) => path === "/admin" || path.startsWith("/admin/tenants") },
   { href: "/admin/users", label: "Users", match: (path: string) => path.startsWith("/admin/users") },
+  { href: "/admin/monitor", label: "Monitor", match: (path: string) => path.startsWith("/admin/monitor") || path.startsWith("/admin/runs") },
+  { href: "/admin/audit", label: "Audit", match: (path: string) => path.startsWith("/admin/audit") },
 ];
 
 export function AdminShell({
@@ -112,7 +114,7 @@ export function AdminShell({
         </header>
         <main className="px-4 py-6 lg:px-10 lg:py-10">{children}</main>
       </div>
-      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-2 border-t border-line bg-bg-elev/95 px-2 pt-2 backdrop-blur-xl lg:hidden">
+      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-bg-elev/95 px-2 pt-2 backdrop-blur-xl lg:hidden">
         {NAV.map((item) => {
           const active = item.match(pathname);
           return (

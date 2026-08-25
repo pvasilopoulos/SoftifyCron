@@ -38,6 +38,7 @@ export async function PUT(request: Request) {
     data: {
       name: parsed.data.name,
       timezone: parsed.data.timezone,
+      notifyEmail: parsed.data.notifyEmail?.trim() ? parsed.data.notifyEmail.trim() : null,
     },
   });
 
