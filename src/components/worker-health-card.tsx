@@ -13,8 +13,14 @@ export function WorkerHealthCard({
   const status = heartbeatStatus(tickedAt);
   return (
     <div className={`card p-6 ${status.stale ? "border-rose/40" : ""}`}>
-      <p className="text-xs uppercase tracking-[0.16em] text-gold">Worker</p>
-      <p className={`mt-2 font-display text-3xl ${status.stale ? "text-rose" : ""}`}>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs uppercase tracking-[0.16em] text-gold">Worker</p>
+        <span className={`status-pill ${status.stale ? "status-failed" : "status-success"}`}>
+          <i />
+          {status.stale ? "stale" : "live"}
+        </span>
+      </div>
+      <p className={`mt-3 font-display text-3xl ${status.stale ? "text-rose" : ""}`}>
         {status.label}
       </p>
       <p className="mt-2 text-sm text-ink-dim">

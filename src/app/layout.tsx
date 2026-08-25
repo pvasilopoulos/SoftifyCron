@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { EB_Garamond, Geist_Mono, Inter } from "next/font/google";
+import { Geist_Mono, Inter, Outfit } from "next/font/google";
 import { ThemeScript } from "@/components/theme-script";
+import { AppAmbient } from "@/components/app-ambient";
 import { AppProviders } from "@/components/app-providers";
 import "./globals.css";
 
@@ -9,9 +10,9 @@ const inter = Inter({
   subsets: ["latin", "latin-ext", "greek"],
 });
 
-const garamond = EB_Garamond({
-  variable: "--font-garamond",
-  subsets: ["latin", "latin-ext", "greek"],
+const outfit = Outfit({
+  variable: "--font-outfit",
+  subsets: ["latin", "latin-ext"],
 });
 
 const geistMono = Geist_Mono({
@@ -23,8 +24,8 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f4f5f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b0d10" },
+    { media: "(prefers-color-scheme: light)", color: "#eef2ef" },
+    { media: "(prefers-color-scheme: dark)", color: "#06070a" },
   ],
   viewportFit: "cover",
 };
@@ -50,13 +51,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       data-theme="dark"
       data-density="comfortable"
-      className={`${inter.variable} ${garamond.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${outfit.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
         <ThemeScript />
       </head>
       <body className="min-h-full min-h-dvh flex flex-col text-ink">
-        <AppProviders>{children}</AppProviders>
+        <AppAmbient />
+        <div className="relative z-10 flex min-h-dvh flex-col">
+          <AppProviders>{children}</AppProviders>
+        </div>
       </body>
     </html>
   );

@@ -91,7 +91,7 @@ export function AdminShell({
         </div>
       </aside>
       <div className="app-stage">
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-bg/80 px-4 py-3 backdrop-blur-xl lg:hidden">
+        <header className="stage-header sticky top-0 z-20 flex items-center justify-between px-4 py-3 lg:hidden">
           <Link href="/admin">
             <Logo />
           </Link>
@@ -108,13 +108,13 @@ export function AdminShell({
             />
           </div>
         </header>
-        <header className="hidden items-center justify-between border-b border-line px-10 py-4 lg:flex">
+        <header className="stage-header hidden items-center justify-between px-10 py-4 lg:flex">
           <p className="text-sm text-ink-dim">Platform · tenants and users</p>
           <ThemeToggle />
         </header>
         <main className="px-4 py-6 lg:px-10 lg:py-10">{children}</main>
       </div>
-      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-bg-elev/95 px-2 pt-2 backdrop-blur-xl lg:hidden">
+      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-bg-elev/70 px-2 pt-2 backdrop-blur-2xl lg:hidden">
         {NAV.map((item) => {
           const active = item.match(pathname);
           return (

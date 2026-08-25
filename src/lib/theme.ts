@@ -39,7 +39,7 @@ export function applyAppearance(pref: ThemePreference, density: DensityPreferenc
   root.style.colorScheme = resolved;
   root.setAttribute("data-density", density);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", resolved === "light" ? "#f3f6f2" : "#07080c");
+  if (meta) meta.setAttribute("content", resolved === "light" ? "#eef2ef" : "#06070a");
 }
 
 export function persistTheme(pref: ThemePreference) {

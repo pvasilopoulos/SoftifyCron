@@ -127,14 +127,14 @@ export function AuthForm({
   }
 
   return (
-    <div className="relative z-10 flex min-h-dvh flex-col px-6 py-8">
+    <div className="auth-shell">
       <div className="flex items-center justify-between gap-3">
         <Link href="/">
           <Logo />
         </Link>
         <ThemeToggle compact />
       </div>
-      <div className="mx-auto mt-12 w-full max-w-md card p-6 sm:mt-16 sm:p-8">
+      <div className="auth-panel card p-6 sm:p-8">
         <p className="text-xs uppercase tracking-[0.2em] text-gold">
           {needsTotp
             ? "Two-factor"

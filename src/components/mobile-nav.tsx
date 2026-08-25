@@ -68,7 +68,7 @@ export function MobileNav({
 
   return (
     <>
-      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-bg-elev/95 px-2 pt-2 backdrop-blur-xl lg:hidden">
+      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-bg-elev/70 px-2 pt-2 backdrop-blur-2xl lg:hidden">
         {pinned.map((item) => {
           const Icon = NAV_ICONS[item.id];
           const active = isNavActive(pathname, hash, item);

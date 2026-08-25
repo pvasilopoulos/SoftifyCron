@@ -90,7 +90,7 @@ export default async function DashboardPage() {
             <p className="text-xs uppercase tracking-[0.16em] text-ink-dim">
               {label}
             </p>
-            <p className="mt-3 font-display text-3xl sm:text-4xl">{value}</p>
+            <p className="mt-3 font-display text-3xl tabular-nums sm:text-4xl">{value}</p>
           </Link>
         ))}
       </section>

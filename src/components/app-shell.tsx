@@ -148,7 +148,7 @@ export function AppShell({
       </aside>
 
       <div className="app-stage">
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-bg/80 px-4 py-3 backdrop-blur-xl lg:hidden">
+        <header className="stage-header sticky top-0 z-20 flex items-center justify-between px-4 py-3 lg:hidden">
           <Link href="/dashboard">
             <Logo />
           </Link>
@@ -164,7 +164,7 @@ export function AppShell({
             />
           </div>
         </header>
-        <header className="hidden items-center justify-between border-b border-line px-10 py-4 lg:flex">
+        <header className="stage-header hidden items-center justify-between px-10 py-4 lg:flex">
           <p className="text-sm text-ink-dim">
             {session.platform
               ? `Viewing ${session.tname} as platform admin`
