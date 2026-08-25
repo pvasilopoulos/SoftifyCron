@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getSession, signSession, setSessionCookie } from "@/lib/session";
+import { getTenantSession, signSession, setSessionCookie } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { tenantUpdateSchema } from "@/lib/validators";
 import { jsonError, zodError } from "@/lib/http";
 
 export async function GET() {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
 
   const tenant = await prisma.tenant.findUnique({
@@ -22,7 +22,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
   if (session.role === "MEMBER") {
     return jsonError("Only owners and admins can update the workspace", 403);

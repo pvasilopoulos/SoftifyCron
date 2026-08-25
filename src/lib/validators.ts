@@ -57,6 +57,14 @@ export const inviteInputSchema = z.object({
   role: z.enum(["ADMIN", "MEMBER"]).default("MEMBER"),
 });
 
+export const customerCreateSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  ownerName: z.string().trim().min(2).max(80),
+  ownerEmail: z.email().max(160),
+  ownerPassword: z.string().min(8).max(128),
+  timezone: z.string().trim().min(1).max(80).default("Europe/Athens"),
+});
+
 export const bulkSchema = z.object({
   action: z.enum(["pause", "resume", "delete", "move", "run"]),
   ids: z.array(z.string()).min(1).max(100),

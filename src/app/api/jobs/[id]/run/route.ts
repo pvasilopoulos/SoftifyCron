@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
+import { getTenantSession } from "@/lib/session";
 import { getJobForTenant } from "@/lib/jobs";
 import { executeJob } from "@/lib/runner";
 import { jsonError } from "@/lib/http";
@@ -7,7 +7,7 @@ import { jsonError } from "@/lib/http";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function POST(_request: Request, { params }: Ctx) {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
   const { id } = await params;
   const job = await getJobForTenant(session.tid, id);

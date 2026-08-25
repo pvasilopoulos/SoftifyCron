@@ -11,6 +11,7 @@ export type SessionPayload = {
   role: Role;
   tname: string;
   tslug: string;
+  platform: boolean;
 };
 
 function secretKey() {
@@ -53,6 +54,7 @@ export async function verifySessionToken(
       role: payload.role as Role,
       tname: payload.tname,
       tslug: payload.tslug,
+      platform: payload.platform === true,
     };
   } catch {
     return null;

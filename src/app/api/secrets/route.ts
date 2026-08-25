@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
+import { getTenantSession } from "@/lib/session";
 import { createSecret, deleteSecret, listSecrets } from "@/lib/secrets";
 import { secretInputSchema } from "@/lib/validators";
 import { jsonError, zodError } from "@/lib/http";
 import { canManage } from "@/lib/acl";
 
 export async function GET() {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
   const secrets = await listSecrets(session.tid);
   return NextResponse.json({ secrets });
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
   if (!canManage(session.role)) return jsonError("Forbidden", 403);
   const body = await request.json().catch(() => null);
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
   if (!canManage(session.role)) return jsonError("Forbidden", 403);
   const id = new URL(request.url).searchParams.get("id");

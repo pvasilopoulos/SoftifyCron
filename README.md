@@ -26,17 +26,20 @@ App: [http://localhost:3000](http://localhost:3000)
 
 Demo login:
 
-- email `demo@softifycron.dev`
-- password `Demo1234!`
+- platform admin `admin@softifycron.dev` / `Admin1234!` (sees every customer)
+- customer `demo@softifycron.dev` / `Demo1234!` (Aurora Studio only)
+- customer `customer@softifycron.dev` / `Demo1234!` (Helios Labs only)
 
 `npm run dev` starts the web app **and** the cron worker.
 
 ## What you get
 
+- **Platform superadmin** lists all customers and can open any workspace
+- **Customer login** is locked to one tenant — jobs, runs, and secrets never leak
 - Register creates a **tenant** + owner user, with default job groups
-- Login is scoped to that tenant; invites join teammates as admin or member
+- Invites join teammates as admin or member inside that customer
 - HTTP, heartbeat, and webhook jobs with groups, tags, search, and bulk actions
-- Pause / resume / duplicate / run now
+- Pause / resume / duplicate / delete / run now, plus optional last-response viewer
 - Retries, failure webhooks, and `{{SECRET:KEY}}` interpolation
 - Execution history stored in MySQL, filterable on desktop and phone
 - SSRF guard: localhost, private, and link-local targets are rejected

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { SessionPayload } from "@/lib/session";
 import { Logo } from "@/components/logo";
 import { logoutAction } from "@/app/actions/auth";
+import { exitCustomerAction } from "@/app/actions/admin";
 
 const NAV = [
   { href: "/dashboard", label: "Home", icon: HomeIcon },
@@ -82,7 +83,16 @@ export function AppShell({
         <div className="mt-auto border-t border-line pt-6">
           <p className="truncate text-sm">{session.name}</p>
           <p className="truncate text-xs text-ink-dim">{session.email}</p>
-          <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-gold">{session.role.toLowerCase()}</p>
+          <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-gold">
+            {session.platform ? "platform admin" : session.role.toLowerCase()}
+          </p>
+          {session.platform ? (
+            <form action={exitCustomerAction}>
+              <button type="submit" className="mt-3 text-xs uppercase tracking-[0.16em] text-gold">
+                All customers
+              </button>
+            </form>
+          ) : null}
           <form action={logoutAction}>
             <button type="submit" className="mt-3 text-xs uppercase tracking-[0.16em] text-ink-dim hover:text-gold">
               Sign out
@@ -96,10 +106,29 @@ export function AppShell({
           <Link href="/dashboard">
             <Logo />
           </Link>
-          <p className="max-w-[45%] truncate text-xs text-ink-dim">{session.tname}</p>
+          {session.platform ? (
+            <form action={exitCustomerAction}>
+              <button type="submit" className="text-xs text-gold">
+                Customers
+              </button>
+            </form>
+          ) : (
+            <p className="max-w-[45%] truncate text-xs text-ink-dim">{session.tname}</p>
+          )}
         </header>
         <header className="hidden items-center justify-between border-b border-line px-10 py-4 lg:flex">
-          <p className="text-sm text-ink-dim">Tenant control plane · {session.role.toLowerCase()}</p>
+          <p className="text-sm text-ink-dim">
+            {session.platform
+              ? `Viewing customer ${session.tname} as platform admin`
+              : `Customer workspace · ${session.role.toLowerCase()}`}
+          </p>
+          {session.platform ? (
+            <form action={exitCustomerAction}>
+              <button type="submit" className="text-sm text-gold">
+                Back to customers
+              </button>
+            </form>
+          ) : null}
         </header>
         <main className="px-4 py-6 lg:px-10 lg:py-10">{children}</main>
       </div>

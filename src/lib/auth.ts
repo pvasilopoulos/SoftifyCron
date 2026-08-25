@@ -4,7 +4,7 @@ import { slugify } from "@/lib/format";
 import { signSession, type SessionPayload } from "@/lib/session";
 import { acceptInvite, getInviteByToken } from "@/lib/invites";
 import { ensureDefaultGroups } from "@/lib/groups";
-import type { Role } from "@prisma/client";
+import type { PlatformRole, Role } from "@prisma/client";
 
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 12);
@@ -14,7 +14,7 @@ export async function verifyPassword(password: string, hash: string) {
   return bcrypt.compare(password, hash);
 }
 
-async function uniqueSlug(name: string) {
+export async function uniqueSlug(name: string) {
   const base = slugify(name);
   for (let i = 0; i < 8; i += 1) {
     const candidate = i === 0 ? base : `${base}-${Math.random().toString(36).slice(2, 6)}`;
@@ -25,7 +25,7 @@ async function uniqueSlug(name: string) {
 }
 
 export async function sessionFromMembership(
-  user: { id: string; email: string; name: string },
+  user: { id: string; email: string; name: string; platformRole?: PlatformRole },
   membership: { tenantId: string; role: Role; tenant: { name: string; slug: string } },
 ): Promise<SessionPayload> {
   return {
@@ -36,6 +36,24 @@ export async function sessionFromMembership(
     role: membership.role,
     tname: membership.tenant.name,
     tslug: membership.tenant.slug,
+    platform: user.platformRole === "SUPERADMIN",
+  };
+}
+
+export function platformSession(user: {
+  id: string;
+  email: string;
+  name: string;
+}): SessionPayload {
+  return {
+    sub: user.id,
+    tid: "",
+    email: user.email,
+    name: user.name,
+    role: "OWNER",
+    tname: "Platform",
+    tslug: "admin",
+    platform: true,
   };
 }
 
@@ -95,6 +113,7 @@ export async function registerUser(input: {
     role: "OWNER",
     tname: user.tenant.name,
     tslug: user.tenant.slug,
+    platform: false,
   };
   return { token: await signSession(payload), payload };
 }
@@ -114,6 +133,11 @@ export async function loginUser(emailRaw: string, password: string, inviteToken?
   if (!user) throw new Error("Invalid email or password");
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) throw new Error("Invalid email or password");
+
+  if (user.platformRole === "SUPERADMIN" && !inviteToken) {
+    const payload = platformSession(user);
+    return { token: await signSession(payload), payload };
+  }
 
   if (inviteToken) {
     const invite = await acceptInvite(inviteToken, user.id, email);

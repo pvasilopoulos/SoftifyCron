@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/session";
+import { requireTenantSession } from "@/lib/session";
 import { createJob, updateJob } from "@/lib/jobs";
 import { jobInputSchema } from "@/lib/validators";
 import { canManage } from "@/lib/acl";
@@ -27,7 +27,7 @@ export async function saveJobAction(
   _prev: { error: string } | null,
   formData: FormData,
 ) {
-  const session = await requireSession();
+  const session = await requireTenantSession();
   if (!canManage(session.role)) return { error: "Members cannot edit jobs" };
 
   let headers: Record<string, string> | null = null;

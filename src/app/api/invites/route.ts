@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
+import { getTenantSession } from "@/lib/session";
 import { createInvite, listInvites, revokeInvite } from "@/lib/invites";
 import { inviteInputSchema } from "@/lib/validators";
 import { jsonError, zodError } from "@/lib/http";
 import { canManage } from "@/lib/acl";
 
 export async function GET() {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
   if (!canManage(session.role)) return jsonError("Forbidden", 403);
   const invites = await listInvites(session.tid);
@@ -14,7 +14,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
   if (!canManage(session.role)) return jsonError("Forbidden", 403);
   const body = await request.json().catch(() => null);
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
   if (!canManage(session.role)) return jsonError("Forbidden", 403);
   const id = new URL(request.url).searchParams.get("id");

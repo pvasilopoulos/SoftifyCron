@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
+import { getTenantSession } from "@/lib/session";
 import { deleteJob, getJobForTenant, toggleJob, updateJob } from "@/lib/jobs";
 import { jobInputSchema } from "@/lib/validators";
 import { jsonError, zodError } from "@/lib/http";
@@ -8,7 +8,7 @@ import { canManage } from "@/lib/acl";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, { params }: Ctx) {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
   const { id } = await params;
   const job = await getJobForTenant(session.tid, id);
@@ -17,7 +17,7 @@ export async function GET(_request: Request, { params }: Ctx) {
 }
 
 export async function PUT(request: Request, { params }: Ctx) {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
   if (!canManage(session.role)) return jsonError("Forbidden", 403);
   const { id } = await params;
@@ -36,7 +36,7 @@ export async function PUT(request: Request, { params }: Ctx) {
 }
 
 export async function PATCH(request: Request, { params }: Ctx) {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
   if (!canManage(session.role)) return jsonError("Forbidden", 403);
   const { id } = await params;
@@ -52,7 +52,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
 }
 
 export async function DELETE(_request: Request, { params }: Ctx) {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
   if (!canManage(session.role)) return jsonError("Forbidden", 403);
   const { id } = await params;

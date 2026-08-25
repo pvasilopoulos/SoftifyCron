@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
+import { getTenantSession } from "@/lib/session";
 import { createJob, listJobs } from "@/lib/jobs";
 import { jobInputSchema } from "@/lib/validators";
 import { jsonError, zodError } from "@/lib/http";
@@ -7,7 +7,7 @@ import { canManage } from "@/lib/acl";
 import type { JobType } from "@prisma/client";
 
 export async function GET(request: Request) {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
   const { searchParams } = new URL(request.url);
   const jobs = await listJobs(session.tid, {
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
   if (!canManage(session.role)) return jsonError("Forbidden", 403);
   const body = await request.json().catch(() => null);

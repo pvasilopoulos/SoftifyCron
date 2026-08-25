@@ -13,6 +13,11 @@ enum Role {
   MEMBER
 }
 
+enum PlatformRole {
+  USER
+  SUPERADMIN
+}
+
 enum HttpMethod {
   GET
   POST
@@ -62,6 +67,7 @@ model User {
   email        String       @unique
   name         String
   passwordHash String
+  platformRole PlatformRole @default(USER)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   memberships  Membership[]

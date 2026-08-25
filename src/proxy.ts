@@ -14,10 +14,26 @@ function isAuthPath(pathname: string) {
   return pathname === "/login" || pathname === "/register";
 }
 
+function isAdminPath(pathname: string) {
+  return pathname === "/admin" || pathname.startsWith("/admin/");
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verifySessionToken(token) : null;
+
+  if (isAdminPath(pathname)) {
+    if (!session) {
+      const login = new URL("/login", request.url);
+      login.searchParams.set("next", pathname);
+      return NextResponse.redirect(login);
+    }
+    if (!session.platform) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    return NextResponse.next();
+  }
 
   if (isAppPath(pathname) && !session) {
     const login = new URL("/login", request.url);
@@ -25,12 +41,17 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(login);
   }
 
+  if (isAppPath(pathname) && session && !session.tid) {
+    return NextResponse.redirect(new URL("/admin", request.url));
+  }
+
   if (isAuthPath(pathname) && session) {
     const invite = request.nextUrl.searchParams.get("invite");
     if (invite) {
       return NextResponse.redirect(new URL(`/invite/${invite}`, request.url));
     }
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const home = session.platform && !session.tid ? "/admin" : "/dashboard";
+    return NextResponse.redirect(new URL(home, request.url));
   }
 
   return NextResponse.next();
@@ -42,6 +63,8 @@ export const config = {
     "/jobs/:path*",
     "/runs/:path*",
     "/settings/:path*",
+    "/admin",
+    "/admin/:path*",
     "/login",
     "/register",
     "/invite/:path*",

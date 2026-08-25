@@ -4,7 +4,7 @@ import { Logo } from "@/components/logo";
 const FEATURES = [
   {
     title: "Tenant walls",
-    copy: "Every query is scoped to the workspace in the session. Jobs, runs, secrets, and invites never leak across organizations.",
+    copy: "Platform admins see every customer. A customer login is locked to one tenant — jobs, runs, and secrets never leak across organizations.",
   },
   {
     title: "Groups, types, tags",
@@ -57,7 +57,11 @@ export default function HomePage() {
           </Link>
         </div>
         <p className="mt-4 text-sm text-ink-dim">
-          Demo · <span className="mono text-ink">demo@softifycron.dev</span> /{" "}
+          Platform admin · <span className="mono text-ink">admin@softifycron.dev</span> /{" "}
+          <span className="mono text-ink">Admin1234!</span>
+        </p>
+        <p className="mt-1 text-sm text-ink-dim">
+          Customer · <span className="mono text-ink">demo@softifycron.dev</span> /{" "}
           <span className="mono text-ink">Demo1234!</span>
         </p>
 

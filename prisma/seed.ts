@@ -6,6 +6,18 @@ const prisma = new PrismaClient();
 
 async function main() {
   const passwordHash = await bcrypt.hash("Demo1234!", 12);
+  const adminHash = await bcrypt.hash("Admin1234!", 12);
+
+  await prisma.user.upsert({
+    where: { email: "admin@softifycron.dev" },
+    update: { platformRole: "SUPERADMIN" },
+    create: {
+      email: "admin@softifycron.dev",
+      name: "Platform Admin",
+      passwordHash: adminHash,
+      platformRole: "SUPERADMIN",
+    },
+  });
 
   const demo = await prisma.user.upsert({
     where: { email: "demo@softifycron.dev" },
@@ -140,8 +152,56 @@ async function main() {
   }
 
   console.log("Seeded demo workspace");
-  console.log("  email:    demo@softifycron.dev");
-  console.log("  password: Demo1234!");
+  console.log("  platform admin: admin@softifycron.dev / Admin1234!");
+  console.log("  customer:       demo@softifycron.dev / Demo1234!");
+
+  const heliosOwner = await prisma.user.upsert({
+    where: { email: "customer@softifycron.dev" },
+    update: {},
+    create: {
+      email: "customer@softifycron.dev",
+      name: "Helen Costa",
+      passwordHash,
+      memberships: {
+        create: {
+          role: "OWNER",
+          tenant: {
+            create: {
+              name: "Helios Labs",
+              slug: "helios-labs",
+              timezone: "Europe/Athens",
+            },
+          },
+        },
+      },
+    },
+  });
+  const heliosId =
+    (
+      await prisma.membership.findFirst({
+        where: { userId: heliosOwner.id, tenant: { slug: "helios-labs" } },
+      })
+    )?.tenantId;
+  if (heliosId) {
+    const heliosJobs = await prisma.cronJob.count({ where: { tenantId: heliosId } });
+    if (heliosJobs === 0) {
+      await prisma.cronJob.create({
+        data: {
+          tenantId: heliosId,
+          name: "Helios heartbeat",
+          description: "Second customer job — invisible to Aurora Studio.",
+          type: "HEARTBEAT",
+          cronExpr: "*/10 * * * *",
+          timezone: "Europe/Athens",
+          method: "GET",
+          url: "https://example.com",
+          enabled: true,
+          nextRunAt: getNextRunAt("*/10 * * * *", "Europe/Athens"),
+        },
+      });
+    }
+  }
+  console.log("  customer:       customer@softifycron.dev / Demo1234!");
 }
 
 main()

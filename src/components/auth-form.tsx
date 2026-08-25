@@ -119,7 +119,7 @@ export function AuthForm({
           {mode === "login"
             ? joining
               ? "Sign in with the invited email to join this tenant."
-              : "Every job you touch stays inside your tenant."
+              : "Customer logins stay inside one tenant. Platform admins open the customer list."
             : joining
               ? `This account will join ${workspaceName ?? "the workspace"} as a member.`
               : "Registration creates your tenant, owner account, and empty job board."}

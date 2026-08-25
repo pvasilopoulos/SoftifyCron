@@ -22,17 +22,19 @@ export async function loginAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
+  let next = "/dashboard";
   try {
-    const { token } = await loginUser(
+    const { token, payload } = await loginUser(
       parsed.data.email,
       parsed.data.password,
       String(formData.get("invite") ?? "") || null,
     );
     await setSessionCookie(token);
+    if (payload.platform && !payload.tid) next = "/admin";
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Login failed" };
   }
-  redirect("/dashboard");
+  redirect(next);
 }
 
 export async function registerAction(
@@ -81,6 +83,7 @@ export async function acceptInviteAction(formData: FormData) {
         role: invite.role,
         tname: invite.tenant.name,
         tslug: invite.tenant.slug,
+        platform: session.platform,
       }),
     );
   } catch (error) {

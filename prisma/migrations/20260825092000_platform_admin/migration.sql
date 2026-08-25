@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `User` ADD COLUMN `platformRole` ENUM('USER', 'SUPERADMIN') NOT NULL DEFAULT 'USER';

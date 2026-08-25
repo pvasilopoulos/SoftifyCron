@@ -10,13 +10,16 @@ export async function POST(request: Request) {
   if (!parsed.success) return zodError(parsed.error);
 
   try {
-    const { token } = await loginUser(
+    const { token, payload } = await loginUser(
       parsed.data.email,
       parsed.data.password,
       typeof body?.invite === "string" ? body.invite : null,
     );
     await setSessionCookie(token);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      next: payload.platform && !payload.tid ? "/admin" : "/dashboard",
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Login failed";
     return jsonError(message, 401);

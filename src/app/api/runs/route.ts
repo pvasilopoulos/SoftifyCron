@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
+import { getTenantSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/http";
 
 export async function GET(request: Request) {
-  const session = await getSession();
+  const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
 
   const { searchParams } = new URL(request.url);

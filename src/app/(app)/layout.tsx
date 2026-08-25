@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/session";
+import { requireTenantSession } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { ensureDefaultGroups } from "@/lib/groups";
 
@@ -9,7 +9,7 @@ export default async function AppGroupLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await requireSession();
+  const session = await requireTenantSession();
   await ensureDefaultGroups(session.tid);
   return <AppShell session={session}>{children}</AppShell>;
 }
