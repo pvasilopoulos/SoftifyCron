@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { formatDateTime } from "@/lib/format";
 
 type Group = {
   id: string;
@@ -11,27 +10,20 @@ type Group = {
   _count: { jobs: number };
 };
 type Secret = { id: string; name: string; key: string; createdAt: Date | string };
-type Invite = {
-  id: string;
-  email: string;
-  role: string;
-  expiresAt: Date | string;
-};
 
 export function WorkspacePanels({
   groups,
   secrets,
-  invites,
   canManage,
+  canManageSecrets,
 }: {
   groups: Group[];
   secrets: Secret[];
-  invites: Invite[];
   canManage: boolean;
+  canManageSecrets: boolean;
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
-  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
 
   async function refresh() {
     router.refresh();
@@ -80,31 +72,6 @@ export function WorkspacePanels({
   async function removeSecret(id: string) {
     if (!confirm("Delete this secret? Jobs that interpolate it will fail.")) return;
     await fetch(`/api/secrets?id=${id}`, { method: "DELETE" });
-    refresh();
-  }
-
-  async function addInvite(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const data = Object.fromEntries(new FormData(form).entries());
-    const response = await fetch("/api/invites", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      setMessage(payload.error ?? "Could not invite");
-      return;
-    }
-    form.reset();
-    setInviteUrl(payload.url);
-    setMessage("Invite created. Copy the link — it is shown only once.");
-    refresh();
-  }
-
-  async function revoke(id: string) {
-    await fetch(`/api/invites?id=${id}`, { method: "DELETE" });
     refresh();
   }
 
@@ -157,7 +124,7 @@ export function WorkspacePanels({
         <p className="mt-1 text-sm text-ink-dim">
           Encrypted at rest. Interpolate with <span className="mono text-gold-2">{"{{SECRET:API_TOKEN}}"}</span>
         </p>
-        {canManage ? (
+        {canManageSecrets ? (
           <>
             <ul className="mt-5 space-y-3">
               {secrets.length === 0 ? (
@@ -190,62 +157,7 @@ export function WorkspacePanels({
             </form>
           </>
         ) : (
-          <p className="mt-4 text-sm text-ink-dim">Only owners and admins can view secret keys.</p>
-        )}
-      </section>
-
-      <section className="card p-6 lg:col-span-2">
-        <h2 className="font-display text-2xl italic">Invites</h2>
-        <p className="mt-1 text-sm text-ink-dim">
-          Members can watch jobs. Admins can edit jobs, secrets, and groups.
-        </p>
-        {canManage ? (
-          <>
-            <ul className="mt-5 space-y-3">
-              {invites.length === 0 ? (
-                <li className="text-sm text-ink-dim">No pending invites.</li>
-              ) : (
-                invites.map((invite) => (
-                  <li key={invite.id} className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium">{invite.email}</p>
-                      <p className="text-xs uppercase tracking-[0.14em] text-gold">
-                        {invite.role.toLowerCase()} · expires {formatDateTime(invite.expiresAt, "UTC")}
-                      </p>
-                    </div>
-                    <button className="text-xs text-rose" type="button" onClick={() => revoke(invite.id)}>
-                      Revoke
-                    </button>
-                  </li>
-                ))
-              )}
-            </ul>
-            <form className="mt-5 grid gap-3 sm:grid-cols-[1fr_140px_auto]" onSubmit={addInvite}>
-              <input className="field" type="email" name="email" placeholder="colleague@company.com" required />
-              <select className="field" name="role" defaultValue="MEMBER">
-                <option value="MEMBER">Member</option>
-                <option value="ADMIN">Admin</option>
-              </select>
-              <button className="btn btn-gold" type="submit">
-                Invite
-              </button>
-            </form>
-            {inviteUrl ? (
-              <div className="mt-4 rounded-2xl bg-bg p-4">
-                <p className="text-xs uppercase tracking-[0.14em] text-gold">Copy this link</p>
-                <p className="mono mt-2 break-all text-sm">{inviteUrl}</p>
-                <button
-                  className="btn btn-ghost mt-3"
-                  type="button"
-                  onClick={() => navigator.clipboard.writeText(inviteUrl)}
-                >
-                  Copy
-                </button>
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <p className="mt-4 text-sm text-ink-dim">Ask an admin if you need to invite someone.</p>
+          <p className="mt-4 text-sm text-ink-dim">You do not have permission to manage secrets.</p>
         )}
         {message ? <p className="mt-4 text-sm text-ink-dim">{message}</p> : null}
       </section>

@@ -3,7 +3,7 @@ import { requireSession } from "@/lib/session";
 import { getJobForTenant } from "@/lib/jobs";
 import { listGroups } from "@/lib/groups";
 import { JobForm } from "@/components/job-form";
-import { canManage } from "@/lib/acl";
+import { hasPermission } from "@/lib/acl";
 
 export const metadata = { title: "Edit job" };
 
@@ -13,7 +13,7 @@ export default async function EditJobPage({
   params: Promise<{ id: string }>;
 }) {
   const session = await requireSession();
-  if (!canManage(session.role)) redirect("/jobs");
+  if (!hasPermission(session, "jobs.edit")) redirect("/jobs");
   const { id } = await params;
   const [job, groups] = await Promise.all([
     getJobForTenant(session.tid, id),

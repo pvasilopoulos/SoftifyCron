@@ -151,9 +151,25 @@ async function main() {
     });
   }
 
+  const memberUser = await prisma.user.upsert({
+    where: { email: "member@softifycron.dev" },
+    update: {},
+    create: {
+      email: "member@softifycron.dev",
+      name: "Mira Chen",
+      passwordHash,
+    },
+  });
+  await prisma.membership.upsert({
+    where: { userId_tenantId: { userId: memberUser.id, tenantId } },
+    update: { role: "MEMBER", grants: "jobs.run" },
+    create: { userId: memberUser.id, tenantId, role: "MEMBER", grants: "jobs.run" },
+  });
+
   console.log("Seeded demo workspace");
   console.log("  platform admin: admin@softifycron.dev / Admin1234!");
   console.log("  customer:       demo@softifycron.dev / Demo1234!");
+  console.log("  member:         member@softifycron.dev / Demo1234! (Aurora, run-only)");
 
   const heliosOwner = await prisma.user.upsert({
     where: { email: "customer@softifycron.dev" },

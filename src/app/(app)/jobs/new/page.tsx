@@ -2,13 +2,13 @@ import { redirect } from "next/navigation";
 import { JobForm } from "@/components/job-form";
 import { requireSession } from "@/lib/session";
 import { listGroups } from "@/lib/groups";
-import { canManage } from "@/lib/acl";
+import { hasPermission } from "@/lib/acl";
 
 export const metadata = { title: "New job" };
 
 export default async function NewJobPage() {
   const session = await requireSession();
-  if (!canManage(session.role)) redirect("/jobs");
+  if (!hasPermission(session, "jobs.edit")) redirect("/jobs");
   const groups = await listGroups(session.tid);
 
   return (

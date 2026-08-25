@@ -10,6 +10,13 @@ export async function createInvite(
   role: Role,
 ) {
   const normalized = email.trim().toLowerCase();
+  const already = await prisma.membership.findFirst({
+    where: { tenantId, user: { email: normalized } },
+  });
+  if (already) throw new Error("That person is already in this workspace");
+  await prisma.invite.deleteMany({
+    where: { tenantId, email: normalized, acceptedAt: null },
+  });
   const token = randomToken();
   const invite = await prisma.invite.create({
     data: {

@@ -7,6 +7,7 @@ import { describeCron } from "@/lib/cron";
 import { RelativeTime } from "@/components/relative-time";
 import { StatusPill } from "@/components/status-pill";
 import { JobMenu } from "@/components/job-menu";
+import type { JobAccess } from "@/lib/acl";
 
 type Group = { id: string; name: string; color: string; slug: string };
 type Job = {
@@ -63,14 +64,15 @@ function sectionsFrom(jobs: Job[], groups: Group[]): Section[] {
 export function JobsBoard({
   jobs,
   groups,
-  canManage,
+  access,
   query,
 }: {
   jobs: Job[];
   groups: Group[];
-  canManage: boolean;
+  access: JobAccess;
   query: { q: string; group: string; type: string; state: string };
 }) {
+  const canSelect = access.edit || access.run || access.delete;
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
@@ -163,43 +165,51 @@ export function JobsBoard({
         </div>
       </form>
 
-      {canManage && selected.length > 0 ? (
+      {canSelect && selected.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-gold/30 bg-gold/8 p-3">
           <span className="text-sm">{selected.length} selected</span>
-          <button className="btn btn-ghost" type="button" onClick={() => bulk("pause")} disabled={pending}>
-            Pause
-          </button>
-          <button className="btn btn-ghost" type="button" onClick={() => bulk("resume")} disabled={pending}>
-            Resume
-          </button>
-          <button className="btn btn-ghost" type="button" onClick={() => bulk("run")} disabled={pending}>
-            Run
-          </button>
-          <select
-            className="field max-w-40"
-            defaultValue=""
-            onChange={(event) => {
-              if (event.target.value) bulk("move", event.target.value === "none" ? null : event.target.value);
-            }}
-          >
-            <option value="">Move to…</option>
-            <option value="none">Ungrouped</option>
-            {groups.map((group) => (
-              <option key={group.id} value={group.id}>
-                {group.name}
-              </option>
-            ))}
-          </select>
-          <button
-            className="btn btn-danger"
-            type="button"
-            onClick={() => {
-              if (confirm(`Delete ${selected.length} jobs and their history?`)) bulk("delete");
-            }}
-            disabled={pending}
-          >
-            Delete
-          </button>
+          {access.edit ? (
+            <>
+              <button className="btn btn-ghost" type="button" onClick={() => bulk("pause")} disabled={pending}>
+                Pause
+              </button>
+              <button className="btn btn-ghost" type="button" onClick={() => bulk("resume")} disabled={pending}>
+                Resume
+              </button>
+              <select
+                className="field max-w-40"
+                defaultValue=""
+                onChange={(event) => {
+                  if (event.target.value) bulk("move", event.target.value === "none" ? null : event.target.value);
+                }}
+              >
+                <option value="">Move to…</option>
+                <option value="none">Ungrouped</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : null}
+          {access.run ? (
+            <button className="btn btn-ghost" type="button" onClick={() => bulk("run")} disabled={pending}>
+              Run
+            </button>
+          ) : null}
+          {access.delete ? (
+            <button
+              className="btn btn-danger"
+              type="button"
+              onClick={() => {
+                if (confirm(`Delete ${selected.length} jobs and their history?`)) bulk("delete");
+              }}
+              disabled={pending}
+            >
+              Delete
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -215,7 +225,7 @@ export function JobsBoard({
               ? "Create one or clear filters."
               : "Create an HTTP job and the worker will claim it when due."}
           </p>
-          {canManage ? (
+          {access.edit ? (
             <Link href="/jobs/new" className="btn btn-gold mt-5">
               New job
             </Link>
@@ -235,7 +245,7 @@ export function JobsBoard({
                 {section.jobs.map((job) => (
                   <article key={job.id} className="card card-hover p-4">
                     <div className="flex items-start gap-3">
-                      {canManage ? (
+                      {canSelect ? (
                         <input
                           type="checkbox"
                           className="mt-1 h-5 w-5"
@@ -253,7 +263,7 @@ export function JobsBoard({
                             name={job.name}
                             enabled={job.enabled}
                             keepResponse={job.keepResponse}
-                            canManage={canManage}
+                            access={access}
                           />
                         </div>
                         <p className="mono mt-1 truncate text-xs text-ink-dim">
@@ -279,7 +289,7 @@ export function JobsBoard({
                 <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="bg-bg-mute text-xs uppercase tracking-[0.14em] text-ink-dim">
                     <tr>
-                      {canManage ? (
+                      {canSelect ? (
                         <th className="px-4 py-3">
                           <input
                             type="checkbox"
@@ -305,7 +315,7 @@ export function JobsBoard({
                   <tbody>
                     {section.jobs.map((job) => (
                       <tr key={job.id} className="row-hover border-t border-line bg-bg-elev/70">
-                        {canManage ? (
+                        {canSelect ? (
                           <td className="px-4 py-3">
                             <input
                               type="checkbox"
@@ -340,7 +350,7 @@ export function JobsBoard({
                             name={job.name}
                             enabled={job.enabled}
                             keepResponse={job.keepResponse}
-                            canManage={canManage}
+                            access={access}
                           />
                         </td>
                       </tr>

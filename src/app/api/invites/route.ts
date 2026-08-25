@@ -3,12 +3,13 @@ import { getTenantSession } from "@/lib/session";
 import { createInvite, listInvites, revokeInvite } from "@/lib/invites";
 import { inviteInputSchema } from "@/lib/validators";
 import { jsonError, zodError } from "@/lib/http";
-import { canManage } from "@/lib/acl";
+import { hasPermission } from "@/lib/acl";
+import { assertCanInvite } from "@/lib/member-acl";
 
 export async function GET() {
   const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
-  if (!canManage(session.role)) return jsonError("Forbidden", 403);
+  if (!hasPermission(session, "people.manage")) return jsonError("Forbidden", 403);
   const invites = await listInvites(session.tid);
   return NextResponse.json({ invites });
 }
@@ -16,18 +17,25 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
-  if (!canManage(session.role)) return jsonError("Forbidden", 403);
   const body = await request.json().catch(() => null);
   const parsed = inviteInputSchema.safeParse(body);
   if (!parsed.success) return zodError(parsed.error);
-  const { invite, url } = await createInvite(session.tid, parsed.data.email, parsed.data.role);
-  return NextResponse.json({ invite, url }, { status: 201 });
+  try {
+    assertCanInvite(
+      { userId: session.sub, role: session.role, platform: session.platform, grants: session.grants },
+      parsed.data.role,
+    );
+    const { invite, url } = await createInvite(session.tid, parsed.data.email, parsed.data.role);
+    return NextResponse.json({ invite, url }, { status: 201 });
+  } catch (error) {
+    return jsonError(error instanceof Error ? error.message : "Could not invite", 400);
+  }
 }
 
 export async function DELETE(request: Request) {
   const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
-  if (!canManage(session.role)) return jsonError("Forbidden", 403);
+  if (!hasPermission(session, "people.manage")) return jsonError("Forbidden", 403);
   const id = new URL(request.url).searchParams.get("id");
   if (!id) return jsonError("Missing id");
   const ok = await revokeInvite(session.tid, id);

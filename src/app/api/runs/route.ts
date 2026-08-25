@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { getTenantSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/http";
+import { hasPermission } from "@/lib/acl";
 
 export async function GET(request: Request) {
   const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
+  if (!hasPermission(session, "runs.view")) return jsonError("Forbidden", 403);
 
   const { searchParams } = new URL(request.url);
   const jobId = searchParams.get("jobId");

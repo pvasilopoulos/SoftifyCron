@@ -4,7 +4,7 @@ import { requireSession } from "@/lib/session";
 import { describeCron } from "@/lib/cron";
 import { RelativeTime } from "@/components/relative-time";
 import { StatusPill } from "@/components/status-pill";
-import { canManage } from "@/lib/acl";
+import { hasPermission } from "@/lib/acl";
 
 export const metadata = { title: "Overview" };
 
@@ -14,7 +14,7 @@ export default async function DashboardPage() {
   const session = await requireSession();
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
-  const manage = canManage(session.role);
+  const canCreate = hasPermission(session, "jobs.edit");
 
   const [tenant, jobs, active, failingCount, failing, upcoming, runsToday, successesToday, recent] =
     await Promise.all([
@@ -63,7 +63,7 @@ export default async function DashboardPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-gold">Overview</p>
           <h1 className="mt-2 font-display text-4xl italic">{session.tname}</h1>
         </div>
-        {manage ? (
+        {canCreate ? (
           <Link href="/jobs/new" className="btn btn-gold">
             New job
           </Link>

@@ -8,7 +8,7 @@ import { RelativeTime } from "@/components/relative-time";
 import { prisma } from "@/lib/prisma";
 import { JobActions } from "@/components/job-actions";
 import { StatusPill } from "@/components/status-pill";
-import { canManage } from "@/lib/acl";
+import { jobAccess } from "@/lib/acl";
 import { buildCurl } from "@/lib/curl";
 
 export const metadata = { title: "Job" };
@@ -22,7 +22,7 @@ export default async function JobDetailPage({
   const { id } = await params;
   const job = await getJobForTenant(session.tid, id);
   if (!job) notFound();
-  const manage = canManage(session.role);
+  const access = jobAccess(session);
 
   const runs = await prisma.jobRun.findMany({
     where: { tenantId: session.tid, jobId: job.id },
@@ -85,7 +85,7 @@ export default async function JobDetailPage({
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
-          {manage ? (
+          {access.edit ? (
             <Link href={`/jobs/${job.id}/edit`} className="btn btn-ghost">
               Edit
             </Link>
@@ -94,7 +94,7 @@ export default async function JobDetailPage({
             jobId={job.id}
             name={job.name}
             enabled={job.enabled}
-            canManage={manage}
+            access={access}
             keepResponse={job.keepResponse}
             curl={buildCurl(job)}
           />

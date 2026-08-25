@@ -3,7 +3,7 @@ import { getTenantSession } from "@/lib/session";
 import { deleteJob, getJobForTenant, toggleJob, updateJob } from "@/lib/jobs";
 import { jobInputSchema } from "@/lib/validators";
 import { jsonError, zodError } from "@/lib/http";
-import { canManage } from "@/lib/acl";
+import { hasPermission } from "@/lib/acl";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -19,7 +19,7 @@ export async function GET(_request: Request, { params }: Ctx) {
 export async function PUT(request: Request, { params }: Ctx) {
   const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
-  if (!canManage(session.role)) return jsonError("Forbidden", 403);
+  if (!hasPermission(session, "jobs.edit")) return jsonError("Forbidden", 403);
   const { id } = await params;
   const body = await request.json().catch(() => null);
   const parsed = jobInputSchema.safeParse(body);
@@ -38,7 +38,7 @@ export async function PUT(request: Request, { params }: Ctx) {
 export async function PATCH(request: Request, { params }: Ctx) {
   const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
-  if (!canManage(session.role)) return jsonError("Forbidden", 403);
+  if (!hasPermission(session, "jobs.edit")) return jsonError("Forbidden", 403);
   const { id } = await params;
   const body = await request.json().catch(() => null);
   const enabled = body?.enabled;
@@ -54,7 +54,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
 export async function DELETE(_request: Request, { params }: Ctx) {
   const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
-  if (!canManage(session.role)) return jsonError("Forbidden", 403);
+  if (!hasPermission(session, "jobs.delete")) return jsonError("Forbidden", 403);
   const { id } = await params;
   const ok = await deleteJob(session.tid, id);
   if (!ok) return jsonError("Job not found", 404);

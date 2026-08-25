@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import {
   SESSION_COOKIE,
   signSession,
@@ -9,11 +10,26 @@ import {
 
 export { SESSION_COOKIE, signSession, verifySessionToken, type SessionPayload };
 
+async function hydrateSession(session: SessionPayload): Promise<SessionPayload | null> {
+  if (!session.tid) return session;
+  if (session.platform) return { ...session, grants: session.grants ?? "" };
+  const membership = await prisma.membership.findUnique({
+    where: { userId_tenantId: { userId: session.sub, tenantId: session.tid } },
+  });
+  if (!membership) {
+    await clearSessionCookie();
+    return null;
+  }
+  return { ...session, role: membership.role, grants: membership.grants };
+}
+
 export async function getSession(): Promise<SessionPayload | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  return verifySessionToken(token);
+  const session = await verifySessionToken(token);
+  if (!session) return null;
+  return hydrateSession(session);
 }
 
 export async function requireSession(): Promise<SessionPayload> {

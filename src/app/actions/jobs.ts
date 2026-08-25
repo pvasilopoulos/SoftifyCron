@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { requireTenantSession } from "@/lib/session";
 import { createJob, updateJob } from "@/lib/jobs";
 import { jobInputSchema } from "@/lib/validators";
-import { canManage } from "@/lib/acl";
+import { hasPermission } from "@/lib/acl";
 
 function readHeaders(raw: string) {
   const trimmed = raw.trim();
@@ -28,7 +28,7 @@ export async function saveJobAction(
   formData: FormData,
 ) {
   const session = await requireTenantSession();
-  if (!canManage(session.role)) return { error: "Members cannot edit jobs" };
+  if (!hasPermission(session, "jobs.edit")) return { error: "You cannot edit jobs" };
 
   let headers: Record<string, string> | null = null;
   try {

@@ -63,7 +63,7 @@ export function SettingsForm({
           {pending ? "Saving…" : "Save workspace"}
         </button>
       ) : (
-        <p className="text-sm text-ink-dim">Only owners and admins can edit this.</p>
+        <p className="text-sm text-ink-dim">You do not have permission to edit workspace settings.</p>
       )}
       {status ? <p className="text-sm text-ink-dim">{status}</p> : null}
     </form>

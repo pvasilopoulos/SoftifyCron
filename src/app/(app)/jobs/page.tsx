@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { listJobs } from "@/lib/jobs";
 import { listGroups } from "@/lib/groups";
-import { canManage, JOB_TYPES } from "@/lib/acl";
+import { jobAccess, JOB_TYPES } from "@/lib/acl";
 import { JobsBoard } from "@/components/jobs-board";
 import type { JobType } from "@prisma/client";
 
@@ -25,7 +25,7 @@ export default async function JobsPage({
   const state = STATES.includes(params.state as (typeof STATES)[number])
     ? params.state
     : "";
-  const manage = canManage(session.role);
+  const access = jobAccess(session);
 
   const [jobs, groups] = await Promise.all([
     listJobs(session.tid, {
@@ -44,7 +44,7 @@ export default async function JobsPage({
           <p className="text-xs uppercase tracking-[0.2em] text-gold">Scheduler</p>
           <h1 className="mt-2 font-display text-4xl italic">Jobs</h1>
         </div>
-        {manage ? (
+        {access.edit ? (
           <Link href="/jobs/new" className="btn btn-gold hidden sm:inline-flex">
             New job
           </Link>
@@ -54,11 +54,11 @@ export default async function JobsPage({
       <JobsBoard
         jobs={jobs}
         groups={groups}
-        canManage={manage}
+        access={access}
         query={{ q, group, type, state: state ?? "" }}
       />
 
-      {manage ? (
+      {access.edit ? (
         <Link href="/jobs/new" className="fab" aria-label="New job">
           +
         </Link>

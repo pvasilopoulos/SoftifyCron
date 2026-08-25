@@ -3,7 +3,7 @@ import { getTenantSession } from "@/lib/session";
 import { createGroup, deleteGroup, listGroups, updateGroup } from "@/lib/groups";
 import { groupInputSchema } from "@/lib/validators";
 import { jsonError, zodError } from "@/lib/http";
-import { canManage } from "@/lib/acl";
+import { hasPermission } from "@/lib/acl";
 
 export async function GET() {
   const session = await getTenantSession();
@@ -15,7 +15,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
-  if (!canManage(session.role)) return jsonError("Forbidden", 403);
+  if (!hasPermission(session, "jobs.edit")) return jsonError("Forbidden", 403);
   const body = await request.json().catch(() => null);
   const parsed = groupInputSchema.safeParse(body);
   if (!parsed.success) return zodError(parsed.error);
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
-  if (!canManage(session.role)) return jsonError("Forbidden", 403);
+  if (!hasPermission(session, "jobs.edit")) return jsonError("Forbidden", 403);
   const body = await request.json().catch(() => null);
   const id = String(body?.id ?? "");
   const parsed = groupInputSchema.safeParse(body);
@@ -39,7 +39,7 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
-  if (!canManage(session.role)) return jsonError("Forbidden", 403);
+  if (!hasPermission(session, "jobs.edit")) return jsonError("Forbidden", 403);
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
   if (!id) return jsonError("Missing id");

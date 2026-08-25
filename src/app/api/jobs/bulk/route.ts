@@ -4,15 +4,27 @@ import { bulkJobs, getJobForTenant } from "@/lib/jobs";
 import { executeJob } from "@/lib/runner";
 import { bulkSchema } from "@/lib/validators";
 import { jsonError, zodError } from "@/lib/http";
-import { canManage } from "@/lib/acl";
+import { hasPermission } from "@/lib/acl";
 
 export async function POST(request: Request) {
   const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
-  if (!canManage(session.role)) return jsonError("Forbidden", 403);
   const body = await request.json().catch(() => null);
   const parsed = bulkSchema.safeParse(body);
   if (!parsed.success) return zodError(parsed.error);
+  if (parsed.data.action === "delete" && !hasPermission(session, "jobs.delete")) {
+    return jsonError("Forbidden", 403);
+  }
+  if (parsed.data.action === "run" && !hasPermission(session, "jobs.run")) {
+    return jsonError("Forbidden", 403);
+  }
+  if (
+    parsed.data.action !== "delete" &&
+    parsed.data.action !== "run" &&
+    !hasPermission(session, "jobs.edit")
+  ) {
+    return jsonError("Forbidden", 403);
+  }
 
   try {
     if (parsed.data.action === "run") {

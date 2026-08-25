@@ -78,6 +78,7 @@ model Membership {
   userId    String
   tenantId  String
   role      Role     @default(OWNER)
+  grants    String   @default("") @db.VarChar(500)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)

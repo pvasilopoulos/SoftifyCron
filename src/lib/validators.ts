@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { JOB_TYPES } from "@/lib/acl";
+import { JOB_TYPES, PERMISSIONS } from "@/lib/acl";
 import { HTTP_METHODS } from "@/lib/constants";
 
 export const registerSchema = z.object({
@@ -56,6 +56,18 @@ export const secretInputSchema = z.object({
 export const inviteInputSchema = z.object({
   email: z.email(),
   role: z.enum(["ADMIN", "MEMBER"]).default("MEMBER"),
+});
+
+export const memberCreateSchema = z.object({
+  email: z.email().max(160),
+  name: z.string().trim().min(2).max(80).optional().or(z.literal("")),
+  password: z.string().min(8).max(128).optional().or(z.literal("")),
+  role: z.enum(["ADMIN", "MEMBER"]).default("MEMBER"),
+});
+
+export const memberRoleSchema = z.object({
+  role: z.enum(["OWNER", "ADMIN", "MEMBER"]).optional(),
+  grants: z.array(z.enum(PERMISSIONS)).optional(),
 });
 
 export const customerCreateSchema = z.object({

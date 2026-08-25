@@ -12,19 +12,20 @@ import {
   toggleJobRequest,
 } from "@/lib/job-client";
 import { toast } from "@/components/toaster";
+import type { JobAccess } from "@/lib/acl";
 
 export function JobActions({
   jobId,
   name,
   enabled,
-  canManage,
+  access,
   keepResponse,
   curl,
 }: {
   jobId: string;
   name: string;
   enabled: boolean;
-  canManage: boolean;
+  access: JobAccess;
   keepResponse: boolean;
   curl?: string;
 }) {
@@ -48,22 +49,24 @@ export function JobActions({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button
-        className="btn btn-gold"
-        type="button"
-        disabled={!!busy}
-        onClick={() =>
-          wrap("run", async () => {
-            const data = await runJobRequest(jobId);
-            setMessage(`Finished with ${String(data.status).toLowerCase()}`);
-            toast(`Finished with ${String(data.status).toLowerCase()}`);
-            router.refresh();
-          })
-        }
-      >
-        {busy === "run" ? "Running…" : "Run now"}
-      </button>
-      {canManage && enabled ? (
+      {access.run ? (
+        <button
+          className="btn btn-gold"
+          type="button"
+          disabled={!!busy}
+          onClick={() =>
+            wrap("run", async () => {
+              const data = await runJobRequest(jobId);
+              setMessage(`Finished with ${String(data.status).toLowerCase()}`);
+              toast(`Finished with ${String(data.status).toLowerCase()}`);
+              router.refresh();
+            })
+          }
+        >
+          {busy === "run" ? "Running…" : "Run now"}
+        </button>
+      ) : null}
+      {access.edit && enabled ? (
         <button
           className="btn btn-ghost"
           type="button"
@@ -98,7 +101,7 @@ export function JobActions({
           Copy curl
         </button>
       ) : null}
-      {canManage ? (
+      {access.edit ? (
         <>
           <button
             className="btn btn-ghost"
@@ -127,22 +130,24 @@ export function JobActions({
           >
             {busy === "copy" ? "Copying…" : "Duplicate"}
           </button>
-          <button
-            className="btn btn-danger"
-            type="button"
-            disabled={!!busy}
-            onClick={() =>
-              wrap("delete", async () => {
-                if (!confirmDeleteJob(name)) return;
-                await deleteJobRequest(jobId);
-                router.push("/jobs");
-                router.refresh();
-              })
-            }
-          >
-            Delete job
-          </button>
         </>
+      ) : null}
+      {access.delete ? (
+        <button
+          className="btn btn-danger"
+          type="button"
+          disabled={!!busy}
+          onClick={() =>
+            wrap("delete", async () => {
+              if (!confirmDeleteJob(name)) return;
+              await deleteJobRequest(jobId);
+              router.push("/jobs");
+              router.refresh();
+            })
+          }
+        >
+          Delete job
+        </button>
       ) : null}
       {message ? <span className="text-sm text-ink-dim">{message}</span> : null}
     </div>

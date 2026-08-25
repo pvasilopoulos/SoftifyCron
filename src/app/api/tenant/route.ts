@@ -3,6 +3,7 @@ import { getTenantSession, signSession, setSessionCookie } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { tenantUpdateSchema } from "@/lib/validators";
 import { jsonError, zodError } from "@/lib/http";
+import { hasPermission } from "@/lib/acl";
 
 export async function GET() {
   const session = await getTenantSession();
@@ -24,8 +25,8 @@ export async function GET() {
 export async function PUT(request: Request) {
   const session = await getTenantSession();
   if (!session) return jsonError("Unauthorized", 401);
-  if (session.role === "MEMBER") {
-    return jsonError("Only owners and admins can update the workspace", 403);
+  if (!hasPermission(session, "settings.edit")) {
+    return jsonError("You cannot edit workspace settings", 403);
   }
 
   const body = await request.json().catch(() => null);

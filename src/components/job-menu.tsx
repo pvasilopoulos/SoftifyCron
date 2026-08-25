@@ -12,6 +12,7 @@ import {
   toggleJobRequest,
 } from "@/lib/job-client";
 import { toast } from "@/components/toaster";
+import type { JobAccess } from "@/lib/acl";
 
 function Item({
   children,
@@ -44,13 +45,13 @@ export function JobMenu({
   name,
   enabled,
   keepResponse,
-  canManage,
+  access,
 }: {
   jobId: string;
   name: string;
   enabled: boolean;
   keepResponse: boolean;
-  canManage: boolean;
+  access: JobAccess;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -122,10 +123,12 @@ export function JobMenu({
               View response
             </Link>
           ) : null}
-          <Item disabled={busy} onClick={() => run(async () => { await runJobRequest(jobId); toast("Run finished"); })}>
-            Run now
-          </Item>
-          {canManage && enabled ? (
+          {access.run ? (
+            <Item disabled={busy} onClick={() => run(async () => { await runJobRequest(jobId); toast("Run finished"); })}>
+              Run now
+            </Item>
+          ) : null}
+          {access.edit && enabled ? (
             <Item
               disabled={busy}
               onClick={() =>
@@ -138,7 +141,7 @@ export function JobMenu({
               Skip next
             </Item>
           ) : null}
-          {canManage ? (
+          {access.edit ? (
             <>
               <div className="my-1 border-t border-line" />
               <Link
@@ -170,6 +173,10 @@ export function JobMenu({
               >
                 Duplicate
               </Item>
+            </>
+          ) : null}
+          {access.delete ? (
+            <>
               <div className="my-1 border-t border-line" />
               <Item
                 danger
