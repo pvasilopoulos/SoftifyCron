@@ -34,20 +34,38 @@ type Invite = {
   expiresAt: Date | string;
 };
 
+type PeopleEndpoints = {
+  members: string;
+  member: (id: string) => string;
+  invites: string;
+  invite: (id: string) => string;
+};
+
+const DEFAULT_ENDPOINTS: PeopleEndpoints = {
+  members: "/api/members",
+  member: (id) => `/api/members/${id}`,
+  invites: "/api/invites",
+  invite: (id) => `/api/invites?id=${id}`,
+};
+
 export function PeopleBoard({
   members,
   invites,
   canManagePeople,
   actorRole,
+  allowOwnerRole = false,
+  endpoints = DEFAULT_ENDPOINTS,
 }: {
   members: Member[];
   invites: Invite[];
   canManagePeople: boolean;
   actorRole: string;
+  allowOwnerRole?: boolean;
+  endpoints?: PeopleEndpoints;
 }) {
   const router = useRouter();
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
-  const [mode, setMode] = useState<"invite" | "create">("invite");
+  const [mode, setMode] = useState<"invite" | "create" | "attach">("invite");
   const [busy, setBusy] = useState<string | null>(null);
 
   function refresh() {
@@ -55,7 +73,7 @@ export function PeopleBoard({
   }
 
   async function patchMember(id: string, body: object) {
-    const response = await fetch(`/api/members/${id}`, {
+    const response = await fetch(endpoints.member(id), {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
@@ -98,7 +116,7 @@ export function PeopleBoard({
     if (!confirm(label)) return;
     setBusy(member.id);
     try {
-      const response = await fetch(`/api/members/${member.id}`, { method: "DELETE" });
+      const response = await fetch(endpoints.member(member.id), { method: "DELETE" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Remove failed");
       if (data.left) {
@@ -121,7 +139,7 @@ export function PeopleBoard({
     setBusy("add");
     try {
       if (mode === "invite") {
-        const response = await fetch("/api/invites", {
+        const response = await fetch(endpoints.invites, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ email: data.email, role: data.role }),
@@ -132,7 +150,7 @@ export function PeopleBoard({
         form.reset();
         toast("Invite created — copy the link");
       } else {
-        const response = await fetch("/api/members", {
+        const response = await fetch(endpoints.members, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -156,7 +174,7 @@ export function PeopleBoard({
   }
 
   async function revoke(id: string) {
-    await fetch(`/api/invites?id=${id}`, { method: "DELETE" });
+    await fetch(endpoints.invite(id), { method: "DELETE" });
     refresh();
   }
 
@@ -265,6 +283,13 @@ export function PeopleBoard({
             >
               Create login
             </button>
+            <button
+              className={`btn ${mode === "attach" ? "btn-gold" : "btn-ghost"}`}
+              type="button"
+              onClick={() => setMode("attach")}
+            >
+              Add existing
+            </button>
           </div>
           <form className="mt-5 grid gap-3 sm:grid-cols-2" onSubmit={onInvite}>
             {mode === "create" ? (
@@ -276,10 +301,11 @@ export function PeopleBoard({
             ) : null}
             <select className="field" name="role" defaultValue="MEMBER">
               <option value="MEMBER">Member</option>
-              {actorRole === "OWNER" ? <option value="ADMIN">Admin</option> : null}
+              {actorRole === "OWNER" || allowOwnerRole ? <option value="ADMIN">Admin</option> : null}
+              {allowOwnerRole ? <option value="OWNER">Owner</option> : null}
             </select>
             <button className="btn btn-gold sm:col-span-2 sm:w-fit" type="submit" disabled={busy === "add"}>
-              {mode === "invite" ? "Send invite" : "Add teammate"}
+              {mode === "invite" ? "Send invite" : mode === "attach" ? "Add existing" : "Create login"}
             </button>
           </form>
           {inviteUrl ? (

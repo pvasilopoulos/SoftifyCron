@@ -268,3 +268,179 @@ html[data-density="compact"] .card { border-radius: 1rem; }
 html[data-density="compact"] main { padding-top: 1.25rem; padding-bottom: 1.25rem; }
 
 tr.row-hover:hover { background: color-mix(in srgb, var(--gold) 6%, transparent); }
+
+.app-frame {
+  min-height: 100dvh;
+}
+@media (min-width: 1024px) {
+  .app-frame {
+    display: grid;
+    grid-template-columns: 272px minmax(0, 1fr);
+    height: 100dvh;
+    overflow: hidden;
+  }
+}
+.app-rail {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .app-rail {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+    border-right: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg-elev) 92%, transparent);
+    padding: 1.4rem 1.1rem 1.1rem;
+  }
+}
+.app-stage {
+  min-width: 0;
+  padding-bottom: 6rem;
+}
+@media (min-width: 1024px) {
+  .app-stage {
+    height: 100dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: 0;
+  }
+}
+.rail-link {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  border-radius: 0.95rem;
+  padding: 0.62rem 0.75rem;
+  font-size: 0.9rem;
+  color: var(--ink-dim);
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.rail-link:hover { background: var(--bg-mute); color: var(--ink); }
+.rail-link.is-on { background: color-mix(in srgb, var(--gold) 12%, transparent); color: var(--gold-2); }
+.rail-switch {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--bg-mute);
+  color: inherit;
+  border-radius: 1.1rem;
+  padding: 0.7rem 0.8rem;
+  text-align: left;
+}
+.rail-switch:hover { border-color: color-mix(in srgb, var(--gold) 40%, var(--line)); }
+.rail-menu {
+  position: absolute;
+  z-index: 50;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  max-height: 18rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  border-radius: 1.1rem;
+  padding: 0.35rem;
+  box-shadow: var(--shadow);
+}
+.rail-menu.is-compact {
+  left: auto;
+  right: 0;
+  width: 16rem;
+}
+.rail-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  border-radius: 0.8rem;
+  padding: 0.65rem 0.7rem;
+  text-align: left;
+  font-size: 0.875rem;
+}
+.rail-menu-item:hover,
+.rail-menu-item.is-on { background: var(--bg-mute); }
+.rail-menu-item .hint { color: var(--ink-dim); font-size: 0.7rem; }
+.rail-avatar {
+  display: inline-flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--gold) 18%, var(--bg-mute));
+  color: var(--gold-2);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-dim);
+}
+.menu-trigger:hover,
+.menu-trigger[aria-expanded="true"] {
+  background: var(--bg-mute);
+  color: var(--ink);
+}
+.menu-pop {
+  position: absolute;
+  right: 0;
+  z-index: 40;
+  margin-top: 0.4rem;
+  min-width: 13.5rem;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  border-radius: 1rem;
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+.menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.7rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.875rem;
+  text-align: left;
+  text-decoration: none;
+}
+.menu-item:hover { background: var(--bg-mute); }
+.menu-item:disabled { opacity: 0.45; }
+.menu-item.is-danger { color: var(--rose); }
+.menu-item.is-danger:hover { background: color-mix(in srgb, var(--rose) 10%, transparent); }
+.menu-ico {
+  display: inline-flex;
+  width: 1rem;
+  flex: none;
+  color: var(--ink-dim);
+}
+.menu-item.is-danger .menu-ico { color: var(--rose); }
+.menu-sep {
+  height: 1px;
+  margin: 0.3rem 0.4rem;
+  background: var(--line);
+}

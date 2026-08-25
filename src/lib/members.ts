@@ -63,12 +63,12 @@ export async function membersForClient(
     .sort((a, b) => rank[a.role] - rank[b.role] || a.name.localeCompare(b.name, "en"));
 }
 
-export async function addExistingOrCreateMember(
+export async function provisionTenantPerson(
   tenantId: string,
-  session: { sub: string; role: Role; platform?: boolean },
   input: { email: string; name?: string; password?: string; role: Role },
 ) {
-  assertCanInvite(actorFrom(session), input.role);
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
+  if (!tenant) throw new Error("Tenant not found");
   const email = input.email.trim().toLowerCase();
   const existing = await prisma.user.findUnique({
     where: { email },
@@ -111,6 +111,15 @@ export async function addExistingOrCreateMember(
   const membership = user.memberships[0];
   if (!membership) throw new Error("Could not add teammate");
   return { membership, createdUser: true };
+}
+
+export async function addExistingOrCreateMember(
+  tenantId: string,
+  session: { sub: string; role: Role; platform?: boolean },
+  input: { email: string; name?: string; password?: string; role: Role },
+) {
+  assertCanInvite(actorFrom(session), input.role);
+  return provisionTenantPerson(tenantId, input);
 }
 
 export async function changeMemberRole(
@@ -186,5 +195,12 @@ export async function listMyWorkspaces(userId: string) {
     where: { userId },
     include: { tenant: { select: { id: true, name: true, slug: true } } },
     orderBy: { createdAt: "asc" },
+  });
+}
+
+export async function getWorkspaceForUser(userId: string, tenantId: string) {
+  return prisma.membership.findFirst({
+    where: { userId, tenantId },
+    include: { tenant: true },
   });
 }

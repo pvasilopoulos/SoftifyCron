@@ -14,27 +14,37 @@ import {
 import { toast } from "@/components/toaster";
 import type { JobAccess } from "@/lib/acl";
 
+function Icon({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="menu-ico" aria-hidden>
+      {children}
+    </span>
+  );
+}
+
 function Item({
   children,
   onClick,
   disabled,
   danger,
+  href,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   danger?: boolean;
+  href?: string;
 }) {
+  const className = `menu-item${danger ? " is-danger" : ""}`;
+  if (href) {
+    return (
+      <Link href={href} role="menuitem" className={className} onClick={onClick}>
+        {children}
+      </Link>
+    );
+  }
   return (
-    <button
-      type="button"
-      role="menuitem"
-      disabled={disabled}
-      onClick={onClick}
-      className={`block w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-bg-mute disabled:opacity-50 ${
-        danger ? "text-rose" : ""
-      }`}
-    >
+    <button type="button" role="menuitem" disabled={disabled} onClick={onClick} className={className}>
       {children}
     </button>
   );
@@ -89,42 +99,59 @@ export function JobMenu({
   }
 
   return (
-    <div className="relative" ref={root}>
+    <div className="relative text-left" ref={root}>
       <button
-        className="btn btn-ghost min-h-10 px-3"
+        className="menu-trigger"
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-labelledby={labelId}
         onClick={() => setOpen((value) => !value)}
       >
-        <span id={labelId}>Menu</span>
+        <span id={labelId} className="sr-only">
+          Job menu
+        </span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+          <circle cx="12" cy="5" r="1.7" />
+          <circle cx="12" cy="12" r="1.7" />
+          <circle cx="12" cy="19" r="1.7" />
+        </svg>
       </button>
       {open ? (
-        <div
-          role="menu"
-          className="absolute right-0 z-40 mt-2 min-w-48 rounded-2xl border border-line bg-bg-elev p-2 shadow-lg"
-        >
-          <Link
-            href={`/jobs/${jobId}`}
-            role="menuitem"
-            className="block rounded-xl px-3 py-2 text-sm hover:bg-bg-mute"
-            onClick={() => setOpen(false)}
-          >
+        <div role="menu" className="menu-pop">
+          <Item href={`/jobs/${jobId}`} onClick={() => setOpen(false)}>
+            <Icon>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Icon>
             Open
-          </Link>
+          </Item>
           {keepResponse ? (
-            <Link
-              href={`/jobs/${jobId}/response`}
-              role="menuitem"
-              className="block rounded-xl px-3 py-2 text-sm hover:bg-bg-mute"
-              onClick={() => setOpen(false)}
-            >
+            <Item href={`/jobs/${jobId}/response`} onClick={() => setOpen(false)}>
+              <Icon>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 7h16M4 12h10M4 17h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              </Icon>
               View response
-            </Link>
+            </Item>
           ) : null}
           {access.run ? (
-            <Item disabled={busy} onClick={() => run(async () => { await runJobRequest(jobId); toast("Run finished"); })}>
+            <Item
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  await runJobRequest(jobId);
+                  toast("Run finished");
+                })
+              }
+            >
+              <Icon>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M8 6.5v11l10-5.5-10-5.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                </svg>
+              </Icon>
               Run now
             </Item>
           ) : null}
@@ -138,20 +165,25 @@ export function JobMenu({
                 })
               }
             >
+              <Icon>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M7 7v10M11 7l8 5-8 5V7Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </Icon>
               Skip next
             </Item>
           ) : null}
           {access.edit ? (
             <>
-              <div className="my-1 border-t border-line" />
-              <Link
-                href={`/jobs/${jobId}/edit`}
-                role="menuitem"
-                className="block rounded-xl px-3 py-2 text-sm hover:bg-bg-mute"
-                onClick={() => setOpen(false)}
-              >
+              <div className="menu-sep" />
+              <Item href={`/jobs/${jobId}/edit`} onClick={() => setOpen(false)}>
+                <Icon>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M4 20h4l11-11-4-4L4 16v4Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                  </svg>
+                </Icon>
                 Edit
-              </Link>
+              </Item>
               <Item
                 disabled={busy}
                 onClick={() =>
@@ -160,6 +192,18 @@ export function JobMenu({
                   })
                 }
               >
+                <Icon>
+                  {enabled ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <rect x="7" y="6" width="3.2" height="12" rx="1" fill="currentColor" />
+                      <rect x="13.8" y="6" width="3.2" height="12" rx="1" fill="currentColor" />
+                    </svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M8 6.5v11l10-5.5-10-5.5Z" fill="currentColor" />
+                    </svg>
+                  )}
+                </Icon>
                 {enabled ? "Pause" : "Resume"}
               </Item>
               <Item
@@ -171,13 +215,19 @@ export function JobMenu({
                   })
                 }
               >
+                <Icon>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <rect x="8" y="8" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.8" />
+                    <path d="M6 16V7a2 2 0 0 1 2-2h9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </Icon>
                 Duplicate
               </Item>
             </>
           ) : null}
           {access.delete ? (
             <>
-              <div className="my-1 border-t border-line" />
+              <div className="menu-sep" />
               <Item
                 danger
                 disabled={busy}
@@ -188,6 +238,11 @@ export function JobMenu({
                   })
                 }
               >
+                <Icon>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M5 7h14M10 7V5h4v2M8 7l1 12h6l1-12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Icon>
                 Delete job
               </Item>
             </>

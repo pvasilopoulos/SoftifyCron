@@ -1,6 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { hashPassword, uniqueSlug } from "@/lib/auth";
 import { ensureDefaultGroups } from "@/lib/groups";
+import { provisionTenantPerson } from "@/lib/members";
+import { assertOwnerProvision } from "./admin-rules";
+import type { Role } from "@prisma/client";
+
+export { assertOwnerProvision };
+
+export async function listTenantOptions() {
+  return prisma.tenant.findMany({
+    select: { id: true, name: true, slug: true },
+    orderBy: { name: "asc" },
+  });
+}
 
 export async function listCustomers() {
   const tenants = await prisma.tenant.findMany({
@@ -28,30 +40,55 @@ export async function listCustomers() {
 
 export async function createCustomer(input: {
   name: string;
-  ownerName: string;
+  ownerMode: "create" | "attach";
+  ownerName?: string;
   ownerEmail: string;
-  ownerPassword: string;
+  ownerPassword?: string;
   timezone: string;
 }) {
   const email = input.ownerEmail.trim().toLowerCase();
   const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) throw new Error("An account with that email already exists");
+  assertOwnerProvision({ mode: input.ownerMode, existing });
   const slug = await uniqueSlug(input.name);
-  const passwordHash = await hashPassword(input.ownerPassword);
+
   const created = await prisma.$transaction(async (tx) => {
-    const user = await tx.user.create({
-      data: { email, name: input.ownerName.trim(), passwordHash },
-    });
     const tenant = await tx.tenant.create({
       data: { name: input.name.trim(), slug, timezone: input.timezone },
     });
+    let userId: string;
+    if (existing) {
+      userId = existing.id;
+    } else {
+      const user = await tx.user.create({
+        data: {
+          email,
+          name: (input.ownerName ?? "").trim(),
+          passwordHash: await hashPassword(input.ownerPassword ?? ""),
+        },
+      });
+      userId = user.id;
+    }
     await tx.membership.create({
-      data: { userId: user.id, tenantId: tenant.id, role: "OWNER" },
+      data: { userId, tenantId: tenant.id, role: "OWNER" },
+    });
+    const user = await tx.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { id: true, email: true, name: true },
     });
     return { user, tenant };
   });
   await ensureDefaultGroups(created.tenant.id);
   return created;
+}
+
+export async function updateCustomer(
+  tenantId: string,
+  input: { name: string; timezone: string },
+) {
+  return prisma.tenant.update({
+    where: { id: tenantId },
+    data: { name: input.name.trim(), timezone: input.timezone },
+  });
 }
 
 export async function getCustomer(tenantId: string) {
@@ -60,9 +97,60 @@ export async function getCustomer(tenantId: string) {
     include: {
       _count: { select: { jobs: true, memberships: true, runs: true } },
       memberships: {
-        include: { user: { select: { name: true, email: true } } },
+        include: { user: { select: { id: true, name: true, email: true } } },
         orderBy: { createdAt: "asc" },
       },
     },
+  });
+}
+
+export async function listPlatformUsers(q?: string) {
+  const needle = q?.trim();
+  return prisma.user.findMany({
+    where: {
+      platformRole: "USER",
+      ...(needle
+        ? {
+            OR: [
+              { email: { contains: needle } },
+              { name: { contains: needle } },
+            ],
+          }
+        : {}),
+    },
+    include: {
+      memberships: {
+        include: { tenant: { select: { id: true, name: true, slug: true } } },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function getPlatformUser(userId: string) {
+  return prisma.user.findFirst({
+    where: { id: userId, platformRole: "USER" },
+    include: {
+      memberships: {
+        include: { tenant: { select: { id: true, name: true, slug: true } } },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+}
+
+export async function createPlatformUser(input: {
+  email: string;
+  name?: string;
+  password?: string;
+  tenantId: string;
+  role: Role;
+}) {
+  return provisionTenantPerson(input.tenantId, {
+    email: input.email,
+    name: input.name,
+    password: input.password,
+    role: input.role,
   });
 }

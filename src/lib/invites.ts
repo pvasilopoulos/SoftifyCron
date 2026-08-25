@@ -22,7 +22,7 @@ export async function createInvite(
     data: {
       tenantId,
       email: normalized,
-      role: role === "OWNER" ? "ADMIN" : role,
+      role,
       tokenHash: hashToken(token),
       expiresAt: new Date(Date.now() + 7 * DAY),
     },

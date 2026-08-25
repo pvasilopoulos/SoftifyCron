@@ -70,12 +70,41 @@ export const memberRoleSchema = z.object({
   grants: z.array(z.enum(PERMISSIONS)).optional(),
 });
 
-export const customerCreateSchema = z.object({
-  name: z.string().trim().min(2).max(80),
-  ownerName: z.string().trim().min(2).max(80),
-  ownerEmail: z.email().max(160),
-  ownerPassword: z.string().min(8).max(128),
-  timezone: z.string().trim().min(1).max(80).default("Europe/Athens"),
+export const customerCreateSchema = z
+  .object({
+    name: z.string().trim().min(2).max(80),
+    ownerMode: z.enum(["create", "attach"]).default("create"),
+    ownerName: z.string().trim().min(2).max(80).optional().or(z.literal("")),
+    ownerEmail: z.email().max(160),
+    ownerPassword: z.string().min(8).max(128).optional().or(z.literal("")),
+    timezone: z.string().trim().min(1).max(80).default("Europe/Athens"),
+  })
+  .superRefine((value, ctx) => {
+    if (value.ownerMode === "create") {
+      if (!value.ownerName || value.ownerName.length < 2) {
+        ctx.addIssue({ code: "custom", message: "Owner name is required", path: ["ownerName"] });
+      }
+      if (!value.ownerPassword || value.ownerPassword.length < 8) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Owner password must be at least 8 characters",
+          path: ["ownerPassword"],
+        });
+      }
+    }
+  });
+
+export const platformPersonSchema = z.object({
+  email: z.email().max(160),
+  name: z.string().trim().min(2).max(80).optional().or(z.literal("")),
+  password: z.string().min(8).max(128).optional().or(z.literal("")),
+  tenantId: z.string().min(1),
+  role: z.enum(["OWNER", "ADMIN", "MEMBER"]).default("MEMBER"),
+});
+
+export const platformInviteSchema = z.object({
+  email: z.email(),
+  role: z.enum(["OWNER", "ADMIN", "MEMBER"]).default("MEMBER"),
 });
 
 export const bulkSchema = z.object({

@@ -1,10 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { logoutAction } from "@/app/actions/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { SessionPayload } from "@/lib/session";
+
+const NAV = [
+  { href: "/admin", label: "Tenants", match: (path: string) => path === "/admin" || path.startsWith("/admin/tenants") },
+  { href: "/admin/users", label: "Users", match: (path: string) => path.startsWith("/admin/users") },
+];
 
 export function AdminShell({
   session,
@@ -13,20 +19,39 @@ export function AdminShell({
   session: SessionPayload;
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+
   return (
-    <div className="relative min-h-dvh lg:grid lg:grid-cols-[240px_1fr]">
-      <aside className="hidden border-r border-line bg-bg-elev/90 px-6 py-8 lg:flex lg:flex-col">
+    <div className="app-frame">
+      <aside className="app-rail">
         <Link href="/admin">
           <Logo />
         </Link>
         <p className="mt-8 text-[11px] uppercase tracking-[0.18em] text-ink-dim">Platform</p>
         <p className="mt-1 font-display text-xl">All customers</p>
-        <nav className="mt-8 flex flex-col gap-1">
-          <Link href="/admin" className="rounded-2xl bg-gold/12 px-3 py-3 text-sm text-gold-2">
-            Customers
-          </Link>
+        <nav className="mt-6 flex flex-col gap-1">
+          {NAV.map((item) => {
+            const active = item.match(pathname);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`rail-link${active ? " is-on" : ""}`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
-        <div className="mt-auto border-t border-line pt-6">
+        <div className="mt-4 space-y-2">
+          <Link href="/admin/tenants/new" className="btn btn-gold w-full">
+            New tenant
+          </Link>
+          <Link href="/admin/users/new" className="btn btn-ghost w-full">
+            New user
+          </Link>
+        </div>
+        <div className="mt-auto border-t border-line pt-4">
           <p className="truncate text-sm">{session.name}</p>
           <p className="truncate text-xs text-ink-dim">{session.email}</p>
           <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-gold">superadmin</p>
@@ -40,7 +65,7 @@ export function AdminShell({
           </div>
         </div>
       </aside>
-      <div className="min-w-0">
+      <div className="app-stage">
         <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-bg/80 px-4 py-3 backdrop-blur-xl lg:hidden">
           <Link href="/admin">
             <Logo />
@@ -48,11 +73,27 @@ export function AdminShell({
           <ThemeToggle compact />
         </header>
         <header className="hidden items-center justify-between border-b border-line px-10 py-4 lg:flex">
-          <p className="text-sm text-ink-dim">Platform · every customer</p>
+          <p className="text-sm text-ink-dim">Platform · tenants and users</p>
           <ThemeToggle />
         </header>
         <main className="px-4 py-6 lg:px-10 lg:py-10">{children}</main>
       </div>
+      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-2 border-t border-line bg-bg-elev/95 px-2 pt-2 backdrop-blur-xl lg:hidden">
+        {NAV.map((item) => {
+          const active = item.match(pathname);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex min-h-12 items-center justify-center text-sm ${
+                active ? "text-gold" : "text-ink-dim"
+              }`}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

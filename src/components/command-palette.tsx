@@ -23,7 +23,10 @@ const STATIC: Hit[] = [
   { href: "/runs", label: "Runs" },
   { href: "/settings", label: "Workspace settings" },
   { href: "/settings#people", label: "People and roles" },
-  { href: "/admin", label: "Customers" },
+  { href: "/admin", label: "Tenants" },
+  { href: "/admin/tenants/new", label: "New tenant" },
+  { href: "/admin/users", label: "Users" },
+  { href: "/admin/users/new", label: "New user" },
 ];
 
 function cycleTheme() {
@@ -48,6 +51,12 @@ export function CommandPalette() {
   const [openedOn, setOpenedOn] = useState(pathname);
 
   useEffect(() => {
+    function open() {
+      setQ("");
+      setIndex(0);
+      setOpenedOn(pathname);
+      setOpen(true);
+    }
     function onKey(event: KeyboardEvent) {
       const meta = event.metaKey || event.ctrlKey;
       if (meta && event.key.toLowerCase() === "k") {
@@ -67,7 +76,11 @@ export function CommandPalette() {
       }
     }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("sc-open-palette", open);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("sc-open-palette", open);
+    };
   }, [openedOn, pathname]);
 
   useEffect(() => {
