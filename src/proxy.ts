@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/session-token";
+import {
+  SESSION_COOKIE,
+  homePath,
+  verifySessionToken,
+} from "@/lib/session-token";
 
 const APP_PREFIXES = ["/dashboard", "/jobs", "/runs", "/settings"];
 
@@ -45,13 +49,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/admin", request.url));
   }
 
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL(homePath(session), request.url));
+  }
+
   if (isAuthPath(pathname) && session) {
     const invite = request.nextUrl.searchParams.get("invite");
     if (invite) {
       return NextResponse.redirect(new URL(`/invite/${invite}`, request.url));
     }
-    const home = session.platform && !session.tid ? "/admin" : "/dashboard";
-    return NextResponse.redirect(new URL(home, request.url));
+    return NextResponse.redirect(new URL(homePath(session), request.url));
   }
 
   return NextResponse.next();
@@ -59,6 +66,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
     "/dashboard/:path*",
     "/jobs/:path*",
     "/runs/:path*",

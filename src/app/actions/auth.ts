@@ -6,6 +6,7 @@ import { acceptInvite } from "@/lib/invites";
 import {
   clearSessionCookie,
   getSession,
+  homePath,
   setSessionCookie,
   signSession,
 } from "@/lib/session";
@@ -30,7 +31,7 @@ export async function loginAction(
       String(formData.get("invite") ?? "") || null,
     );
     await setSessionCookie(token);
-    if (payload.platform && !payload.tid) next = "/admin";
+    next = homePath(payload);
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Login failed" };
   }
@@ -64,7 +65,7 @@ export async function registerAction(
 
 export async function logoutAction() {
   await clearSessionCookie();
-  redirect("/");
+  redirect("/login");
 }
 
 export async function acceptInviteAction(formData: FormData) {

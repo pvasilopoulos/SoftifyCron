@@ -16,6 +16,15 @@ export type SessionPayload = {
   rolePerms?: string;
 };
 
+/** Where a signed-in user should land; guests go to /login. */
+export function homePath(
+  session: Pick<SessionPayload, "platform" | "tid"> | null,
+): string {
+  if (!session) return "/login";
+  if (session.platform && !session.tid) return "/admin";
+  return "/dashboard";
+}
+
 function secretKey() {
   const secret = process.env.AUTH_SECRET;
   if (!secret) {

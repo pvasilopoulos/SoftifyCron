@@ -3,12 +3,19 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import {
   SESSION_COOKIE,
+  homePath,
   signSession,
   verifySessionToken,
   type SessionPayload,
 } from "@/lib/session-token";
 
-export { SESSION_COOKIE, signSession, verifySessionToken, type SessionPayload };
+export {
+  SESSION_COOKIE,
+  homePath,
+  signSession,
+  verifySessionToken,
+  type SessionPayload,
+};
 
 async function hydrateSession(session: SessionPayload): Promise<SessionPayload | null> {
   const user = await prisma.user.findUnique({
