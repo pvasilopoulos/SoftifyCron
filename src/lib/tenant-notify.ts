@@ -19,7 +19,7 @@ import {
   parseEmailsStrict,
   parseSmtpPort,
 } from "@/lib/notify-policy";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 export type TenantNotifyInput = {
   notifyEmail?: string;
@@ -43,6 +43,15 @@ export type TenantNotifyInput = {
   quietHoursEnd?: string;
   quietHoursAllow?: string | string[];
   notifyCooldownSec?: number | string;
+  runRetentionDays?: number | string;
+  bodyKeepLast?: number | string;
+  maxConcurrent?: number | string;
+  catchUpMissed?: boolean;
+  skipGreekHolidays?: boolean;
+  escalateEmail?: string;
+  escalateAfter?: number | string;
+  statusPageEnabled?: boolean;
+  statusPageSlug?: string;
 };
 
 export function smtpFromTenant(tenant: {
@@ -95,6 +104,15 @@ export function publicNotify(
     quietHoursEnd?: string;
     quietHoursAllow?: string;
     notifyCooldownSec?: number;
+    runRetentionDays?: number;
+    bodyKeepLast?: number;
+    maxConcurrent?: number;
+    catchUpMissed?: boolean;
+    skipGreekHolidays?: boolean;
+    escalateEmail?: string | null;
+    escalateAfter?: number;
+    statusPageEnabled?: boolean;
+    statusPageSlug?: string | null;
   },
   extra?: { signingSecret?: string },
 ) {
@@ -118,6 +136,15 @@ export function publicNotify(
     quietHoursEnd: tenant.quietHoursEnd ?? "",
     quietHoursAllow: tenant.quietHoursAllow ?? DEFAULT_QUIET_ALLOW,
     notifyCooldownSec: tenant.notifyCooldownSec ?? 300,
+    runRetentionDays: tenant.runRetentionDays ?? 30,
+    bodyKeepLast: tenant.bodyKeepLast ?? 20,
+    maxConcurrent: tenant.maxConcurrent ?? 4,
+    catchUpMissed: Boolean(tenant.catchUpMissed),
+    skipGreekHolidays: Boolean(tenant.skipGreekHolidays),
+    escalateEmail: tenant.escalateEmail ?? "",
+    escalateAfter: tenant.escalateAfter ?? 3,
+    statusPageEnabled: Boolean(tenant.statusPageEnabled),
+    statusPageSlug: tenant.statusPageSlug ?? "",
     signingSecret: extra?.signingSecret,
   };
 }
@@ -200,6 +227,33 @@ export async function updateTenantNotify(tenantId: string, input: TenantNotifyIn
     quietHoursEnd: clockOrEmpty(input.quietHoursEnd, existing.quietHoursEnd),
     quietHoursAllow: serializeNotifyList(input.quietHoursAllow ?? existing.quietHoursAllow),
     notifyCooldownSec: cooldown,
+    runRetentionDays:
+      input.runRetentionDays == null
+        ? existing.runRetentionDays
+        : Math.min(3650, Math.max(0, Math.trunc(Number(input.runRetentionDays) || 0))),
+    bodyKeepLast:
+      input.bodyKeepLast == null
+        ? existing.bodyKeepLast
+        : Math.min(500, Math.max(0, Math.trunc(Number(input.bodyKeepLast) || 0))),
+    maxConcurrent:
+      input.maxConcurrent == null
+        ? existing.maxConcurrent
+        : Math.min(25, Math.max(1, Math.trunc(Number(input.maxConcurrent) || 4))),
+    catchUpMissed: input.catchUpMissed ?? existing.catchUpMissed,
+    skipGreekHolidays: input.skipGreekHolidays ?? existing.skipGreekHolidays,
+    escalateEmail: parseEmailsStrict(input.escalateEmail ?? existing.escalateEmail).join(", ") || null,
+    escalateAfter:
+      input.escalateAfter == null
+        ? existing.escalateAfter
+        : Math.min(100, Math.max(1, Math.trunc(Number(input.escalateAfter) || 3))),
+    statusPageEnabled: input.statusPageEnabled ?? existing.statusPageEnabled,
+    statusPageSlug: (() => {
+      const enabled = input.statusPageEnabled ?? existing.statusPageEnabled;
+      const raw = (input.statusPageSlug ?? existing.statusPageSlug ?? existing.slug).trim().toLowerCase();
+      const slug = raw.replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
+      if (!enabled) return existing.statusPageSlug;
+      return slug || existing.slug;
+    })(),
   };
   if (input.smtpPass?.trim()) {
     data.smtpPassEnc = encryptSecret(input.smtpPass.trim());
@@ -218,17 +272,32 @@ export async function updateTenantNotify(tenantId: string, input: TenantNotifyIn
     data.slackWebhookEnc = encryptSecret(slackUrl);
   }
 
+  if (data.statusPageSlug && typeof data.statusPageSlug === "string") {
+    const taken = await prisma.tenant.findFirst({
+      where: { statusPageSlug: data.statusPageSlug, NOT: { id: tenantId } },
+      select: { id: true },
+    });
+    if (taken) throw new Error("That status page URL is already taken");
+  }
+
   let signingSecret: string | undefined;
   if (input.rotateWebhookSecret || !existing.webhookSignEnc) {
     signingSecret = `whsec_${randomToken()}`;
     data.webhookSignEnc = encryptSecret(signingSecret);
   }
 
-  const tenant = await prisma.tenant.update({
-    where: { id: tenantId },
-    data,
-  });
-  return publicNotify(tenant, { signingSecret });
+  try {
+    const tenant = await prisma.tenant.update({
+      where: { id: tenantId },
+      data,
+    });
+    return publicNotify(tenant, { signingSecret });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new Error("That status page URL is already taken");
+    }
+    throw error;
+  }
 }
 
 export async function testTenantNotify(

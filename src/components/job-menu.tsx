@@ -9,6 +9,7 @@ import {
   duplicateJobRequest,
   runJobRequest,
   skipJobRequest,
+  snoozeJobRequest,
   toggleJobRequest,
 } from "@/lib/job-client";
 import { toast } from "@/components/toaster";
@@ -177,6 +178,77 @@ export function JobMenu({
               </Icon>
               Skip next
             </Item>
+          ) : null}
+          {access.edit ? (
+            <>
+              <Item
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    await snoozeJobRequest(jobId, 1);
+                    toast("Snoozed for 1 hour");
+                  })
+                }
+              >
+                <Icon>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
+                    <path d="M12 8v4.2l2.4 1.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </Icon>
+                Snooze 1 hour
+              </Item>
+              <Item
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    await snoozeJobRequest(jobId, 8);
+                    toast("Snoozed for 8 hours");
+                  })
+                }
+              >
+                <Icon>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
+                    <path d="M12 8v4.2l2.4 1.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </Icon>
+                Snooze 8 hours
+              </Item>
+              <Item
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    await snoozeJobRequest(jobId, 24);
+                    toast("Snoozed for 24 hours");
+                  })
+                }
+              >
+                <Icon>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
+                    <path d="M12 8v4.2l2.4 1.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </Icon>
+                Snooze 24 hours
+              </Item>
+              <Item
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    await snoozeJobRequest(jobId, 0);
+                    toast("Snooze cleared");
+                  })
+                }
+              >
+                <Icon>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </Icon>
+                Clear snooze
+              </Item>
+            </>
           ) : null}
           {access.edit ? (
             <>

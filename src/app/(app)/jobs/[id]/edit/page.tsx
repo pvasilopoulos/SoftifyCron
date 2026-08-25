@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { requireSession } from "@/lib/session";
-import { getJobForTenant } from "@/lib/jobs";
+import { getJobForTenant, listJobOptions } from "@/lib/jobs";
 import { listGroups } from "@/lib/groups";
 import { JobForm } from "@/components/job-form";
 import { hasPermission } from "@/lib/acl";
@@ -15,9 +15,10 @@ export default async function EditJobPage({
   const session = await requireSession();
   if (!hasPermission(session, "jobs.edit")) redirect("/jobs");
   const { id } = await params;
-  const [job, groups] = await Promise.all([
+  const [job, groups, jobs] = await Promise.all([
     getJobForTenant(session.tid, id),
     listGroups(session.tid),
+    listJobOptions(session.tid),
   ]);
   if (!job) notFound();
 
@@ -35,6 +36,7 @@ export default async function EditJobPage({
       <JobForm
         jobId={job.id}
         groups={groups}
+        jobs={jobs}
         initial={{
           name: job.name,
           description: job.description ?? "",
@@ -59,6 +61,17 @@ export default async function EditJobPage({
           responseBoard: job.responseBoard,
           pauseAfter: job.pauseAfter,
           enabled: job.enabled,
+          followUpJobId: job.followUpJobId ?? "",
+          dependsOnJobId: job.dependsOnJobId ?? "",
+          assertStatus: job.assertStatus,
+          assertJsonPath: job.assertJsonPath,
+          assertEquals: job.assertEquals,
+          assertContains: job.assertContains,
+          slowAfterMs: job.slowAfterMs,
+          skipHolidays: job.skipHolidays,
+          skipWeekends: job.skipWeekends,
+          activeHoursStart: job.activeHoursStart,
+          activeHoursEnd: job.activeHoursEnd,
         }}
       />
     </div>

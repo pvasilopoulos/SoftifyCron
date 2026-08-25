@@ -40,7 +40,20 @@ type JobFormValues = {
   responseBoard: boolean;
   pauseAfter: number;
   enabled: boolean;
+  followUpJobId: string;
+  dependsOnJobId: string;
+  assertStatus: number;
+  assertJsonPath: string;
+  assertEquals: string;
+  assertContains: string;
+  slowAfterMs: number;
+  skipHolidays: boolean;
+  skipWeekends: boolean;
+  activeHoursStart: string;
+  activeHoursEnd: string;
 };
+
+type JobOption = { id: string; name: string };
 
 const DEFAULTS: JobFormValues = {
   name: "",
@@ -66,16 +79,29 @@ const DEFAULTS: JobFormValues = {
   responseBoard: false,
   pauseAfter: 0,
   enabled: true,
+  followUpJobId: "",
+  dependsOnJobId: "",
+  assertStatus: 0,
+  assertJsonPath: "",
+  assertEquals: "",
+  assertContains: "",
+  slowAfterMs: 0,
+  skipHolidays: false,
+  skipWeekends: false,
+  activeHoursStart: "",
+  activeHoursEnd: "",
 };
 
 export function JobForm({
   initial,
   jobId,
   groups,
+  jobs = [],
 }: {
   initial?: Partial<JobFormValues>;
   jobId?: string;
   groups: Group[];
+  jobs?: JobOption[];
 }) {
   const values = { ...DEFAULTS, ...initial };
   const [state, formAction, pending] = useActionState(saveJobAction, null);
@@ -222,6 +248,114 @@ export function JobForm({
           />
           <p className="mt-2 text-xs text-ink-dim">0 keeps the job armed forever. 3 pauses it after three consecutive failures.</p>
         </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="field-label">Run after (follow-up)</span>
+            <select className="field" name="followUpJobId" defaultValue={values.followUpJobId}>
+              <option value="">None</option>
+              {jobs
+                .filter((item) => item.id !== jobId)
+                .map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+            </select>
+            <p className="mt-2 text-xs text-ink-dim">Fires that job once after this one succeeds on a schedule or retry.</p>
+          </label>
+          <label className="block">
+            <span className="field-label">Depends on</span>
+            <select className="field" name="dependsOnJobId" defaultValue={values.dependsOnJobId}>
+              <option value="">None</option>
+              {jobs
+                .filter((item) => item.id !== jobId)
+                .map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+            </select>
+            <p className="mt-2 text-xs text-ink-dim">Skip this schedule unless that job’s last run succeeded.</p>
+          </label>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="field-label">Assert HTTP status</span>
+            <input
+              className="field"
+              type="number"
+              name="assertStatus"
+              min={0}
+              max={599}
+              defaultValue={values.assertStatus}
+            />
+            <p className="mt-2 text-xs text-ink-dim">0 skips the check. 200 fails the run unless the response is HTTP 200.</p>
+          </label>
+          <label className="block">
+            <span className="field-label">Slow after ms</span>
+            <input
+              className="field"
+              type="number"
+              name="slowAfterMs"
+              min={0}
+              defaultValue={values.slowAfterMs}
+            />
+            <p className="mt-2 text-xs text-ink-dim">0 uses 3× the median of the last 10 successes (minimum median + 2s).</p>
+          </label>
+        </div>
+        <label className="block">
+          <span className="field-label">Assert JSON path</span>
+          <input
+            className="field mono"
+            name="assertJsonPath"
+            defaultValue={values.assertJsonPath}
+            placeholder="data.0.status"
+          />
+        </label>
+        <label className="block">
+          <span className="field-label">Assert equals</span>
+          <input
+            className="field mono"
+            name="assertEquals"
+            defaultValue={values.assertEquals}
+            placeholder="ok"
+          />
+          <p className="mt-2 text-xs text-ink-dim">Compared to the JSON path value. Leave blank to only require the path to exist.</p>
+        </label>
+        <label className="block">
+          <span className="field-label">Assert contains</span>
+          <input className="field mono" name="assertContains" defaultValue={values.assertContains} />
+          <p className="mt-2 text-xs text-ink-dim">Fails the run if this substring is missing from the body.</p>
+        </label>
+        <label className="flex min-h-12 items-center gap-3">
+          <input type="checkbox" name="skipHolidays" defaultChecked={values.skipHolidays} />
+          <span>Skip Greek public holidays (including Orthodox Easter)</span>
+        </label>
+        <label className="flex min-h-12 items-center gap-3">
+          <input type="checkbox" name="skipWeekends" defaultChecked={values.skipWeekends} />
+          <span>Skip Saturday and Sunday in this job’s timezone</span>
+        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="field-label">Active from</span>
+            <input
+              className="field"
+              type="time"
+              name="activeHoursStart"
+              defaultValue={values.activeHoursStart}
+            />
+          </label>
+          <label className="block">
+            <span className="field-label">Active until</span>
+            <input
+              className="field"
+              type="time"
+              name="activeHoursEnd"
+              defaultValue={values.activeHoursEnd}
+            />
+          </label>
+        </div>
+        <p className="text-xs text-ink-dim">Leave both empty to fire around the clock. Overnight windows wrap (22:00–06:00).</p>
         {state?.error ? <p className="text-sm text-rose">{state.error}</p> : null}
         <button className="btn btn-gold w-full sm:w-auto" type="submit" disabled={pending}>
           {pending ? "Saving…" : jobId ? "Save job" : "Create job"}
@@ -257,6 +391,9 @@ export function JobForm({
         </p>
         <p className="mt-4 text-sm text-ink-dim">
           Configure SMTP, Telegram, and Slack under Workspace → Notifications, then tick events on this job.
+        </p>
+        <p className="mt-4 text-sm text-ink-dim">
+          Follow-up runs the other job once after a successful schedule. Depends-on skips this slot unless that parent last succeeded. Snooze lives on the job menu.
         </p>
       </aside>
     </form>

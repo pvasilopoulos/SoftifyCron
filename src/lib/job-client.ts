@@ -31,6 +31,14 @@ export async function skipJobRequest(jobId: string) {
   return postJson(`/api/jobs/${jobId}/skip`, { method: "POST" });
 }
 
+export async function snoozeJobRequest(jobId: string, hours: number) {
+  return postJson(`/api/jobs/${jobId}/snooze`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ hours }),
+  });
+}
+
 export function confirmDeleteJob(name: string) {
   return confirm(`Delete “${name}” and its run history? This cannot be undone.`);
 }

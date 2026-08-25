@@ -71,6 +71,15 @@ model Tenant {
   quietHoursEnd            String           @default("") @db.VarChar(5)
   quietHoursAllow          String           @default("failure,timeout,blocked,pause,missed") @db.VarChar(120)
   notifyCooldownSec        Int              @default(300)
+  runRetentionDays         Int              @default(30)
+  bodyKeepLast             Int              @default(20)
+  maxConcurrent            Int              @default(4)
+  catchUpMissed            Boolean          @default(false)
+  skipGreekHolidays        Boolean          @default(false)
+  escalateEmail            String?          @db.Text
+  escalateAfter            Int              @default(3)
+  statusPageEnabled        Boolean          @default(false)
+  statusPageSlug           String?          @unique
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
   memberships              Membership[]
@@ -178,6 +187,18 @@ model CronJob {
   keepResponse         Boolean    @default(false)
   responseBoard        Boolean    @default(false)
   pauseAfter           Int        @default(0)
+  snoozeUntil          DateTime?
+  followUpJobId        String?
+  dependsOnJobId       String?
+  assertStatus         Int        @default(0)
+  assertJsonPath       String     @default("") @db.VarChar(240)
+  assertEquals         String     @default("") @db.VarChar(500)
+  assertContains       String     @default("") @db.VarChar(500)
+  slowAfterMs          Int        @default(0)
+  skipHolidays         Boolean    @default(false)
+  skipWeekends         Boolean    @default(false)
+  activeHoursStart     String     @default("") @db.VarChar(5)
+  activeHoursEnd       String     @default("") @db.VarChar(5)
   consecutiveFailures  Int        @default(0)
   lastStatus           RunStatus?
   lastRunAt            DateTime?

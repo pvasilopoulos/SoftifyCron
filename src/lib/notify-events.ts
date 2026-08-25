@@ -6,6 +6,8 @@ export const NOTIFY_EVENTS = [
   "recovery",
   "pause",
   "missed",
+  "slow",
+  "escalate",
 ] as const;
 
 export type NotifyEvent = (typeof NOTIFY_EVENTS)[number];
@@ -19,13 +21,15 @@ export const NOTIFY_EVENT_LABELS: Record<NotifyEvent, { title: string; hint: str
   recovery: { title: "Recovers", hint: "First success after consecutive failures" },
   pause: { title: "Auto-pauses", hint: "Paused after N consecutive failures" },
   missed: { title: "Misses a beat", hint: "Heartbeat went silent, or a schedule fired late" },
+  slow: { title: "Runs slow", hint: "Duration spiked above the job threshold" },
+  escalate: { title: "Escalates", hint: "Still failing after retries / escalate-after count" },
 };
 
-export const DEFAULT_NOTIFY_EMAIL_ON = "failure,timeout,blocked,pause,recovery,missed";
-export const DEFAULT_NOTIFY_TELEGRAM_ON = "failure,timeout,blocked,pause,recovery,missed";
-export const DEFAULT_NOTIFY_WEBHOOK_ON = "failure,timeout,blocked,pause,missed";
-export const DEFAULT_NOTIFY_SLACK_ON = "failure,timeout,blocked,pause,recovery,missed";
-export const DEFAULT_QUIET_ALLOW = "failure,timeout,blocked,pause,missed";
+export const DEFAULT_NOTIFY_EMAIL_ON = "failure,timeout,blocked,pause,recovery,missed,slow,escalate";
+export const DEFAULT_NOTIFY_TELEGRAM_ON = "failure,timeout,blocked,pause,recovery,missed,slow,escalate";
+export const DEFAULT_NOTIFY_WEBHOOK_ON = "failure,timeout,blocked,pause,missed,escalate";
+export const DEFAULT_NOTIFY_SLACK_ON = "failure,timeout,blocked,pause,recovery,missed,slow,escalate";
+export const DEFAULT_QUIET_ALLOW = "failure,timeout,blocked,pause,missed,escalate";
 export const LATE_SCHEDULE_MS = 120_000;
 
 const EVENT_SET = new Set<string>(NOTIFY_EVENTS);
@@ -61,6 +65,8 @@ export function eventsForRun(input: {
   previousFailures: number;
   paused?: boolean;
   lateMs?: number;
+  slow?: boolean;
+  escalate?: boolean;
 }): NotifyEvent[] {
   const events: NotifyEvent[] = [];
   if (input.status === "SUCCESS") {
@@ -78,6 +84,8 @@ export function eventsForRun(input: {
   if ((input.lateMs ?? 0) >= LATE_SCHEDULE_MS && !events.includes("missed")) {
     events.push("missed");
   }
+  if (input.slow) events.push("slow");
+  if (input.escalate) events.push("escalate");
   return events;
 }
 

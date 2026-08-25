@@ -43,6 +43,15 @@ export const tenantNotifySchema = z.object({
   quietHoursEnd: z.string().max(5).optional(),
   quietHoursAllow: z.union([z.array(z.string()), z.string()]).optional(),
   notifyCooldownSec: z.union([z.number(), z.string()]).optional(),
+  runRetentionDays: z.union([z.number(), z.string()]).optional(),
+  bodyKeepLast: z.union([z.number(), z.string()]).optional(),
+  maxConcurrent: z.union([z.number(), z.string()]).optional(),
+  catchUpMissed: z.boolean().optional(),
+  skipGreekHolidays: z.boolean().optional(),
+  escalateEmail: z.string().max(2000).optional(),
+  escalateAfter: z.union([z.number(), z.string()]).optional(),
+  statusPageEnabled: z.boolean().optional(),
+  statusPageSlug: z.string().max(80).optional(),
 });
 
 export const notifyTestSchema = z.object({
@@ -113,6 +122,17 @@ export const jobInputSchema = z.object({
   responseBoard: z.boolean().default(false),
   pauseAfter: intField(0, 0, 100),
   enabled: z.boolean().default(true),
+  followUpJobId: z.string().optional().nullable(),
+  dependsOnJobId: z.string().optional().nullable(),
+  assertStatus: intField(0, 0, 599),
+  assertJsonPath: z.string().max(240).optional().default(""),
+  assertEquals: z.string().max(500).optional().default(""),
+  assertContains: z.string().max(500).optional().default(""),
+  slowAfterMs: intField(0, 0, 3_600_000),
+  skipHolidays: z.boolean().default(false),
+  skipWeekends: z.boolean().default(false),
+  activeHoursStart: z.string().max(5).optional().default(""),
+  activeHoursEnd: z.string().max(5).optional().default(""),
 });
 
 export const groupInputSchema = z.object({

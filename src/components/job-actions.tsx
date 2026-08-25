@@ -9,6 +9,7 @@ import {
   duplicateJobRequest,
   runJobRequest,
   skipJobRequest,
+  snoozeJobRequest,
   toggleJobRequest,
 } from "@/lib/job-client";
 import { toast } from "@/components/toaster";
@@ -84,6 +85,36 @@ export function JobActions({
         >
           {busy === "skip" ? "Skipping…" : "Skip next"}
         </button>
+      ) : null}
+      {access.edit ? (
+        <label className="inline-flex items-center gap-2 text-sm">
+          <span className="sr-only">Snooze</span>
+          <select
+            className="field w-auto min-w-36"
+            disabled={!!busy}
+            defaultValue=""
+            onChange={(event) => {
+              const hours = Number(event.target.value);
+              event.currentTarget.value = "";
+              if (!Number.isFinite(hours)) return;
+              wrap("snooze", async () => {
+                await snoozeJobRequest(jobId, hours);
+                setMessage(hours ? `Snoozed for ${hours}h` : "Snooze cleared");
+                toast(hours ? `Snoozed for ${hours}h` : "Snooze cleared");
+                router.refresh();
+              });
+            }}
+          >
+            <option value="" disabled>
+              Snooze…
+            </option>
+            <option value="1">1 hour</option>
+            <option value="2">2 hours</option>
+            <option value="8">8 hours</option>
+            <option value="24">24 hours</option>
+            <option value="0">Clear snooze</option>
+          </select>
+        </label>
       ) : null}
       {keepResponse ? (
         <Link

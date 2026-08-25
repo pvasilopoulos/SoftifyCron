@@ -1,12 +1,19 @@
 import type { CronJob, Prisma, RunTrigger } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getNextRunAt } from "@/lib/cron";
 import { assertSafeUrl } from "@/lib/ssrf";
 import { resolveSecrets } from "@/lib/secrets";
 import { notifyJob } from "@/lib/notify";
+import { eventsForRun } from "@/lib/notify-events";
 import { recordWorkerHeartbeat } from "@/lib/heartbeat";
 import { decodeHttpBody } from "@/lib/decode";
 import { fitMysqlLongText, readBodyBytes } from "@/lib/response-body";
+import { checkAssertions } from "@/lib/assert-response";
+import { isOverdueSlot, nextAllowedFire, scheduleBlockReason } from "@/lib/schedule-policy";
+import { pruneJobHistory, tenantRunningCount } from "@/lib/retention";
+
+function needsResponseBody(job: CronJob) {
+  return Boolean(job.assertContains?.trim() || job.assertJsonPath?.trim() || job.keepResponse);
+}
 
 function headerRecord(value: Prisma.JsonValue | null): Record<string, string> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -62,7 +69,7 @@ async function performRequest(job: CronJob) {
     { method, headers, body: canHaveBody ? body || undefined : undefined },
     job.timeoutMs,
   );
-  if (!job.keepResponse) {
+  if (!job.keepResponse && !needsResponseBody(job)) {
     try {
       await response.body?.cancel();
     } catch {
@@ -116,6 +123,11 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
     responseCharset = result.encoding;
     status = result.ok ? "SUCCESS" : "FAILED";
     if (!result.ok) error = `HTTP ${result.httpStatus}`;
+    const assertion = checkAssertions(result.responseBody, result.httpStatus, job);
+    if (assertion) {
+      status = "FAILED";
+      error = `Assertion: ${assertion}`;
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
@@ -147,6 +159,29 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
     job.retryMax > 0 &&
     consecutiveFailures <= job.retryMax;
 
+  const tenant = await prisma.tenant.findUnique({ where: { id: job.tenantId } });
+  const previousDurations = await prisma.jobRun.findMany({
+    where: { jobId: job.id, status: "SUCCESS", durationMs: { not: null }, id: { not: run.id } },
+    orderBy: { startedAt: "desc" },
+    take: 10,
+    select: { durationMs: true },
+  });
+  const samples = previousDurations
+    .map((item) => item.durationMs)
+    .filter((item): item is number => item != null)
+    .sort((left, right) => left - right);
+  const autoSlow =
+    samples.length >= 3
+      ? Math.max(samples[Math.floor(samples.length / 2)]! * 3, samples[Math.floor(samples.length / 2)]! + 2000)
+      : null;
+  const slowLimit = job.slowAfterMs > 0 ? job.slowAfterMs : autoSlow;
+  const slow = Boolean(slowLimit && durationMs >= slowLimit);
+  const escalate =
+    failed &&
+    !shouldRetry &&
+    (tenant?.escalateAfter ?? 3) > 0 &&
+    consecutiveFailures >= (tenant?.escalateAfter ?? 3);
+
   await prisma.jobRun.update({
     where: { id: run.id },
     data: {
@@ -175,7 +210,7 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
   } else if (shouldRetry) {
     nextRunAt = new Date(Date.now() + job.retryDelaySec * 1000);
   } else if (stillArmed) {
-    nextRunAt = getNextRunAt(job.cronExpr, job.timezone, finishedAt);
+    nextRunAt = nextAllowedFire(job.cronExpr, job, Boolean(tenant?.skipGreekHolidays), finishedAt);
   } else {
     nextRunAt = null;
   }
@@ -199,13 +234,51 @@ export async function executeJob(job: CronJob, trigger: RunTrigger) {
         ...job,
         consecutiveFailures,
         lastStatus: status,
-        error,
+        error: slow && !error ? `Ran in ${durationMs}ms` : error,
         httpStatus,
         paused: autoPause,
         previousFailures: job.consecutiveFailures,
       },
-      { runId: run.id, lateMs },
+      {
+        runId: run.id,
+        lateMs,
+        events: eventsForRun({
+          status,
+          previousFailures: job.consecutiveFailures,
+          paused: autoPause,
+          lateMs,
+          slow,
+          escalate,
+        }),
+      },
     );
+  }
+
+  if (
+    status === "SUCCESS" &&
+    (trigger === "SCHEDULE" || trigger === "RETRY") &&
+    job.followUpJobId &&
+    job.followUpJobId !== job.id
+  ) {
+    try {
+      const follow = await prisma.cronJob.findFirst({
+        where: { id: job.followUpJobId, tenantId: job.tenantId },
+      });
+      if (follow) await executeJob(follow, "MANUAL");
+    } catch (error) {
+      console.error("[worker] follow-up job failed", job.followUpJobId, error);
+    }
+  }
+
+  if (tenant) {
+    try {
+      await pruneJobHistory(job.tenantId, job.id, {
+        runRetentionDays: tenant.runRetentionDays,
+        bodyKeepLast: tenant.bodyKeepLast,
+      });
+    } catch (error) {
+      console.error("[worker] retention failed", job.id, error);
+    }
   }
 
   return { runId: run.id, status, retried: shouldRetry };
@@ -224,8 +297,45 @@ export async function claimAndRunDueJobs(limit = 25) {
       orderBy: { nextRunAt: "asc" },
       take: limit,
     });
+    const tenants = await prisma.tenant.findMany({
+      where: { id: { in: [...new Set(due.map((job) => job.tenantId))] } },
+    });
+    const tenantById = new Map(tenants.map((tenant) => [tenant.id, tenant]));
 
     for (const job of due) {
+      const tenant = tenantById.get(job.tenantId);
+      const holidays = Boolean(tenant?.skipGreekHolidays);
+      const blocked = scheduleBlockReason(job, holidays, now);
+      const skipOverdue = tenant && !tenant.catchUpMissed && isOverdueSlot(job.cronExpr, job.timezone, job.nextRunAt, now);
+      if (blocked || skipOverdue) {
+        await prisma.cronJob.updateMany({
+          where: { id: job.id, nextRunAt: job.nextRunAt },
+          data: {
+            nextRunAt: nextAllowedFire(job.cronExpr, job, holidays, now),
+            lockedUntil: null,
+          },
+        });
+        continue;
+      }
+      if (job.dependsOnJobId) {
+        const parent = await prisma.cronJob.findFirst({
+          where: { id: job.dependsOnJobId, tenantId: job.tenantId },
+          select: { lastStatus: true },
+        });
+        if (parent?.lastStatus !== "SUCCESS") {
+          await prisma.cronJob.updateMany({
+            where: { id: job.id, nextRunAt: job.nextRunAt },
+            data: {
+              nextRunAt: nextAllowedFire(job.cronExpr, job, holidays, now),
+              lockedUntil: null,
+            },
+          });
+          continue;
+        }
+      }
+      const running = await tenantRunningCount(job.tenantId);
+      if (running >= (tenant?.maxConcurrent ?? 4)) continue;
+
       const lockUntil = new Date(now.getTime() + job.timeoutMs + 10_000);
       const claimed = await prisma.cronJob.updateMany({
         where: {

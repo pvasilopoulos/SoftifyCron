@@ -23,6 +23,14 @@ describe("notify events", () => {
     ]);
     expect(eventsForRun({ status: "BLOCKED", previousFailures: 0 })).toEqual(["blocked"]);
     expect(eventsForRun({ status: "FAILED", previousFailures: 0 })).toEqual(["failure"]);
+    expect(eventsForRun({ status: "SUCCESS", previousFailures: 0, slow: true })).toEqual([
+      "success",
+      "slow",
+    ]);
+    expect(eventsForRun({ status: "FAILED", previousFailures: 2, escalate: true })).toEqual([
+      "failure",
+      "escalate",
+    ]);
   });
 
   it("matches a channel when any selected event fired", () => {

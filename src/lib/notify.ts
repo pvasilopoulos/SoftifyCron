@@ -32,6 +32,8 @@ export type NotifyJob = {
 };
 
 function subjectFor(name: string, events: NotifyEvent[]) {
+  if (events.includes("escalate")) return `[SoftifyCron] ${name} escalated`;
+  if (events.includes("slow")) return `[SoftifyCron] ${name} ran slow`;
   if (events.includes("missed")) return `[SoftifyCron] ${name} missed a beat`;
   if (events.includes("pause")) return `[SoftifyCron] ${name} auto-paused`;
   if (events.includes("recovery")) return `[SoftifyCron] ${name} recovered`;
@@ -42,6 +44,8 @@ function subjectFor(name: string, events: NotifyEvent[]) {
 }
 
 function webhookEventName(events: NotifyEvent[]) {
+  if (events.includes("escalate")) return "job.escalated";
+  if (events.includes("slow")) return "job.slow";
   if (events.includes("missed")) return "job.missed";
   if (events.includes("pause")) return "job.paused";
   if (events.includes("recovery")) return "job.recovered";
@@ -250,6 +254,38 @@ export async function notifyJob(
     if (!tenant.slackWebhookEnc) throw new Error("Slack is not configured on this workspace");
     await sendSlack(decryptSecret(tenant.slackWebhookEnc), `${subject}\n${text}`);
   });
+
+  if (liveEvents.includes("escalate")) {
+    const extra = parseEmails(tenant.escalateEmail);
+    const smtp = smtpFromTenant(tenant);
+    if (extra.length && smtp) {
+      try {
+        const result = await sendMail(
+          { to: extra, subject, text: `${text}\n\nThis is an escalation copy.` },
+          smtp,
+        );
+        await recordDelivery({
+          tenantId: job.tenantId,
+          jobId: job.id,
+          runId,
+          channel: "email",
+          event: "escalate",
+          status: result.sent ? "sent" : "failed",
+          detail: result.sent ? "escalation copy" : "SMTP not configured",
+        });
+      } catch (error) {
+        await recordDelivery({
+          tenantId: job.tenantId,
+          jobId: job.id,
+          runId,
+          channel: "email",
+          event: "escalate",
+          status: "failed",
+          detail: error instanceof Error ? error.message : "escalation failed",
+        });
+      }
+    }
+  }
 }
 
 /** @deprecated use notifyJob */

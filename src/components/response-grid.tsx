@@ -18,6 +18,7 @@ import {
   type ResponseGrid,
   type SortState,
 } from "@/lib/response-grid";
+import { diffGrids } from "@/lib/grid-diff";
 
 type Panel = "columns" | "filters" | "view" | null;
 type Prefs = {
@@ -81,10 +82,12 @@ function download(name: string, text: string, type: string) {
 export function ResponseGridView({
   grid,
   raw,
+  previousRaw,
   storageKey = "response",
 }: {
   grid: ResponseGrid;
   raw?: string | null;
+  previousRaw?: string | null;
   storageKey?: string;
 }) {
   const datasets = useMemo(
@@ -101,7 +104,18 @@ export function ResponseGridView({
   const [filters, setFilters] = useState<ColumnFilter[]>([]);
   const [panel, setPanel] = useState<Panel>(null);
   const [page, setPage] = useState(1);
+  const [diffOn, setDiffOn] = useState(Boolean(previousRaw));
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
+  const previousGrid = useMemo(() => {
+    if (!previousRaw) return null;
+    const prevSets = parseResponseDatasets(previousRaw);
+    return prevSets.find((item) => item.id === active.id)?.grid ?? prevSets[0]?.grid ?? null;
+  }, [previousRaw, active.id]);
+  const diff = useMemo(
+    () => (diffOn && previousGrid ? diffGrids(source, previousGrid) : null),
+    [diffOn, previousGrid, source],
+  );
+  const canMapDiff = Boolean(diff) && !query.trim() && !sort && filters.length === 0;
   const subscribe = useMemo(() => subscribePrefs(storageKey), [storageKey]);
   const prefsRaw = useSyncExternalStore(subscribe, () => prefsSnapshot(storageKey), () => "");
   const prefs = useMemo(() => parsePrefs(prefsRaw), [prefsRaw]);
@@ -273,6 +287,15 @@ export function ResponseGridView({
               </button>
             </>
           ) : null}
+          {previousRaw ? (
+            <button
+              className={`btn btn-sm ${diffOn ? "btn-gold" : "btn-ghost"}`}
+              type="button"
+              onClick={() => setDiffOn((value) => !value)}
+            >
+              Diff{diff ? ` · ${diff.changedCount}` : ""}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -281,6 +304,7 @@ export function ResponseGridView({
         {view.rows.length.toLocaleString()} of {source.rows.length.toLocaleString()} rows ·{" "}
         {view.columns.length} cols · {source.source.replace("-", " ")}
         {selected.size ? ` · ${selected.size} selected` : ""}
+        {diff ? ` · ${diff.changedCount} cells changed vs previous run` : ""}
       </p>
 
       {panel === "columns" ? (
@@ -574,15 +598,21 @@ export function ResponseGridView({
                         />
                       </td>
                       <td className="grid-index-col">{abs + 1}</td>
-                      {row.map((cell, col) => (
+                      {row.map((cell, col) => {
+                        const origCol = source.columns.indexOf(view.columns[col] ?? "");
+                        const changed =
+                          canMapDiff && origCol >= 0 && Boolean(diff?.rows[abs]?.cells[origCol]?.changed);
+                        return (
                         <td
                           key={col}
                           title={cell}
+                          className={changed ? "is-changed" : undefined}
                           onDoubleClick={() => copyText(cell, view.columns[col] ?? "Cell")}
                         >
                           {cell || "—"}
                         </td>
-                      ))}
+                        );
+                      })}
                     </tr>
                   );
                 })}

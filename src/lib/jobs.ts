@@ -3,8 +3,24 @@ import { getNextRunAt, skipNextFire, validateCron } from "@/lib/cron";
 import { assertSafeUrl } from "@/lib/ssrf";
 import { resolveGroupId } from "@/lib/groups";
 import { tenantNotifyDefaults } from "@/lib/tenant-notify";
+import { nextAllowedFire } from "@/lib/schedule-policy";
 import type { JobInput } from "@/lib/validators";
 import type { JobType, Prisma, RunStatus } from "@prisma/client";
+
+async function resolvePeerJobId(
+  tenantId: string,
+  raw: string | null | undefined,
+  selfId?: string,
+) {
+  const id = raw?.trim() || "";
+  if (!id) return null;
+  if (selfId && id === selfId) throw new Error("A job cannot follow or depend on itself");
+  const found = await prisma.cronJob.findFirst({
+    where: { id, tenantId },
+    select: { id: true },
+  });
+  return found?.id ?? null;
+}
 
 export type JobFilters = {
   q?: string;
@@ -29,8 +45,16 @@ export async function createJob(tenantId: string, input: JobInput) {
   await assertSafeUrl(data.url);
   if (data.notifyUrl) await assertSafeUrl(data.notifyUrl);
   const groupId = await resolveGroupId(tenantId, data);
+  const [followUpJobId, dependsOnJobId, defaults] = await Promise.all([
+    resolvePeerJobId(tenantId, data.followUpJobId),
+    resolvePeerJobId(tenantId, data.dependsOnJobId),
+    tenantNotifyDefaults(tenantId),
+  ]);
   const nextRunAt = data.enabled ? getNextRunAt(data.cronExpr, data.timezone) : null;
-  const defaults = await tenantNotifyDefaults(tenantId);
+  const keepResponse =
+    data.keepResponse ||
+    data.responseBoard ||
+    Boolean(data.assertContains?.trim() || data.assertJsonPath?.trim());
   return prisma.cronJob.create({
     data: {
       tenantId,
@@ -53,11 +77,22 @@ export async function createJob(tenantId: string, input: JobInput) {
       notifyTelegramOn: data.notifyTelegramOn ?? defaults.notifyTelegramOn,
       notifyWebhookOn: data.notifyWebhookOn ?? defaults.notifyWebhookOn,
       notifySlackOn: data.notifySlackOn ?? defaults.notifySlackOn,
-      keepResponse: data.keepResponse || data.responseBoard,
+      keepResponse,
       responseBoard: data.responseBoard,
       pauseAfter: data.pauseAfter,
       enabled: data.enabled,
       nextRunAt,
+      followUpJobId,
+      dependsOnJobId,
+      assertStatus: data.assertStatus,
+      assertJsonPath: data.assertJsonPath ?? "",
+      assertEquals: data.assertEquals ?? "",
+      assertContains: data.assertContains ?? "",
+      slowAfterMs: data.slowAfterMs,
+      skipHolidays: data.skipHolidays,
+      skipWeekends: data.skipWeekends,
+      activeHoursStart: data.activeHoursStart ?? "",
+      activeHoursEnd: data.activeHoursEnd ?? "",
     },
   });
 }
@@ -70,7 +105,15 @@ export async function updateJob(tenantId: string, jobId: string, input: JobInput
   const existing = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
   if (!existing) return null;
   const groupId = await resolveGroupId(tenantId, data);
+  const [followUpJobId, dependsOnJobId] = await Promise.all([
+    resolvePeerJobId(tenantId, data.followUpJobId, jobId),
+    resolvePeerJobId(tenantId, data.dependsOnJobId, jobId),
+  ]);
   const nextRunAt = data.enabled ? getNextRunAt(data.cronExpr, data.timezone) : null;
+  const keepResponse =
+    data.keepResponse ||
+    data.responseBoard ||
+    Boolean(data.assertContains?.trim() || data.assertJsonPath?.trim());
   return prisma.cronJob.update({
     where: { id: jobId },
     data: {
@@ -93,9 +136,20 @@ export async function updateJob(tenantId: string, jobId: string, input: JobInput
       notifyTelegramOn: data.notifyTelegramOn ?? existing.notifyTelegramOn,
       notifyWebhookOn: data.notifyWebhookOn ?? existing.notifyWebhookOn,
       notifySlackOn: data.notifySlackOn ?? existing.notifySlackOn,
-      keepResponse: data.keepResponse || data.responseBoard,
+      keepResponse,
       responseBoard: data.responseBoard,
       pauseAfter: data.pauseAfter,
+      followUpJobId,
+      dependsOnJobId,
+      assertStatus: data.assertStatus,
+      assertJsonPath: data.assertJsonPath ?? "",
+      assertEquals: data.assertEquals ?? "",
+      assertContains: data.assertContains ?? "",
+      slowAfterMs: data.slowAfterMs,
+      skipHolidays: data.skipHolidays,
+      skipWeekends: data.skipWeekends,
+      activeHoursStart: data.activeHoursStart ?? "",
+      activeHoursEnd: data.activeHoursEnd ?? "",
       enabled: data.enabled,
       nextRunAt,
       lockedUntil: data.enabled ? existing.lockedUntil : null,
@@ -196,6 +250,17 @@ export async function duplicateJob(tenantId: string, jobId: string) {
       keepResponse: job.keepResponse,
       responseBoard: job.responseBoard,
       pauseAfter: job.pauseAfter,
+      followUpJobId: job.followUpJobId,
+      dependsOnJobId: job.dependsOnJobId,
+      assertStatus: job.assertStatus,
+      assertJsonPath: job.assertJsonPath,
+      assertEquals: job.assertEquals,
+      assertContains: job.assertContains,
+      slowAfterMs: job.slowAfterMs,
+      skipHolidays: job.skipHolidays,
+      skipWeekends: job.skipWeekends,
+      activeHoursStart: job.activeHoursStart,
+      activeHoursEnd: job.activeHoursEnd,
       nextRunAt: null,
     },
   });
@@ -242,6 +307,34 @@ export async function bulkJobs(
     return { count: result.count };
   }
   return { count: 0, ids: found };
+}
+
+export async function snoozeJob(tenantId: string, jobId: string, hours: number | null) {
+  const job = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
+  if (!job) return null;
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { skipGreekHolidays: true },
+  });
+  const snoozeUntil = hours && hours > 0 ? new Date(Date.now() + hours * 3600_000) : null;
+  return prisma.cronJob.update({
+    where: { id: jobId },
+    data: {
+      snoozeUntil,
+      lockedUntil: null,
+      nextRunAt: job.enabled
+        ? nextAllowedFire(job.cronExpr, { ...job, snoozeUntil }, Boolean(tenant?.skipGreekHolidays))
+        : null,
+    },
+  });
+}
+
+export async function listJobOptions(tenantId: string) {
+  return prisma.cronJob.findMany({
+    where: { tenantId },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
 }
 
 export async function skipJobNextRun(tenantId: string, jobId: string) {

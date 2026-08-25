@@ -163,6 +163,52 @@ export default async function JobDetailPage({
                 {job.pauseAfter > 0 ? ` · auto-pause at ${job.pauseAfter}` : ""}
               </dd>
             </div>
+            {job.snoozeUntil ? (
+              <div>
+                <dt className="text-ink-dim">Snoozed until</dt>
+                <dd className="mt-1">
+                  <RelativeTime value={job.snoozeUntil} timeZone={job.timezone} />
+                  <span className="mt-1 block text-xs text-ink-dim">
+                    {formatDateTime(job.snoozeUntil, job.timezone)}
+                  </span>
+                </dd>
+              </div>
+            ) : null}
+            {job.followUpJobId || job.dependsOnJobId ? (
+              <div>
+                <dt className="text-ink-dim">Chain</dt>
+                <dd className="mt-1 text-ink-dim">
+                  {job.followUpJobId ? "Follow-up set" : null}
+                  {job.followUpJobId && job.dependsOnJobId ? " · " : ""}
+                  {job.dependsOnJobId ? "Depends on another job" : null}
+                </dd>
+              </div>
+            ) : null}
+            {job.assertStatus > 0 || job.assertJsonPath || job.assertContains ? (
+              <div className="sm:col-span-2">
+                <dt className="text-ink-dim">Assertions</dt>
+                <dd className="mt-1 text-ink-dim">
+                  {job.assertStatus > 0 ? `HTTP ${job.assertStatus}` : ""}
+                  {job.assertJsonPath ? ` · ${job.assertJsonPath}${job.assertEquals ? ` = ${job.assertEquals}` : ""}` : ""}
+                  {job.assertContains ? ` · contains “${job.assertContains}”` : ""}
+                </dd>
+              </div>
+            ) : null}
+            {job.skipHolidays || job.skipWeekends || job.activeHoursStart || job.slowAfterMs > 0 ? (
+              <div className="sm:col-span-2">
+                <dt className="text-ink-dim">Windows</dt>
+                <dd className="mt-1 text-ink-dim">
+                  {job.skipHolidays ? "Skip Greek holidays" : ""}
+                  {job.skipWeekends ? `${job.skipHolidays ? " · " : ""}Skip weekends` : ""}
+                  {job.activeHoursStart && job.activeHoursEnd
+                    ? `${job.skipHolidays || job.skipWeekends ? " · " : ""}${job.activeHoursStart}–${job.activeHoursEnd}`
+                    : ""}
+                  {job.slowAfterMs > 0
+                    ? `${job.skipHolidays || job.skipWeekends || job.activeHoursStart ? " · " : ""}slow after ${job.slowAfterMs}ms`
+                    : ""}
+                </dd>
+              </div>
+            ) : null}
             {job.type === "HEARTBEAT" ? (
               <div className="sm:col-span-2">
                 <dt className="text-ink-dim">Last heartbeat</dt>

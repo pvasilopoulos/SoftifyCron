@@ -56,6 +56,8 @@ export function ResponsesBoard({
   selectedName,
   timezone,
   runs,
+  query = "",
+  hits = [],
 }: {
   catalog: ResponseCatalogRow[];
   tabs: ResponseJobTab[];
@@ -63,6 +65,16 @@ export function ResponsesBoard({
   selectedName?: string;
   timezone: string;
   runs: ResponseRun[];
+  query?: string;
+  hits?: Array<{
+    id: string;
+    jobId: string;
+    jobName: string;
+    status: string;
+    httpStatus: number | null;
+    startedAt: string;
+    board: boolean;
+  }>;
 }) {
   const [runId, setRunId] = useState(runs[0]?.id ?? "");
   const selectedRun = useMemo(
@@ -73,6 +85,18 @@ export function ResponsesBoard({
     () => parseResponseGrid(selectedRun?.responseBody),
     [selectedRun?.responseBody],
   );
+  const previousRun = useMemo(() => {
+    const index = runs.findIndex((run) => run.id === selectedRun?.id);
+    return index >= 0 ? (runs[index + 1] ?? null) : null;
+  }, [runs, selectedRun?.id]);
+  const needle = query.trim().toLowerCase();
+  const visibleCatalog = needle
+    ? catalog.filter(
+        (row) =>
+          row.name.toLowerCase().includes(needle) ||
+          hits.some((hit) => hit.jobId === row.jobId),
+      )
+    : catalog;
 
   return (
     <div className="space-y-4">
@@ -91,6 +115,22 @@ export function ResponsesBoard({
         ))}
       </nav>
 
+      <form className="flex flex-wrap gap-2" action="/responses" method="get">
+        {selectedId ? <input type="hidden" name="job" value={selectedId} /> : null}
+        <label className="block min-w-56 flex-1">
+          <span className="sr-only">Search responses</span>
+          <input
+            className="field"
+            name="q"
+            defaultValue={query}
+            placeholder="Search stored bodies…"
+          />
+        </label>
+        <button className="btn btn-ghost" type="submit">
+          Search
+        </button>
+      </form>
+
       {!selectedId ? (
         catalog.length === 0 ? (
           <div className="card p-8 text-center">
@@ -104,8 +144,36 @@ export function ResponsesBoard({
             </Link>
           </div>
         ) : (
+          <>
+          {needle && hits.length > 0 ? (
+            <div className="card p-4 sm:p-5">
+              <p className="text-xs uppercase tracking-[0.16em] text-gold">Body matches</p>
+              <ul className="mt-3 space-y-3">
+                {hits.map((hit) => (
+                  <li key={hit.id} className="flex min-w-0 items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link
+                        href={hit.board ? `/responses?job=${hit.jobId}` : `/jobs/${hit.jobId}/response`}
+                        className="font-medium hover:text-gold"
+                      >
+                        {hit.jobName}
+                      </Link>
+                      <p className="text-xs text-ink-dim">
+                        <RelativeTime value={hit.startedAt} timeZone={timezone} />
+                        {hit.httpStatus != null ? ` · HTTP ${hit.httpStatus}` : ""}
+                      </p>
+                    </div>
+                    <StatusPill status={hit.status} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {visibleCatalog.length === 0 ? (
+            <div className="card p-8 text-ink-dim">No jobs match that search.</div>
+          ) : (
           <div className="stat-grid">
-            {catalog.map((row) => (
+            {visibleCatalog.map((row) => (
               <article key={row.jobId} className="card p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -150,6 +218,8 @@ export function ResponsesBoard({
               </article>
             ))}
           </div>
+          )}
+          </>
         )
       ) : runs.length === 0 ? (
         <div className="card p-8 text-ink-dim">
@@ -189,6 +259,7 @@ export function ResponsesBoard({
               key={`${selectedId}-${selectedRun.id}`}
               grid={grid}
               raw={selectedRun?.responseBody}
+              previousRaw={previousRun?.responseBody}
               storageKey={selectedId ?? "responses"}
             />
           </div>

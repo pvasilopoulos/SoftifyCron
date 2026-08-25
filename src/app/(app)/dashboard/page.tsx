@@ -5,8 +5,10 @@ import { describeCron } from "@/lib/cron";
 import { RelativeTime } from "@/components/relative-time";
 import { StatusPill } from "@/components/status-pill";
 import { WorkerHealthCard } from "@/components/worker-health-card";
+import { TimelineCard } from "@/components/timeline-card";
 import { getWorkerHeartbeat } from "@/lib/heartbeat";
 import { hasPermission } from "@/lib/acl";
+import { buildTimeline } from "@/lib/timeline";
 
 export const metadata = { title: "Overview" };
 
@@ -18,7 +20,7 @@ export default async function DashboardPage() {
   startOfDay.setHours(0, 0, 0, 0);
   const canCreate = hasPermission(session, "jobs.edit");
 
-  const [tenant, jobs, active, failingCount, failing, upcoming, runsToday, successesToday, recent, heartbeat] =
+  const [tenant, jobs, active, failingCount, failing, upcoming, timelineJobs, runsToday, successesToday, recent, heartbeat] =
     await Promise.all([
       prisma.tenant.findUnique({ where: { id: session.tid } }),
       prisma.cronJob.count({ where: { tenantId: session.tid } }),
@@ -35,6 +37,23 @@ export default async function DashboardPage() {
         where: { tenantId: session.tid, enabled: true, nextRunAt: { not: null } },
         orderBy: { nextRunAt: "asc" },
         take: 6,
+      }),
+      prisma.cronJob.findMany({
+        where: { tenantId: session.tid, enabled: true },
+        select: {
+          id: true,
+          name: true,
+          cronExpr: true,
+          timezone: true,
+          lastStatus: true,
+          nextRunAt: true,
+          skipHolidays: true,
+          skipWeekends: true,
+          activeHoursStart: true,
+          activeHoursEnd: true,
+          snoozeUntil: true,
+        },
+        take: 80,
       }),
       prisma.jobRun.count({
         where: { tenantId: session.tid, startedAt: { gte: startOfDay } },
@@ -55,6 +74,7 @@ export default async function DashboardPage() {
       getWorkerHeartbeat(),
     ]);
   const tz = tenant?.timezone ?? "UTC";
+  const timeline = buildTimeline(timelineJobs, Boolean(tenant?.skipGreekHolidays));
 
   const rate =
     runsToday === 0 ? "—" : `${Math.round((successesToday / runsToday) * 100)}%`;
@@ -76,7 +96,10 @@ export default async function DashboardPage() {
       <WorkerHealthCard
         tickedAt={heartbeat?.tickedAt ?? null}
         jobsClaimed={heartbeat?.jobsClaimed ?? 0}
+        maxConcurrent={tenant?.maxConcurrent ?? 4}
       />
+
+      <TimelineCard events={timeline} timeZone={tz} />
 
       <section className="stat-grid">
         {[

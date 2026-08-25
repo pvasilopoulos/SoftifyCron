@@ -62,6 +62,17 @@ export async function saveJobAction(
     responseBoard: formData.get("responseBoard") === "on",
     pauseAfter: Number(formData.get("pauseAfter") ?? 0),
     enabled: formData.get("enabled") === "on",
+    followUpJobId: String(formData.get("followUpJobId") ?? "") || null,
+    dependsOnJobId: String(formData.get("dependsOnJobId") ?? "") || null,
+    assertStatus: Number(formData.get("assertStatus") ?? 0),
+    assertJsonPath: String(formData.get("assertJsonPath") ?? ""),
+    assertEquals: String(formData.get("assertEquals") ?? ""),
+    assertContains: String(formData.get("assertContains") ?? ""),
+    slowAfterMs: Number(formData.get("slowAfterMs") ?? 0),
+    skipHolidays: formData.get("skipHolidays") === "on",
+    skipWeekends: formData.get("skipWeekends") === "on",
+    activeHoursStart: String(formData.get("activeHoursStart") ?? ""),
+    activeHoursEnd: String(formData.get("activeHoursEnd") ?? ""),
   });
   if (!parsed.success) {
     return {

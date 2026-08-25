@@ -6,9 +6,11 @@ import { RelativeTime } from "@/components/relative-time";
 export function WorkerHealthCard({
   tickedAt,
   jobsClaimed,
+  maxConcurrent,
 }: {
   tickedAt: Date | string | null;
   jobsClaimed: number;
+  maxConcurrent?: number;
 }) {
   const status = heartbeatStatus(tickedAt);
   return (
@@ -26,6 +28,10 @@ export function WorkerHealthCard({
       <p className="mt-2 text-sm text-ink-dim">
         Last tick {tickedAt ? <RelativeTime value={tickedAt} timeZone="Europe/Athens" /> : "never"} ·{" "}
         {jobsClaimed} job{jobsClaimed === 1 ? "" : "s"} last cycle
+        {maxConcurrent ? ` · max ${maxConcurrent} concurrent` : ""}
+      </p>
+      <p className="mt-2 text-sm text-ink-dim">
+        Honours snooze, Greek holidays, weekends, active hours, and workspace concurrency.
       </p>
       {status.stale ? (
         <p className="mt-3 text-sm text-rose">

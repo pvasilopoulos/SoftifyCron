@@ -73,6 +73,28 @@ export async function listJobResponseRuns(tenantId: string, jobId: string, take 
   });
 }
 
+export async function searchResponseBodies(tenantId: string, q: string, take = 40) {
+  const needle = q.trim();
+  if (needle.length < 2) return [];
+  return prisma.jobRun.findMany({
+    where: {
+      tenantId,
+      responseBody: { not: null, contains: needle },
+    },
+    orderBy: { startedAt: "desc" },
+    take,
+    select: {
+      id: true,
+      jobId: true,
+      status: true,
+      httpStatus: true,
+      startedAt: true,
+      error: true,
+      job: { select: { name: true, timezone: true, responseBoard: true } },
+    },
+  });
+}
+
 export function catalogRow(
   job: {
     id: string;

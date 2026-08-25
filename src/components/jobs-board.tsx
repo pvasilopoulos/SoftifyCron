@@ -25,6 +25,7 @@ type Job = {
   nextRunAt: Date | string | null;
   lastRunAt: Date | string | null;
   lastStatus: string | null;
+  snoozeUntil?: Date | string | null;
   group: Group | null;
 };
 
@@ -277,6 +278,9 @@ export function JobsBoard({
                             {job.enabled ? "armed" : "paused"}
                           </span>
                           {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
+                          {job.snoozeUntil && new Date(job.snoozeUntil).getTime() > Date.now() ? (
+                            <span className="text-gold-2">snoozed</span>
+                          ) : null}
                         </div>
                         <p className="mt-2 text-xs text-ink-dim">
                           Next <RelativeTime value={job.nextRunAt} timeZone={job.timezone} />
@@ -344,6 +348,9 @@ export function JobsBoard({
                               {job.enabled ? "armed" : "paused"}
                             </span>
                             {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
+                            {job.snoozeUntil && new Date(job.snoozeUntil).getTime() > Date.now() ? (
+                              <span className="text-gold-2">snoozed</span>
+                            ) : null}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right">

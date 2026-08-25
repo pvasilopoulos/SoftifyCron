@@ -24,6 +24,15 @@ export type NotifySettings = {
   quietHoursEnd: string;
   quietHoursAllow: string;
   notifyCooldownSec: number;
+  runRetentionDays: number;
+  bodyKeepLast: number;
+  maxConcurrent: number;
+  catchUpMissed: boolean;
+  skipGreekHolidays: boolean;
+  escalateEmail: string;
+  escalateAfter: number;
+  statusPageEnabled: boolean;
+  statusPageSlug: string;
   signingSecret?: string;
 };
 
@@ -72,6 +81,15 @@ export function NotificationsPanel({
         quietHoursEnd: String(form.get("quietHoursEnd") ?? ""),
         quietHoursAllow: form.getAll("quietHoursAllow").map(String),
         notifyCooldownSec: String(form.get("notifyCooldownSec") ?? "300"),
+        runRetentionDays: String(form.get("runRetentionDays") ?? "30"),
+        bodyKeepLast: String(form.get("bodyKeepLast") ?? "20"),
+        maxConcurrent: String(form.get("maxConcurrent") ?? "4"),
+        catchUpMissed: form.get("catchUpMissed") === "on",
+        skipGreekHolidays: form.get("skipGreekHolidays") === "on",
+        escalateEmail: String(form.get("escalateEmail") ?? ""),
+        escalateAfter: String(form.get("escalateAfter") ?? "3"),
+        statusPageEnabled: form.get("statusPageEnabled") === "on",
+        statusPageSlug: String(form.get("statusPageSlug") ?? ""),
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -323,6 +341,122 @@ export function NotificationsPanel({
             disabled={!canEdit}
           />
           <p className="mt-2 text-xs text-ink-dim">0 sends every event. 300 is one alert per channel per job every five minutes.</p>
+        </label>
+      </section>
+
+      <section className="card p-5 sm:p-6">
+        <h2 className="font-display text-2xl">Retention and load</h2>
+        <p className="mt-1 text-sm text-ink-dim">
+          History pruning runs after each job. 0 days keeps runs forever. 0 bodies keeps every stored response.
+        </p>
+        <div className="mt-5 grid max-w-3xl gap-4 sm:grid-cols-3">
+          <label className="block">
+            <span className="field-label">Keep runs (days)</span>
+            <input
+              className="field"
+              type="number"
+              name="runRetentionDays"
+              min={0}
+              max={3650}
+              defaultValue={initial.runRetentionDays}
+              disabled={!canEdit}
+            />
+          </label>
+          <label className="block">
+            <span className="field-label">Keep last bodies</span>
+            <input
+              className="field"
+              type="number"
+              name="bodyKeepLast"
+              min={0}
+              max={500}
+              defaultValue={initial.bodyKeepLast}
+              disabled={!canEdit}
+            />
+          </label>
+          <label className="block">
+            <span className="field-label">Max concurrent</span>
+            <input
+              className="field"
+              type="number"
+              name="maxConcurrent"
+              min={1}
+              max={25}
+              defaultValue={initial.maxConcurrent}
+              disabled={!canEdit}
+            />
+          </label>
+        </div>
+        <label className="mt-4 flex min-h-12 items-center gap-3">
+          <input type="checkbox" name="catchUpMissed" defaultChecked={initial.catchUpMissed} disabled={!canEdit} />
+          <span className="text-sm">Catch up overdue slots instead of skipping them</span>
+        </label>
+        <label className="flex min-h-12 items-center gap-3">
+          <input
+            type="checkbox"
+            name="skipGreekHolidays"
+            defaultChecked={initial.skipGreekHolidays}
+            disabled={!canEdit}
+          />
+          <span className="text-sm">Skip Greek public holidays for every job in this workspace</span>
+        </label>
+      </section>
+
+      <section className="card p-5 sm:p-6">
+        <h2 className="font-display text-2xl">Escalation</h2>
+        <p className="mt-1 text-sm text-ink-dim">
+          Extra email copy after consecutive failures, bypassing the cooldown. Uses this workspace SMTP.
+        </p>
+        <label className="mt-5 block">
+          <span className="field-label">Escalate emails</span>
+          <textarea
+            className="field min-h-20"
+            name="escalateEmail"
+            defaultValue={initial.escalateEmail}
+            disabled={!canEdit}
+            placeholder="oncall@example.com"
+          />
+        </label>
+        <label className="mt-4 block max-w-xs">
+          <span className="field-label">After N consecutive failures</span>
+          <input
+            className="field"
+            type="number"
+            name="escalateAfter"
+            min={1}
+            max={100}
+            defaultValue={initial.escalateAfter}
+            disabled={!canEdit}
+          />
+        </label>
+      </section>
+
+      <section className="card p-5 sm:p-6">
+        <h2 className="font-display text-2xl">Public status page</h2>
+        <p className="mt-1 text-sm text-ink-dim">
+          A read-only page with job names and last status. No URLs, headers, or bodies.
+        </p>
+        <label className="mt-5 flex min-h-12 items-center gap-3">
+          <input
+            type="checkbox"
+            name="statusPageEnabled"
+            defaultChecked={initial.statusPageEnabled}
+            disabled={!canEdit}
+          />
+          <span className="text-sm">Publish status page</span>
+        </label>
+        <label className="mt-4 block max-w-md">
+          <span className="field-label">Slug</span>
+          <input
+            className="field mono"
+            name="statusPageSlug"
+            defaultValue={initial.statusPageSlug}
+            disabled={!canEdit}
+            placeholder="aurora"
+          />
+          <p className="mt-2 text-xs text-ink-dim">
+            Live at /status/{initial.statusPageSlug || "your-slug"}
+          </p>
         </label>
       </section>
 
