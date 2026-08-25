@@ -371,6 +371,22 @@ tr.row-hover:hover { background: color-mix(in srgb, var(--gold) 6%, transparent)
 .rail-menu-item:hover,
 .rail-menu-item.is-on { background: var(--bg-mute); }
 .rail-menu-item .hint { color: var(--ink-dim); font-size: 0.7rem; }
+.rail-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-dim);
+}
+.rail-icon-btn:hover {
+  background: var(--bg-mute);
+  color: var(--ink);
+}
 .rail-avatar {
   display: inline-flex;
   height: 2.25rem;
