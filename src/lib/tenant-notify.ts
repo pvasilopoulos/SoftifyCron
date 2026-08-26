@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { encryptSecret, decryptSecret, randomToken, hashToken } from "@/lib/crypto";
 import { sendMail, type SmtpConfig } from "@/lib/mail";
-import { looksLikeTelegramToken, sendTelegram } from "@/lib/telegram";
+import { looksLikeTelegramToken, sendTelegram, telegramCommandUrl, telegramDeleteWebhook, telegramGetMe, telegramRecentChats, telegramSetWebhook } from "@/lib/telegram";
 import { sendDiscord } from "@/lib/discord";
 import { sendSlack } from "@/lib/slack";
 import { assertSafeUrl } from "@/lib/ssrf";
@@ -540,6 +540,32 @@ export async function testTenantNotify(
     await sendTelegram(bot, chat, text);
   }
   return { sent: true, logged: false };
+}
+
+async function telegramTokenFor(tenantId: string) {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { telegramBotTokenEnc: true },
+  });
+  if (!tenant?.telegramBotTokenEnc) throw new Error("Save a Telegram bot token first, then try again");
+  return decryptSecret(tenant.telegramBotTokenEnc);
+}
+
+export async function telegramWorkspaceAction(
+  tenantId: string,
+  action: "me" | "chats" | "hook" | "unhook",
+  origin: string,
+) {
+  const token = await telegramTokenFor(tenantId);
+  if (action === "me") return { bot: await telegramGetMe(token) };
+  if (action === "chats") return { chats: await telegramRecentChats(token) };
+  const url = telegramCommandUrl(origin, hashToken(token));
+  if (action === "hook") {
+    await telegramSetWebhook(token, url);
+    return { url, hooked: true };
+  }
+  await telegramDeleteWebhook(token);
+  return { url, hooked: false };
 }
 
 export async function ensureWebhookSecret(tenantId: string, existingEnc: string | null) {

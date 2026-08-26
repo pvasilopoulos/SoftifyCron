@@ -10,7 +10,7 @@ import { SecurityPanel } from "@/components/security-panel";
 import { ApiTokensPanel } from "@/components/api-tokens-panel";
 import { JobIoPanel } from "@/components/job-io-panel";
 import { NotificationsPanel, type NotifySettings } from "@/components/notifications-panel";
-import { TelegramTemplatesPanel, type TelegramTemplateRow } from "@/components/telegram-templates-panel";
+import { type TelegramTemplateRow } from "@/components/telegram-templates-panel";
 
 const TABS = [
   { id: "people", label: "People" },
@@ -147,10 +147,11 @@ export function WorkspaceSettings({
       ) : null}
 
       {tab === "notifications" ? (
-        <div className="space-y-4">
-          <NotificationsPanel initial={notify} canEdit={canEditSettings} />
-          <TelegramTemplatesPanel initial={telegramTemplates} canEdit={canEditSettings} />
-        </div>
+        <NotificationsPanel
+          initial={notify}
+          canEdit={canEditSettings}
+          telegramTemplates={telegramTemplates}
+        />
       ) : null}
 
       {tab === "security" ? (

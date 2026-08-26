@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { NotifyMatrix } from "@/components/notify-matrix";
+import { NotifyTelegramCard } from "@/components/notify-telegram-card";
 import { NOTIFY_EVENTS } from "@/lib/notify-events";
 import { WEEKDAYS } from "@/lib/maintenance";
+import type { TelegramTemplateRow } from "@/components/telegram-templates-panel";
 
 export type NotifySettings = {
   notifyEmail: string;
@@ -68,10 +70,14 @@ export function NotificationsPanel({
   initial,
   canEdit,
   endpoint = "/api/tenant/notify",
+  telegramEndpoint = "/api/tenant/notify/telegram",
+  telegramTemplates = [],
 }: {
   initial: NotifySettings;
   canEdit: boolean;
   endpoint?: string;
+  telegramEndpoint?: string;
+  telegramTemplates?: TelegramTemplateRow[];
 }) {
   const [status, setStatus] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -185,9 +191,36 @@ export function NotificationsPanel({
   return (
     <form className="space-y-4" onSubmit={onSubmit}>
       <section className="card p-5 sm:p-6">
-        <h2 className="font-display text-2xl">Recipients</h2>
+        <p className="text-xs uppercase tracking-[0.16em] text-gold">Workspace</p>
+        <h2 className="mt-1 font-display text-2xl">Notifications</h2>
+        <p className="mt-2 max-w-2xl text-sm text-ink-dim">
+          Channels live on this workspace. Each job then ticks which events to send. Quiet hours,
+          cooldown, digest, and on-call wrap every channel except signed job webhooks.
+        </p>
+      </section>
+
+      <nav className="notify-subnav" aria-label="Notification sections">
+        {[
+          ["notify-email", "Email"],
+          ["notify-telegram", "Telegram"],
+          ["notify-chat", "Chat apps"],
+          ["notify-sms", "SMS"],
+          ["notify-policy", "When to send"],
+          ["notify-webhooks", "Job webhooks"],
+          ["notify-workspace", "Workspace"],
+        ].map(([id, label]) => (
+          <a key={id} href={`#${id}`}>
+            {label}
+          </a>
+        ))}
+      </nav>
+
+      <section id="notify-email" className="card p-5 sm:p-6">
+        <p className="text-xs uppercase tracking-[0.16em] text-gold">Channel</p>
+        <h2 className="mt-1 font-display text-2xl">Email</h2>
         <p className="mt-1 text-sm text-ink-dim">
-          Alerts stay inside this workspace. Separate several emails or Telegram chats with commas.
+          Alert mailboxes plus the SMTP this workspace uses for job mail. Password-reset still uses
+          the server SMTP.
         </p>
         <label className="mt-5 block">
           <span className="field-label">Alert emails</span>
@@ -199,26 +232,9 @@ export function NotificationsPanel({
             placeholder="ops@example.com, oncall@example.com"
           />
         </label>
-        <label className="mt-4 block">
-          <span className="field-label">Telegram chat ids</span>
-          <textarea
-            className="field min-h-20 mono"
-            name="telegramChatId"
-            defaultValue={initial.telegramChatId}
-            disabled={!canEdit}
-            placeholder="-100…, 123456789"
-          />
-        </label>
-      </section>
-
-      <section className="card p-5 sm:p-6">
-        <h2 className="font-display text-2xl">SMTP</h2>
-        <p className="mt-1 text-sm text-ink-dim">
-          Required for job emails. Password-reset mail still uses the server SMTP, not this workspace.
-        </p>
         <div className="mt-5 grid max-w-3xl gap-4 sm:grid-cols-2">
           <label className="block sm:col-span-2">
-            <span className="field-label">Host</span>
+            <span className="field-label">SMTP host</span>
             <input
               className="field"
               name="smtpHost"
@@ -274,34 +290,28 @@ export function NotificationsPanel({
             />
           </label>
         </div>
-      </section>
-
-      <section className="card p-5 sm:p-6">
-        <h2 className="font-display text-2xl">Telegram bot</h2>
-        <p className="mt-1 text-sm text-ink-dim">
-          Create a bot with @BotFather, then start a chat with it (or add it to a group) and paste the chat id.
-        </p>
-        <label className="mt-5 block">
-          <span className="field-label">Bot token</span>
-          <input
-            className="field mono"
-            name="telegramBotToken"
-            type="password"
-            disabled={!canEdit}
-            placeholder={initial.telegramHasToken ? "Leave blank to keep" : "123456:ABC…"}
-            autoComplete="off"
-          />
-        </label>
-        {initial.telegramHasToken ? (
-          <label className="mt-3 flex items-center gap-3">
-            <input type="checkbox" name="clearTelegramToken" disabled={!canEdit} />
-            <span className="text-sm">Remove saved bot token</span>
-          </label>
+        {canEdit ? (
+          <button className="btn btn-ghost mt-5" type="button" disabled={testing !== null} onClick={() => test("email")}>
+            {testing === "email" ? "Sending…" : "Send test email"}
+          </button>
         ) : null}
       </section>
 
+      <NotifyTelegramCard
+        initialChats={initial.telegramChatId}
+        hasToken={initial.telegramHasToken}
+        commandSecret={initial.telegramCommandSecret}
+        canEdit={canEdit}
+        telegramEndpoint={telegramEndpoint}
+        templates={telegramTemplates}
+        testing={testing === "telegram"}
+        onTest={() => test("telegram")}
+      />
+
+      <div id="notify-chat" className="space-y-4">
       <section className="card p-5 sm:p-6">
-        <h2 className="font-display text-2xl">Slack</h2>
+        <p className="text-xs uppercase tracking-[0.16em] text-gold">Channel</p>
+        <h2 className="mt-1 font-display text-2xl">Slack</h2>
         <p className="mt-1 text-sm text-ink-dim">
           Incoming webhook URL for this workspace. Slack-compatible endpoints (Mattermost, Discord slack-compat) work too.
         </p>
@@ -322,10 +332,21 @@ export function NotificationsPanel({
             <span className="text-sm">Remove saved Slack webhook</span>
           </label>
         ) : null}
+        {initial.slackCommandSecret ? (
+          <p className="mono mt-4 break-all text-xs text-ink-dim">
+            Slash commands: POST /api/bots/slack?secret={initial.slackCommandSecret}
+          </p>
+        ) : null}
+        {canEdit ? (
+          <button className="btn btn-ghost mt-4" type="button" disabled={testing !== null} onClick={() => test("slack")}>
+            {testing === "slack" ? "Sending…" : "Send test Slack"}
+          </button>
+        ) : null}
       </section>
 
       <section className="card p-5 sm:p-6">
-        <h2 className="font-display text-2xl">Discord</h2>
+        <p className="text-xs uppercase tracking-[0.16em] text-gold">Channel</p>
+        <h2 className="mt-1 font-display text-2xl">Discord</h2>
         <p className="mt-1 text-sm text-ink-dim">
           Incoming webhook URL from a Discord channel. Paste the https://discord.com/api/webhooks/… link.
         </p>
@@ -346,10 +367,17 @@ export function NotificationsPanel({
             <span className="text-sm">Remove saved Discord webhook</span>
           </label>
         ) : null}
+        {canEdit ? (
+          <button className="btn btn-ghost mt-4" type="button" disabled={testing !== null} onClick={() => test("discord")}>
+            {testing === "discord" ? "Sending…" : "Send test Discord"}
+          </button>
+        ) : null}
       </section>
+      </div>
 
-      <section className="card p-5 sm:p-6">
-        <h2 className="font-display text-2xl">SMS gateway</h2>
+      <section id="notify-sms" className="card p-5 sm:p-6">
+        <p className="text-xs uppercase tracking-[0.16em] text-gold">Channel</p>
+        <h2 className="mt-1 font-display text-2xl">SMS</h2>
         <p className="mt-1 text-sm text-ink-dim">
           Generic HTTPS JSON POST: from, to[], text, user, pass. Use any provider that accepts this shape.
         </p>
@@ -395,10 +423,17 @@ export function NotificationsPanel({
             />
           </label>
         </div>
+        {canEdit ? (
+          <button className="btn btn-ghost mt-5" type="button" disabled={testing !== null} onClick={() => test("sms")}>
+            {testing === "sms" ? "Sending…" : "Send test SMS"}
+          </button>
+        ) : null}
       </section>
 
+      <div id="notify-policy" className="space-y-4">
       <section className="card p-5 sm:p-6">
-        <h2 className="font-display text-2xl">Defaults for new jobs</h2>
+        <p className="text-xs uppercase tracking-[0.16em] text-gold">Policy</p>
+        <h2 className="mt-1 font-display text-2xl">Defaults for new jobs</h2>
         <p className="mt-1 mb-4 text-sm text-ink-dim">
           Applied when someone creates a job. Existing jobs keep their own matrix.
         </p>
@@ -478,7 +513,75 @@ export function NotificationsPanel({
       </section>
 
       <section className="card p-5 sm:p-6">
-        <h2 className="font-display text-2xl">Retention and load</h2>
+        <h2 className="font-display text-2xl">Escalation</h2>
+        <p className="mt-1 text-sm text-ink-dim">
+          Extra email copy after consecutive failures, bypassing the cooldown. Uses this workspace SMTP.
+        </p>
+        <label className="mt-5 block">
+          <span className="field-label">Escalate emails</span>
+          <textarea
+            className="field min-h-20"
+            name="escalateEmail"
+            defaultValue={initial.escalateEmail}
+            disabled={!canEdit}
+            placeholder="oncall@example.com"
+          />
+        </label>
+        <label className="mt-4 block max-w-xs">
+          <span className="field-label">After N consecutive failures</span>
+          <input
+            className="field"
+            type="number"
+            name="escalateAfter"
+            min={1}
+            max={100}
+            defaultValue={initial.escalateAfter}
+            disabled={!canEdit}
+          />
+        </label>
+      </section>
+
+      <section className="card p-5 sm:p-6">
+        <h2 className="font-display text-2xl">Daily digest</h2>
+        <p className="mt-1 text-sm text-ink-dim">
+          One summary at this hour in the workspace timezone, using the same email / Telegram / Slack as alerts.
+        </p>
+        <label className="mt-5 flex min-h-12 items-center gap-3">
+          <input type="checkbox" name="digestEnabled" defaultChecked={initial.digestEnabled} disabled={!canEdit} />
+          <span className="text-sm">Send a daily digest</span>
+        </label>
+        <label className="mt-4 block max-w-xs">
+          <span className="field-label">Hour</span>
+          <input className="field" type="time" name="digestHour" defaultValue={initial.digestHour} disabled={!canEdit} />
+        </label>
+      </section>
+
+      <section className="card p-5 sm:p-6">
+        <h2 className="font-display text-2xl">On-call rotation</h2>
+        <p className="mt-1 text-sm text-ink-dim">
+          Weekly roster in this workspace timezone, Monday start. The current person is prepended to alert and digest emails.
+        </p>
+        <label className="mt-5 flex min-h-12 items-center gap-3">
+          <input type="checkbox" name="oncallEnabled" defaultChecked={initial.oncallEnabled} disabled={!canEdit} />
+          <span className="text-sm">Enable weekly on-call rotation</span>
+        </label>
+        <label className="mt-4 block">
+          <span className="field-label">Roster emails</span>
+          <textarea
+            className="field min-h-20"
+            name="oncallRoster"
+            defaultValue={initial.oncallRoster}
+            disabled={!canEdit}
+            placeholder="alice@example.com, bob@example.com"
+          />
+        </label>
+      </section>
+      </div>
+
+      <div id="notify-workspace" className="space-y-4">
+      <section className="card p-5 sm:p-6">
+        <p className="text-xs uppercase tracking-[0.16em] text-gold">Workspace</p>
+        <h2 className="mt-1 font-display text-2xl">Retention and load</h2>
         <p className="mt-1 text-sm text-ink-dim">
           History pruning runs after each job. 0 days keeps runs forever. 0 bodies keeps every stored response.
         </p>
@@ -532,35 +635,6 @@ export function NotificationsPanel({
             disabled={!canEdit}
           />
           <span className="text-sm">Skip Greek public holidays for every job in this workspace</span>
-        </label>
-      </section>
-
-      <section className="card p-5 sm:p-6">
-        <h2 className="font-display text-2xl">Escalation</h2>
-        <p className="mt-1 text-sm text-ink-dim">
-          Extra email copy after consecutive failures, bypassing the cooldown. Uses this workspace SMTP.
-        </p>
-        <label className="mt-5 block">
-          <span className="field-label">Escalate emails</span>
-          <textarea
-            className="field min-h-20"
-            name="escalateEmail"
-            defaultValue={initial.escalateEmail}
-            disabled={!canEdit}
-            placeholder="oncall@example.com"
-          />
-        </label>
-        <label className="mt-4 block max-w-xs">
-          <span className="field-label">After N consecutive failures</span>
-          <input
-            className="field"
-            type="number"
-            name="escalateAfter"
-            min={1}
-            max={100}
-            defaultValue={initial.escalateAfter}
-            disabled={!canEdit}
-          />
         </label>
       </section>
 
@@ -643,42 +717,6 @@ export function NotificationsPanel({
       </section>
 
       <section className="card p-5 sm:p-6">
-        <h2 className="font-display text-2xl">Daily digest</h2>
-        <p className="mt-1 text-sm text-ink-dim">
-          One summary at this hour in the workspace timezone, using the same email / Telegram / Slack as alerts.
-        </p>
-        <label className="mt-5 flex min-h-12 items-center gap-3">
-          <input type="checkbox" name="digestEnabled" defaultChecked={initial.digestEnabled} disabled={!canEdit} />
-          <span className="text-sm">Send a daily digest</span>
-        </label>
-        <label className="mt-4 block max-w-xs">
-          <span className="field-label">Hour</span>
-          <input className="field" type="time" name="digestHour" defaultValue={initial.digestHour} disabled={!canEdit} />
-        </label>
-      </section>
-
-      <section className="card p-5 sm:p-6">
-        <h2 className="font-display text-2xl">On-call rotation</h2>
-        <p className="mt-1 text-sm text-ink-dim">
-          Weekly roster in this workspace timezone, Monday start. The current person is prepended to alert and digest emails.
-        </p>
-        <label className="mt-5 flex min-h-12 items-center gap-3">
-          <input type="checkbox" name="oncallEnabled" defaultChecked={initial.oncallEnabled} disabled={!canEdit} />
-          <span className="text-sm">Enable weekly on-call rotation</span>
-        </label>
-        <label className="mt-4 block">
-          <span className="field-label">Roster emails</span>
-          <textarea
-            className="field min-h-20"
-            name="oncallRoster"
-            defaultValue={initial.oncallRoster}
-            disabled={!canEdit}
-            placeholder="alice@example.com, bob@example.com"
-          />
-        </label>
-      </section>
-
-      <section className="card p-5 sm:p-6">
         <h2 className="font-display text-2xl">Caps, portal, login IPs</h2>
         <p className="mt-1 text-sm text-ink-dim">0 means unlimited. Caps skip scheduled fires at 100% and warn on Usage at 80%.</p>
         <div className="mt-4 grid max-w-xl gap-4 sm:grid-cols-2">
@@ -711,20 +749,12 @@ export function NotificationsPanel({
             <span className="text-sm">Rotate client portal token</span>
           </label>
         ) : null}
-        {initial.telegramCommandSecret ? (
-          <p className="mt-4 text-xs text-ink-dim">
-            Telegram commands: POST /api/bots/telegram?secret={initial.telegramCommandSecret} — /ack /run /snooze
-          </p>
-        ) : null}
-        {initial.slackCommandSecret ? (
-          <p className="mt-2 text-xs text-ink-dim">
-            Slack commands: POST /api/bots/slack?secret={initial.slackCommandSecret}
-          </p>
-        ) : null}
       </section>
+      </div>
 
-      <section className="card p-5 sm:p-6">
-        <h2 className="font-display text-2xl">Webhook signing</h2>
+      <section id="notify-webhooks" className="card p-5 sm:p-6">
+        <p className="text-xs uppercase tracking-[0.16em] text-gold">Channel</p>
+        <h2 className="mt-1 font-display text-2xl">Job webhooks</h2>
         <p className="mt-1 text-sm text-ink-dim">
           Job webhooks include <span className="mono">X-SoftifyCron-Signature</span> HMAC-SHA256 of{" "}
           <span className="mono">timestamp.body</span>. Shown once when created or rotated.
@@ -744,24 +774,9 @@ export function NotificationsPanel({
       </section>
 
       {canEdit ? (
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button className="btn btn-gold" type="submit" disabled={pending}>
             {pending ? "Saving…" : "Save notifications"}
-          </button>
-          <button className="btn btn-ghost" type="button" disabled={testing !== null} onClick={() => test("email")}>
-            {testing === "email" ? "Sending…" : "Send test email"}
-          </button>
-          <button className="btn btn-ghost" type="button" disabled={testing !== null} onClick={() => test("telegram")}>
-            {testing === "telegram" ? "Sending…" : "Send test Telegram"}
-          </button>
-          <button className="btn btn-ghost" type="button" disabled={testing !== null} onClick={() => test("slack")}>
-            {testing === "slack" ? "Sending…" : "Send test Slack"}
-          </button>
-          <button className="btn btn-ghost" type="button" disabled={testing !== null} onClick={() => test("discord")}>
-            {testing === "discord" ? "Sending…" : "Send test Discord"}
-          </button>
-          <button className="btn btn-ghost" type="button" disabled={testing !== null} onClick={() => test("sms")}>
-            {testing === "sms" ? "Sending…" : "Send test SMS"}
           </button>
         </div>
       ) : (
