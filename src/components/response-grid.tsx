@@ -1091,9 +1091,22 @@ export function ResponseGridView({
                         >
                           ···
                         </button>
+                        <span
+                          className="grid-col-resizer"
+                          role="separator"
+                          aria-orientation="vertical"
+                          aria-label={`Resize ${column}`}
+                          onMouseDown={(event) => startResize(column, event)}
+                          onDoubleClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            fitColumn(column);
+                          }}
+                          title="Drag to resize · double-click to autosize"
+                        />
                       </div>
                       <span
-                        className="grid-col-resizer"
+                        className="grid-col-edge"
                         onMouseDown={(event) => startResize(column, event)}
                         onDoubleClick={(event) => {
                           event.preventDefault();

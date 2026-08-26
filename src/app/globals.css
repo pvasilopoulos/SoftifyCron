@@ -559,7 +559,9 @@ details > summary::-webkit-details-marker { display: none; }
   position: sticky;
   top: 0;
   z-index: 3;
-  padding-right: 0.45rem;
+  padding-right: 0.35rem;
+  min-width: 9rem;
+  overflow: visible;
 }
 .data-grid.is-freeze thead th.grid-check-col,
 .data-grid.is-freeze thead th.grid-index-col {
@@ -570,7 +572,9 @@ details > summary::-webkit-details-marker { display: none; }
   align-items: center;
   gap: 0.2rem;
   min-width: 0;
-  padding-right: 0.35rem;
+  width: max-content;
+  max-width: 100%;
+  padding-right: 0.1rem;
 }
 .grid-th-inner .grid-sort {
   min-width: 0;
@@ -595,27 +599,35 @@ details > summary::-webkit-details-marker { display: none; }
   color: var(--ink);
 }
 .grid-col-resizer {
-  position: absolute;
-  top: 0;
-  right: 0;
+  position: relative;
+  flex: none;
   z-index: 4;
-  width: 10px;
-  height: 100%;
+  width: 14px;
+  height: 1.7rem;
   cursor: col-resize;
   touch-action: none;
   user-select: none;
+  border-radius: 0.3rem;
 }
+.grid-col-resizer::before,
 .grid-col-resizer::after {
   content: "";
   position: absolute;
   top: 22%;
-  right: 3px;
   width: 2px;
   height: 56%;
   border-radius: 99px;
-  background: color-mix(in srgb, var(--muted) 55%, transparent);
+  background: color-mix(in srgb, var(--muted) 55%, var(--gold) 25%);
 }
+.grid-col-resizer::before {
+  left: 4px;
+}
+.grid-col-resizer::after {
+  left: 8px;
+}
+.grid-col-resizer:hover::before,
 .grid-col-resizer:hover::after,
+body.is-col-resizing .grid-col-resizer::before,
 body.is-col-resizing .grid-col-resizer::after {
   background: var(--gold);
 }
@@ -626,6 +638,16 @@ body.is-col-resizing .grid-col-resizer {
 body.is-col-resizing {
   cursor: col-resize;
   user-select: none;
+}
+.grid-col-edge {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  z-index: 6;
+  width: 10px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
 }
 .grid-hit {
   background: color-mix(in srgb, var(--gold) 35%, transparent);
@@ -840,7 +862,6 @@ body.is-col-resizing {
 }
 .grid-table-wrap table {
   width: max-content;
-  min-width: 100%;
 }
 .grid-table-wrap td.is-changed {
   position: relative;
