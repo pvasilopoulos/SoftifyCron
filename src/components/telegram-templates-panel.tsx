@@ -120,7 +120,9 @@ export function TelegramTemplatesPanel({
                 >
                   {row.name}
                   {row._count?.jobs ? (
-                    <span className="mt-0.5 block text-xs text-ink-dim">{row._count.jobs} jobs</span>
+                    <span className="mt-0.5 block text-xs text-ink-dim">
+                      {row._count.jobs} job{row._count.jobs === 1 ? "" : "s"}
+                    </span>
                   ) : null}
                 </button>
               </li>
