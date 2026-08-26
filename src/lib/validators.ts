@@ -77,6 +77,7 @@ export const tenantNotifySchema = z.object({
   statusCustomHost: z.string().max(255).optional().or(z.literal("")),
   loginAllowIps: z.string().max(4000).optional().or(z.literal("")),
   rotatePortalToken: z.boolean().optional(),
+  apiEventUrl: z.union([z.url().max(2048), z.literal(""), z.null()]).optional(),
 });
 
 export const notifyTestSchema = z.object({
@@ -109,6 +110,8 @@ export const totpCodeSchema = z.object({
 
 export const apiTokenNameSchema = z.object({
   name: z.string().trim().min(2).max(80),
+  scopes: z.array(z.enum(["jobs.read", "jobs.write", "jobs.run", "jobs.delete", "runs.read"])).optional(),
+  expiresInDays: z.union([z.number(), z.string(), z.null()]).optional(),
 });
 
 const notifyListSchema = z

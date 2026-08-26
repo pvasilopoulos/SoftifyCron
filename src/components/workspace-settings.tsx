@@ -11,6 +11,7 @@ import { ApiTokensPanel } from "@/components/api-tokens-panel";
 import { JobIoPanel } from "@/components/job-io-panel";
 import { NotificationsPanel, type NotifySettings } from "@/components/notifications-panel";
 import { type TelegramTemplateRow } from "@/components/telegram-templates-panel";
+import { WorkspaceDocs } from "@/components/workspace-docs";
 
 const TABS = [
   { id: "people", label: "People" },
@@ -18,6 +19,7 @@ const TABS = [
   { id: "workspace", label: "Workspace" },
   { id: "notifications", label: "Notifications" },
   { id: "security", label: "Security" },
+  { id: "docs", label: "Docs" },
   { id: "appearance", label: "Appearance" },
 ] as const;
 
@@ -26,6 +28,7 @@ type Tab = (typeof TABS)[number]["id"];
 function tabFromHash(): Tab {
   if (typeof window === "undefined") return "people";
   const hash = window.location.hash.replace("#", "");
+  if (hash === "docs" || hash.startsWith("docs-")) return "docs";
   return TABS.some((tab) => tab.id === hash) ? (hash as Tab) : "people";
 }
 
@@ -56,6 +59,7 @@ export function WorkspaceSettings({
   tokens = [],
   notify,
   telegramTemplates = [],
+  origin = "",
 }: {
   tenant: { name: string; slug: string; timezone: string };
   members: Parameters<typeof PeopleBoard>[0]["members"];
@@ -74,6 +78,7 @@ export function WorkspaceSettings({
   tokens?: Parameters<typeof ApiTokensPanel>[0]["tokens"];
   notify: NotifySettings;
   telegramTemplates?: TelegramTemplateRow[];
+  origin?: string;
 }) {
   const tab = useSyncExternalStore(subscribeHash, tabFromHash, () => "people");
 
@@ -160,6 +165,8 @@ export function WorkspaceSettings({
           <ApiTokensPanel tokens={tokens} canEdit={canEditSettings} />
         </div>
       ) : null}
+
+      {tab === "docs" ? <WorkspaceDocs origin={origin} /> : null}
 
       {tab === "appearance" ? <AppearancePanel platform={platform} /> : null}
     </div>

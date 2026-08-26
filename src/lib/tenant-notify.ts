@@ -86,6 +86,7 @@ export type TenantNotifyInput = {
   statusCustomHost?: string;
   loginAllowIps?: string;
   rotatePortalToken?: boolean;
+  apiEventUrl?: string | null;
 };
 
 export function smtpFromTenant(tenant: {
@@ -171,6 +172,7 @@ export function publicNotify(
     statusCustomHost?: string | null;
     loginAllowIps?: string | null;
     portalTokenPrefix?: string | null;
+    apiEventUrl?: string | null;
   },
   extra?: { signingSecret?: string; portalToken?: string },
 ) {
@@ -231,6 +233,7 @@ export function publicNotify(
     portalToken: extra?.portalToken,
     telegramCommandSecret: hashedEnc(tenant.telegramBotTokenEnc),
     slackCommandSecret: hashedEnc(tenant.slackWebhookEnc),
+    apiEventUrl: tenant.apiEventUrl ?? "",
   };
 }
 
@@ -393,6 +396,7 @@ export async function updateTenantNotify(tenantId: string, input: TenantNotifyIn
       return host || null;
     })(),
     loginAllowIps: input.loginAllowIps !== undefined ? input.loginAllowIps.trim() || null : existing.loginAllowIps,
+    apiEventUrl: input.apiEventUrl !== undefined ? input.apiEventUrl?.trim() || null : existing.apiEventUrl,
   };
   if (input.smtpPass?.trim()) {
     data.smtpPassEnc = encryptSecret(input.smtpPass.trim());
@@ -438,6 +442,7 @@ export async function updateTenantNotify(tenantId: string, input: TenantNotifyIn
     if (takenHost) throw new Error("That custom status host is already taken");
   }
   if (input.statusLogoUrl?.trim()) await assertSafeUrl(input.statusLogoUrl.trim());
+  if (input.apiEventUrl?.trim()) await assertSafeUrl(input.apiEventUrl.trim());
 
   let signingSecret: string | undefined;
   if (input.rotateWebhookSecret || !existing.webhookSignEnc) {

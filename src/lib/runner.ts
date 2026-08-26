@@ -24,6 +24,7 @@ import { redactSecrets } from "@/lib/redact";
 import { flapScore } from "@/lib/flap";
 import { capHit } from "@/lib/caps";
 import { isFailingStatus } from "@/lib/incidents";
+import { emitApiRunEvent } from "@/lib/api-events";
 
 type RequestResult = {
   httpStatus: number | null;
@@ -546,6 +547,20 @@ export async function executeJob(job: CronJob, trigger: RunTrigger, opts?: { mut
     } catch (error) {
       console.error("[worker] retention failed", job.id, error);
     }
+  }
+
+  if (!shouldRetry) {
+    void emitApiRunEvent(job.tenantId, {
+      jobId: job.id,
+      jobName: job.name,
+      jobType: job.type,
+      runId: run.id,
+      status,
+      trigger,
+      httpStatus,
+      durationMs,
+      error: notifyError || error,
+    }).catch((error) => console.error("[api-event] emit failed", job.id, error));
   }
 
   return { runId: run.id, status, retried: shouldRetry };
