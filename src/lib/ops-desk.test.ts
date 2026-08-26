@@ -63,8 +63,8 @@ describe("json line diff", () => {
 
 describe("saved grid views", () => {
   it("keeps named views and drops junk", () => {
-    expect(parseGridViews([{ id: "v1", name: "Ops", freeze: true }])).toEqual([
-      { id: "v1", name: "Ops", freeze: true },
+    expect(parseGridViews([{ id: "v1", name: "Ops", freeze: true, widths: { sku: 200 } }])).toEqual([
+      { id: "v1", name: "Ops", freeze: true, widths: { sku: 200 } },
     ]);
     expect(parseGridViews([{ name: "no-id" }, null, "x"])).toEqual([]);
   });

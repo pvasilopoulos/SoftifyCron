@@ -76,6 +76,7 @@ export async function saveJobViewRequest(
     compact?: boolean;
     wrap?: boolean;
     pageSize?: number;
+    widths?: Record<string, number>;
   },
 ) {
   return postJson(`/api/jobs/${jobId}/views`, {

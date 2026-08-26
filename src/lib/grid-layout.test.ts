@@ -1,0 +1,39 @@
+import { describe, expect, it } from "vitest";
+import {
+  autosizeColumn,
+  autosizeColumns,
+  clampColWidth,
+  columnLooksNumeric,
+  highlightParts,
+  moveColumnTo,
+  parseColWidths,
+} from "./grid-layout";
+
+describe("grid layout", () => {
+  it("clamps and parses column widths", () => {
+    expect(clampColWidth(10)).toBe(72);
+    expect(clampColWidth(900)).toBe(720);
+    expect(parseColWidths({ sku: 180, bad: "nope", "": 100 })).toEqual({ sku: 180 });
+  });
+
+  it("autosizes from header and cells", () => {
+    const width = autosizeColumn("qty", ["1", "12", "a reasonably long cell value"]);
+    expect(width).toBeGreaterThan(72);
+    expect(width).toBeLessThanOrEqual(720);
+    expect(autosizeColumns(["id", "name"], [["1", "Ada"], ["2", "Grace"]]).id).toBeGreaterThan(0);
+  });
+
+  it("detects numeric columns and highlights search hits", () => {
+    expect(columnLooksNumeric(["1", "2", "3", "4"])).toBe(true);
+    expect(columnLooksNumeric(["Athens", "Patras", "Volos"])).toBe(false);
+    expect(highlightParts("SoftifyCron grid", "grid")).toEqual([
+      { text: "SoftifyCron ", hit: false },
+      { text: "grid", hit: true },
+    ]);
+  });
+
+  it("moves a column to an index", () => {
+    expect(moveColumnTo(["a", "b", "c"], "c", 0)).toEqual(["c", "a", "b"]);
+    expect(moveColumnTo(["a", "b", "c"], "a", 2)).toEqual(["b", "c", "a"]);
+  });
+});

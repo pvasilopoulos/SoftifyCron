@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "@/components/toaster";
 import {
@@ -24,6 +24,14 @@ import { jsonLineDiff, prettyJsonText } from "@/lib/json-diff";
 import { parseGridViews, type GridView } from "@/lib/grid-views";
 import { parseGridWatches, type GridWatch } from "@/lib/grid-watch";
 import {
+  autosizeColumn,
+  autosizeColumns,
+  clampColWidth,
+  columnLooksNumeric,
+  highlightParts,
+  moveColumnTo,
+} from "@/lib/grid-layout";
+import {
   deleteJobViewRequest,
   deleteJobWatchRequest,
   saveJobViewRequest,
@@ -37,6 +45,8 @@ type Prefs = {
   compact?: boolean;
   wrap?: boolean;
   pageSize?: number;
+  widths?: Record<string, number>;
+  striped?: boolean;
 };
 
 const PAGE_SIZES = [25, 50, 100, 250, 500, 0];
@@ -81,6 +91,20 @@ function download(name: string, text: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
+function CellText({ value, query }: { value: string; query: string }) {
+  if (!value) return "—";
+  if (!query.trim()) return value;
+  return highlightParts(value, query).map((part, index) =>
+    part.hit ? (
+      <mark key={index} className="grid-hit">
+        {part.text}
+      </mark>
+    ) : (
+      <span key={index}>{part.text}</span>
+    ),
+  );
+}
+
 export function ResponseGridView({
   grid,
   raw,
@@ -118,6 +142,13 @@ export function ResponseGridView({
   const [watches, setWatches] = useState<GridWatch[]>(() => parseGridWatches(savedWatches));
   const [watchDraft, setWatchDraft] = useState({ column: "", op: "contains" as FilterOp, value: "" });
   const [hover, setHover] = useState<{ prev: string; next: string; x: number; y: number } | null>(null);
+  const [liveWidths, setLiveWidths] = useState<Record<string, number> | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [headerMenu, setHeaderMenu] = useState<{ column: string; x: number; y: number } | null>(null);
+  const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null);
+  const resizeRef = useRef<{ column: string; startX: number; startW: number } | null>(null);
+  const dragCol = useRef<string | null>(null);
+  const lastChecked = useRef<number | null>(null);
   const jsonDiff = useMemo(
     () => (raw && previousRaw && diffOn ? jsonLineDiff(raw, previousRaw) : null),
     [raw, previousRaw, diffOn],
@@ -143,10 +174,19 @@ export function ResponseGridView({
 
   useEffect(() => {
     function onPointer(event: MouseEvent) {
-      if (!root.current?.contains(event.target as Node)) setPanel(null);
+      const target = event.target as HTMLElement | null;
+      if (target?.closest(".grid-col-menu")) return;
+      if (!root.current?.contains(target)) {
+        setPanel(null);
+        setHeaderMenu(null);
+      }
     }
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setPanel(null);
+      if (event.key === "Escape") {
+        setPanel(null);
+        setHeaderMenu(null);
+        setFullscreen(false);
+      }
       if (event.key === "/" && event.target === document.body) {
         event.preventDefault();
         searchRef.current?.focus();
@@ -178,6 +218,48 @@ export function ResponseGridView({
   const pageOffset = pageSize > 0 ? (safePage - 1) * pageSize : 0;
   const isPairs = view.source === "json-pairs" && view.columns.length === 2;
   const diffActive = Boolean(diffOn && diff);
+  const widths = liveWidths ?? prefs.widths ?? {};
+  const striped = prefs.striped !== false;
+  const sized = Object.keys(widths).length > 0;
+  const numericCols = useMemo(() => {
+    const set = new Set<string>();
+    for (let index = 0; index < view.columns.length; index += 1) {
+      const name = view.columns[index]!;
+      const cells = view.rows.slice(0, 40).map((row) => row[index] ?? "");
+      if (columnLooksNumeric(cells)) set.add(name);
+    }
+    return set;
+  }, [view.columns, view.rows]);
+
+  useEffect(() => {
+    function move(event: MouseEvent) {
+      const current = resizeRef.current;
+      if (!current) return;
+      event.preventDefault();
+      const next = clampColWidth(current.startW + (event.clientX - current.startX));
+      setLiveWidths((prev) => ({ ...(prev ?? {}), [current.column]: next }));
+    }
+    function up() {
+      if (!resizeRef.current) return;
+      resizeRef.current = null;
+      document.body.classList.remove("is-col-resizing");
+      setLiveWidths((prev) => {
+        if (prev && Object.keys(prev).length) {
+          const raw = prefsSnapshot(storageKey);
+          const current = parsePrefs(raw);
+          localStorage.setItem(`sc-grid:${storageKey}`, JSON.stringify({ ...current, widths: prev }));
+          emitPrefs(storageKey);
+        }
+        return null;
+      });
+    }
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+    return () => {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+    };
+  }, [storageKey]);
 
   function sourceIndex(viewRow: number) {
     const workingIndex = view.origin[viewRow] ?? viewRow;
@@ -199,6 +281,63 @@ export function ResponseGridView({
     const merged = { ...prefs, ...next };
     localStorage.setItem(`sc-grid:${storageKey}`, JSON.stringify(merged));
     emitPrefs(storageKey);
+  }
+
+  function colStyle(column: string): CSSProperties | undefined {
+    const width = widths[column];
+    if (!width) return undefined;
+    return { width, minWidth: width, maxWidth: width };
+  }
+
+  function startResize(column: string, event: ReactMouseEvent<HTMLSpanElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    const th = (event.currentTarget.parentElement as HTMLElement | null);
+    const startW = widths[column] ?? th?.getBoundingClientRect().width ?? 160;
+    resizeRef.current = { column, startX: event.clientX, startW };
+    document.body.classList.add("is-col-resizing");
+    setLiveWidths({ ...widths, [column]: clampColWidth(startW) });
+    setHeaderMenu(null);
+  }
+
+  function fitColumn(column: string) {
+    const index = source.columns.indexOf(column);
+    const cells =
+      index >= 0 ? working.grid.rows.slice(0, 80).map((row) => row[index] ?? "") : [];
+    patchPrefs({ widths: { ...widths, [column]: autosizeColumn(column, cells) } });
+  }
+
+  function fitAllColumns() {
+    patchPrefs({
+      widths: autosizeColumns(
+        view.columns,
+        view.rows.slice(0, 80),
+      ),
+    });
+  }
+
+  function toggleRow(abs: number, shift: boolean) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (shift && lastChecked.current != null) {
+        const from = Math.min(lastChecked.current, abs);
+        const to = Math.max(lastChecked.current, abs);
+        for (let index = from; index <= to; index += 1) next.add(index);
+      } else if (next.has(abs)) {
+        next.delete(abs);
+      } else {
+        next.add(abs);
+      }
+      lastChecked.current = abs;
+      return next;
+    });
+  }
+
+  function openHeaderMenu(column: string, event: ReactMouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    setHeaderMenu({ column, x: event.clientX, y: event.clientY });
+    setPanel(null);
   }
 
   function toggleSort(column: string) {
@@ -247,6 +386,7 @@ export function ResponseGridView({
       compact: item.compact,
       wrap: item.wrap,
       pageSize: item.pageSize,
+      widths: item.widths,
     });
     toast(`View “${item.name}” applied`);
     setPanel(null);
@@ -264,6 +404,7 @@ export function ResponseGridView({
         compact: prefs.compact,
         wrap: prefs.wrap,
         pageSize: prefs.pageSize,
+        widths: prefs.widths,
       });
       setViews(parseGridViews(data.job?.gridViews));
       toast("View saved");
@@ -314,7 +455,25 @@ export function ResponseGridView({
   }
 
   return (
-    <div className="grid-shell" ref={root}>
+    <div
+      className={`grid-shell ${fullscreen ? "is-full" : ""}`}
+      ref={root}
+      tabIndex={0}
+      onKeyDown={(event) => {
+        const typing =
+          event.target instanceof HTMLInputElement ||
+          event.target instanceof HTMLTextAreaElement ||
+          event.target instanceof HTMLSelectElement;
+        if (typing) return;
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c" && activeCell) {
+          const value = pageRows[activeCell.row - pageOffset]?.[activeCell.col];
+          if (value != null) {
+            event.preventDefault();
+            copyText(value, view.columns[activeCell.col] ?? "Cell");
+          }
+        }
+      }}
+    >
       <div className="grid-toolbar">
         <div className="grid-toolbar-main">
           <label className="grid-search">
@@ -409,6 +568,13 @@ export function ResponseGridView({
               Diff{diff ? ` · ${diff.changedCount}` : ""}
             </button>
           ) : null}
+          <button
+            className={`btn btn-sm ${fullscreen ? "btn-gold" : "btn-ghost"}`}
+            type="button"
+            onClick={() => setFullscreen((value) => !value)}
+          >
+            {fullscreen ? "Exit full" : "Full screen"}
+          </button>
         </div>
       </div>
 
@@ -419,6 +585,7 @@ export function ResponseGridView({
         {selected.size ? ` · ${selected.size} selected` : ""}
         {diff ? ` · ${diff.changedCount} cells changed vs previous run` : ""}
         {diffActive ? " · showing changes only" : ""}
+        {sized ? " · column widths saved" : " · drag a column edge to resize"}
       </p>
 
       {panel === "columns" ? (
@@ -572,6 +739,26 @@ export function ResponseGridView({
             />
             Wrap cells
           </label>
+          <label className="grid-check">
+            <input
+              type="checkbox"
+              checked={striped}
+              onChange={(event) => patchPrefs({ striped: event.target.checked })}
+            />
+            Striped rows
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button className="btn btn-ghost btn-sm" type="button" onClick={fitAllColumns}>
+              Autosize columns
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              type="button"
+              onClick={() => patchPrefs({ widths: undefined })}
+            >
+              Reset widths
+            </button>
+          </div>
           {jobId ? (
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-[0.14em] text-ink-dim">Saved views</p>
@@ -770,7 +957,7 @@ export function ResponseGridView({
                         <div key={column} className={changed ? "is-changed" : undefined}>
                           <dt>{column}</dt>
                           <dd>
-                            {row[col] || "—"}
+                            {row[col] ? <CellText value={row[col] ?? ""} query={query} /> : "—"}
                             {changed && cell ? <span className="grid-was">Was {cell.previous || "—"}</span> : null}
                           </dd>
                         </div>
@@ -781,9 +968,9 @@ export function ResponseGridView({
               );
             })}
           </div>
-          <div className={`grid-table-wrap hidden md:block ${prefs.compact ? "is-compact" : ""}`}>
+          <div className={`grid-table-wrap hidden md:block ${prefs.compact ? "is-compact" : ""} ${fullscreen ? "is-full" : ""}`}>
             <table
-              className={`data-grid ${prefs.freeze ? "is-freeze" : ""} ${prefs.wrap === false ? "is-clip" : ""} ${prefs.compact ? "is-compact" : ""}`}
+              className={`data-grid ${prefs.freeze ? "is-freeze" : ""} ${prefs.wrap === false ? "is-clip" : ""} ${prefs.compact ? "is-compact" : ""} ${sized ? "is-sized" : ""} ${striped ? "is-striped" : ""}`}
             >
               <thead>
                 <tr>
@@ -807,11 +994,58 @@ export function ResponseGridView({
                   </th>
                   <th className="grid-index-col">#</th>
                   {view.columns.map((column) => (
-                    <th key={column}>
-                      <button type="button" className="grid-sort" onClick={() => toggleSort(column)}>
-                        {column}
-                        {sort?.column === column ? (sort.dir === "asc" ? " ↑" : " ↓") : ""}
-                      </button>
+                    <th
+                      key={column}
+                      className="grid-th"
+                      style={colStyle(column)}
+                      onContextMenu={(event) => openHeaderMenu(column, event)}
+                      onDragOver={(event) => {
+                        if (!dragCol.current) return;
+                        event.preventDefault();
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        const from = dragCol.current;
+                        dragCol.current = null;
+                        if (!from || from === column) return;
+                        patchPrefs({ visible: moveColumnTo(visible, from, visible.indexOf(column)) });
+                      }}
+                    >
+                      <div className="grid-th-inner">
+                        <button
+                          type="button"
+                          className="grid-sort"
+                          draggable
+                          onDragStart={() => {
+                            dragCol.current = column;
+                          }}
+                          onDragEnd={() => {
+                            dragCol.current = null;
+                          }}
+                          onClick={() => toggleSort(column)}
+                        >
+                          {column}
+                          {sort?.column === column ? (sort.dir === "asc" ? " ↑" : " ↓") : ""}
+                        </button>
+                        <button
+                          type="button"
+                          className="grid-th-more"
+                          aria-label={`Column menu ${column}`}
+                          onClick={(event) => openHeaderMenu(column, event)}
+                        >
+                          ···
+                        </button>
+                      </div>
+                      <span
+                        className="grid-col-resizer"
+                        onMouseDown={(event) => startResize(column, event)}
+                        onDoubleClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          fitColumn(column);
+                        }}
+                        title="Drag to resize · double-click to autosize"
+                      />
                     </th>
                   ))}
                 </tr>
@@ -825,14 +1059,7 @@ export function ResponseGridView({
                         <input
                           type="checkbox"
                           checked={selected.has(abs)}
-                          onChange={(event) => {
-                            setSelected((current) => {
-                              const next = new Set(current);
-                              if (event.target.checked) next.add(abs);
-                              else next.delete(abs);
-                              return next;
-                            });
-                          }}
+                          onChange={(event) => toggleRow(abs, event.nativeEvent instanceof MouseEvent && event.nativeEvent.shiftKey)}
                           aria-label={`Select row ${sourceIndex(abs) + 1}`}
                         />
                       </td>
@@ -840,11 +1067,20 @@ export function ResponseGridView({
                       {row.map((value, col) => {
                         const cell = cellDiff(abs, col);
                         const changed = Boolean(cell?.changed);
+                        const column = view.columns[col] ?? "";
+                        const isActive = activeCell?.row === abs && activeCell.col === col;
                         return (
                         <td
                           key={col}
+                          style={colStyle(column)}
                           aria-label={cell?.changed ? diffHoverText(cell) : undefined}
-                          className={changed ? "is-changed" : diffActive ? "is-same" : undefined}
+                          className={[
+                            changed ? "is-changed" : diffActive ? "is-same" : "",
+                            numericCols.has(column) ? "is-num" : "",
+                            isActive ? "is-active" : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
                           onMouseOver={
                             changed && cell ? (event) => showTip(event, cell.previous, cell.value) : undefined
                           }
@@ -852,9 +1088,10 @@ export function ResponseGridView({
                             changed && cell ? (event) => showTip(event, cell.previous, cell.value) : undefined
                           }
                           onMouseLeave={() => setHover(null)}
-                          onDoubleClick={() => copyText(value, view.columns[col] ?? "Cell")}
+                          onClick={() => setActiveCell({ row: abs, col })}
+                          onDoubleClick={() => copyText(value, column || "Cell")}
                         >
-                          {value || "—"}
+                          <CellText value={value} query={query} />
                           {changed && cell ? (
                             <span className="grid-cell-tip">
                               <span className="grid-hover-k">Was</span>
@@ -912,6 +1149,21 @@ export function ResponseGridView({
             <span className="text-sm text-ink-dim">
               {safePage} / {totalPages}
             </span>
+            <label className="grid-page-size">
+              Go
+              <input
+                className="field"
+                type="number"
+                min={1}
+                max={totalPages}
+                value={safePage}
+                onChange={(event) => {
+                  const next = Number(event.target.value);
+                  if (!Number.isFinite(next)) return;
+                  setPage(Math.min(totalPages, Math.max(1, Math.trunc(next))));
+                }}
+              />
+            </label>
             <button
               className="btn btn-ghost btn-sm"
               type="button"
@@ -931,6 +1183,97 @@ export function ResponseGridView({
           </div>
         </div>
       ) : null}
+      {headerMenu
+        ? createPortal(
+            <div
+              className="menu-pop grid-col-menu"
+              style={{
+                position: "fixed",
+                left: Math.min(headerMenu.x, window.innerWidth - 180),
+                top: Math.min(headerMenu.y + 8, window.innerHeight - 240),
+                right: "auto",
+                marginTop: 0,
+              }}
+            >
+              <button
+                className="menu-item"
+                type="button"
+                onClick={() => {
+                  setSort({ column: headerMenu.column, dir: "asc" });
+                  setHeaderMenu(null);
+                  setPage(1);
+                }}
+              >
+                Sort A → Z
+              </button>
+              <button
+                className="menu-item"
+                type="button"
+                onClick={() => {
+                  setSort({ column: headerMenu.column, dir: "desc" });
+                  setHeaderMenu(null);
+                  setPage(1);
+                }}
+              >
+                Sort Z → A
+              </button>
+              <button
+                className="menu-item"
+                type="button"
+                onClick={() => {
+                  fitColumn(headerMenu.column);
+                  setHeaderMenu(null);
+                }}
+              >
+                Autosize
+              </button>
+              <button
+                className="menu-item"
+                type="button"
+                onClick={() => {
+                  patchPrefs({
+                    visible: moveColumnTo(visible, headerMenu.column, 0),
+                    freeze: true,
+                  });
+                  setHeaderMenu(null);
+                }}
+              >
+                Pin left
+              </button>
+              <button
+                className="menu-item"
+                type="button"
+                onClick={() => {
+                  setFilters((current) => [
+                    ...current,
+                    {
+                      id: `f-${Date.now()}`,
+                      column: headerMenu.column,
+                      op: "contains",
+                      value: "",
+                    },
+                  ]);
+                  setPanel("filters");
+                  setHeaderMenu(null);
+                }}
+              >
+                Filter…
+              </button>
+              <div className="menu-sep" />
+              <button
+                className="menu-item is-danger"
+                type="button"
+                onClick={() => {
+                  toggleColumn(headerMenu.column);
+                  setHeaderMenu(null);
+                }}
+              >
+                Hide column
+              </button>
+            </div>,
+            document.body,
+          )
+        : null}
       {hover
         ? createPortal(
             <div

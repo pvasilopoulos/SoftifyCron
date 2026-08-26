@@ -18,6 +18,7 @@ export async function POST(request: Request, { params }: Ctx) {
     compact?: boolean;
     wrap?: boolean;
     pageSize?: number;
+    widths?: Record<string, number>;
   };
   try {
     const job = await saveJobGridView(session.tid, id, {
@@ -27,6 +28,7 @@ export async function POST(request: Request, { params }: Ctx) {
       compact: body.compact,
       wrap: body.wrap,
       pageSize: body.pageSize,
+      widths: body.widths,
     });
     if (!job) return jsonError("Job not found", 404);
     return NextResponse.json({ job });
