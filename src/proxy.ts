@@ -24,15 +24,6 @@ function isAppPath(pathname: string) {
   );
 }
 
-function isAuthPath(pathname: string) {
-  return (
-    pathname === "/login" ||
-    pathname === "/register" ||
-    pathname === "/forgot" ||
-    pathname === "/reset"
-  );
-}
-
 function isAdminPath(pathname: string) {
   return pathname === "/admin" || pathname.startsWith("/admin/");
 }
@@ -68,14 +59,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(homePath(session), request.url));
   }
 
-  if (isAuthPath(pathname) && session) {
-    const invite = request.nextUrl.searchParams.get("invite");
-    if (invite) {
-      return NextResponse.redirect(new URL(`/invite/${invite}`, request.url));
-    }
-    return NextResponse.redirect(new URL(homePath(session), request.url));
-  }
-
+  // Auth pages hydrate the JWT against the database. Bouncing here on a stale
+  // cookie loops: /login → /dashboard → /login.
   return NextResponse.next();
 }
 
