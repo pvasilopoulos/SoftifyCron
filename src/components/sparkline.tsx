@@ -17,6 +17,7 @@ export function Sparkline({
         const cls = total === 0 ? "spark-empty" : day.bad > 0 ? "spark-bad" : "spark-ok";
         return <span key={index} className={`spark-bar ${cls}`} />;
       })}
+      <span className="spark-label">7d</span>
     </span>
   );
 }
