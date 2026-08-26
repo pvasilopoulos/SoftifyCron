@@ -61,10 +61,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       data-density="comfortable"
       className={`${inter.variable} ${outfit.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <head>
-        <ThemeScript />
-      </head>
       <body className="min-h-full min-h-dvh flex flex-col text-ink">
+        <ThemeScript />
         <AppAmbient />
         <div className="relative z-10 flex min-h-dvh flex-col">
           <AppProviders>{children}</AppProviders>
