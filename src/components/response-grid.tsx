@@ -184,8 +184,14 @@ export function ResponseGridView({
     }
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setPanel(null);
-        setHeaderMenu(null);
+        if (headerMenu) {
+          setHeaderMenu(null);
+          return;
+        }
+        if (panel) {
+          setPanel(null);
+          return;
+        }
         setFullscreen(false);
       }
       if (event.key === "/" && event.target === document.body) {
@@ -199,7 +205,19 @@ export function ResponseGridView({
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("keydown", onKey);
     };
-  }, []);
+  }, [headerMenu, panel]);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    document.documentElement.classList.add("is-grid-full");
+    const id = window.requestAnimationFrame(() => {
+      root.current?.focus({ preventScroll: true });
+    });
+    return () => {
+      window.cancelAnimationFrame(id);
+      document.documentElement.classList.remove("is-grid-full");
+    };
+  }, [fullscreen]);
 
   const visible = useMemo(
     () => reconcileVisible(prefs.visible, source.columns),
@@ -455,7 +473,7 @@ export function ResponseGridView({
     }
   }
 
-  return (
+  const shell = (
     <div
       className={`grid-shell ${fullscreen ? "is-full" : ""}`}
       ref={root}
@@ -616,6 +634,7 @@ export function ResponseGridView({
           <button
             className={`btn btn-sm ${fullscreen ? "btn-gold" : "btn-ghost"}`}
             type="button"
+            aria-pressed={fullscreen}
             onClick={() => setFullscreen((value) => !value)}
           >
             {fullscreen ? "Exit full" : "Full screen"}
@@ -987,7 +1006,7 @@ export function ResponseGridView({
         </dl>
       ) : (
         <>
-          <div className="grid gap-3 md:hidden">
+          <div className={`grid gap-3 ${fullscreen ? "hidden" : "md:hidden"}`}>
             {pageRows.map((row, index) => {
               const abs = pageOffset + index;
               return (
@@ -1024,7 +1043,7 @@ export function ResponseGridView({
               );
             })}
           </div>
-          <div className={`grid-table-wrap hidden md:block ${prefs.compact ? "is-compact" : ""} ${fullscreen ? "is-full" : ""}`}>
+          <div className={`grid-table-wrap ${fullscreen ? "" : "hidden md:block"} ${prefs.compact ? "is-compact" : ""}`}>
             <table
               className={`data-grid ${prefs.freeze ? "is-freeze" : ""} ${prefs.wrap === false ? "is-clip" : ""} ${prefs.compact ? "is-compact" : ""} ${sized ? "is-sized" : ""} ${striped ? "is-striped" : ""}`}
             >
@@ -1389,5 +1408,13 @@ export function ResponseGridView({
           )
         : null}
     </div>
+  );
+
+  if (!fullscreen) return shell;
+  return (
+    <>
+      <div className="grid-full-ph" aria-hidden />
+      {createPortal(shell, document.body)}
+    </>
   );
 }
