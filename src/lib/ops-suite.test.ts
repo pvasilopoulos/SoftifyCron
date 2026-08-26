@@ -82,7 +82,7 @@ describe("inbox", () => {
 
 describe("usage inbound sms", () => {
   it("formats bytes, phones, and hook urls", () => {
-    expect(toFiniteCount(1500n)).toBe(1500);
+    expect(toFiniteCount(BigInt(1500))).toBe(1500);
     expect(summarizeJobCounts([
       { enabled: true, lastStatus: "SUCCESS", count: 4 },
       { enabled: true, lastStatus: "FAILED", count: 2 },
