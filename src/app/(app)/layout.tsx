@@ -14,21 +14,27 @@ export default async function AppGroupLayout({
   children: React.ReactNode;
 }) {
   const session = await requireTenantSession();
-  await ensureDefaultGroups(session.tid);
-  await ensureDefaultRoles(session.tid);
-  const workspaces = session.platform
-    ? (await listTenantOptions()).map((tenant) => ({
-        id: tenant.id,
-        name: tenant.name,
-        slug: tenant.slug,
-        role: "OWNER",
-      }))
-    : (await listMyWorkspaces(session.sub)).map((row) => ({
-        id: row.tenant.id,
-        name: row.tenant.name,
-        slug: row.tenant.slug,
-        role: row.role,
-      }));
+  const [workspaces] = await Promise.all([
+    session.platform
+      ? listTenantOptions().then((tenants) =>
+          tenants.map((tenant) => ({
+            id: tenant.id,
+            name: tenant.name,
+            slug: tenant.slug,
+            role: "OWNER",
+          })),
+        )
+      : listMyWorkspaces(session.sub).then((rows) =>
+          rows.map((row) => ({
+            id: row.tenant.id,
+            name: row.tenant.name,
+            slug: row.tenant.slug,
+            role: row.role,
+          })),
+        ),
+    ensureDefaultGroups(session.tid),
+    ensureDefaultRoles(session.tid),
+  ]);
 
   return (
     <AppShell session={session} workspaces={workspaces} canCreateJob={hasPermission(session, "jobs.edit")}>

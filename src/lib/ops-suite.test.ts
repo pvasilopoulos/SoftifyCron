@@ -3,7 +3,7 @@ import { buildCron, parseCronDraft } from "./cron-builder";
 import { certExpiresTooSoon, dnsMatchesExpected, isProbeType, parseProbeTarget } from "./probes";
 import { extractColumnSeries } from "./grid-series";
 import { isOpenIncident, sortInbox } from "./inbox";
-import { formatBytes } from "./usage";
+import { formatBytes, summarizeJobCounts, toFiniteCount } from "./usage";
 import { hookUrl, newHookToken } from "./inbound";
 import { parsePhones } from "./sms";
 import { buildWeekCalendar, dayKey } from "./calendar";
@@ -82,6 +82,12 @@ describe("inbox", () => {
 
 describe("usage inbound sms", () => {
   it("formats bytes, phones, and hook urls", () => {
+    expect(toFiniteCount(1500n)).toBe(1500);
+    expect(summarizeJobCounts([
+      { enabled: true, lastStatus: "SUCCESS", count: 4 },
+      { enabled: true, lastStatus: "FAILED", count: 2 },
+      { enabled: false, lastStatus: "TIMEOUT", count: 1 },
+    ])).toEqual({ jobs: 7, armed: 6, failing: 3 });
     expect(formatBytes(1536)).toBe("1.5 KB");
     expect(parsePhones("+30690000000, nope, 123")).toEqual(["+30690000000"]);
     const token = newHookToken();
