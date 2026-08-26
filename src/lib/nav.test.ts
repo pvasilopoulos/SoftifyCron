@@ -84,6 +84,12 @@ describe("isNavActive", () => {
     expect(isNavActive("/settings", "#appearance", { id: "settings", href: "/settings#workspace", label: "Settings", group: "account" })).toBe(
       true,
     );
+    expect(isNavActive("/settings", "#docs", { id: "settings", href: "/settings#workspace", label: "Settings", group: "account" })).toBe(
+      true,
+    );
+    expect(isNavActive("/settings", "#docs-api", { id: "people", href: "/settings#people", label: "People", group: "team" })).toBe(
+      false,
+    );
   });
 
   it("matches job nested routes", () => {

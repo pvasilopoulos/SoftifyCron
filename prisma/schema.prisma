@@ -111,6 +111,7 @@ model Tenant {
   loginAllowIps            String?          @db.Text
   portalTokenHash          String?          @unique
   portalTokenPrefix        String?          @db.VarChar(16)
+  apiEventUrl              String?          @db.VarChar(2048)
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
   memberships              Membership[]
@@ -412,6 +413,8 @@ model ApiToken {
   name       String
   tokenHash  String    @unique
   prefix     String
+  scopes     String    @default("") @db.VarChar(240)
+  expiresAt  DateTime?
   lastUsedAt DateTime?
   createdAt  DateTime  @default(now())
   tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)

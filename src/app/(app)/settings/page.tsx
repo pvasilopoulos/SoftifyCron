@@ -11,6 +11,7 @@ import { hasPermission } from "@/lib/acl";
 import { notFound } from "next/navigation";
 import { publicNotify } from "@/lib/tenant-notify";
 import { listNotifyTemplates } from "@/lib/notify-templates";
+import { appUrl } from "@/lib/app-url";
 
 export const metadata = { title: "Workspace" };
 
@@ -60,6 +61,7 @@ export default async function SettingsPage() {
       actorRole={session.role}
       platform={session.platform}
       telegramTemplates={telegramTemplates}
+      origin={appUrl()}
     />
   );
 }

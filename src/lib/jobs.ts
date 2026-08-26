@@ -40,6 +40,8 @@ export type JobFilters = {
   groupId?: string | "none";
   type?: JobType;
   state?: "armed" | "paused" | "failing";
+  take?: number;
+  skip?: number;
 };
 
 function applyTypeDefaults(input: JobInput): JobInput {
@@ -287,6 +289,8 @@ export async function listJobs(tenantId: string, filters: JobFilters = {}) {
     },
     include: { group: true },
     orderBy: [{ enabled: "desc" }, { nextRunAt: "asc" }, { name: "asc" }],
+    ...(filters.take ? { take: filters.take } : {}),
+    ...(filters.skip ? { skip: filters.skip } : {}),
   });
 }
 

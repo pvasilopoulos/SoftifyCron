@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE `Tenant` ADD COLUMN `apiEventUrl` VARCHAR(2048) NULL;
+
+-- AlterTable
+ALTER TABLE `ApiToken` ADD COLUMN `scopes` VARCHAR(240) NOT NULL DEFAULT '',
+    ADD COLUMN `expiresAt` DATETIME(3) NULL;

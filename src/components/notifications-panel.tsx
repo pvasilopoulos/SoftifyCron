@@ -64,6 +64,7 @@ export type NotifySettings = {
   portalToken?: string;
   telegramCommandSecret?: string;
   slackCommandSecret?: string;
+  apiEventUrl?: string;
 };
 
 export function NotificationsPanel({
@@ -150,6 +151,7 @@ export function NotificationsPanel({
         statusCustomHost: String(form.get("statusCustomHost") ?? ""),
         loginAllowIps: String(form.get("loginAllowIps") ?? ""),
         rotatePortalToken: form.get("rotatePortalToken") === "on",
+        apiEventUrl: String(form.get("apiEventUrl") ?? ""),
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -771,6 +773,21 @@ export function NotificationsPanel({
             <span className="text-sm">Rotate signing secret on save</span>
           </label>
         ) : null}
+        <label className="mt-5 block text-sm">
+          Workspace API event URL
+          <input
+            className="field mt-1"
+            name="apiEventUrl"
+            type="url"
+            defaultValue={initial.apiEventUrl ?? ""}
+            placeholder="https://example.com/softifycron-events"
+            disabled={!canEdit}
+          />
+        </label>
+        <p className="mt-2 text-sm text-ink-dim">
+          Optional. Every finished run POSTs <span className="mono">job.run.finished</span> here, signed like job
+          webhooks. Leave blank to disable. Details in Docs → Public API.
+        </p>
       </section>
 
       {canEdit ? (

@@ -1777,3 +1777,100 @@ tr.row-hover:hover .job-menu-col {
   text-transform: uppercase;
   color: var(--ink-dim);
 }
+
+.docs-layout {
+  display: grid;
+  gap: 1rem;
+}
+@media (min-width: 960px) {
+  .docs-layout {
+    grid-template-columns: 13.5rem minmax(0, 1fr);
+    align-items: start;
+    gap: 1.25rem;
+  }
+  .docs-toc {
+    position: sticky;
+    top: 0.75rem;
+  }
+}
+.docs-toc-link {
+  display: block;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.7rem;
+  color: var(--ink-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.docs-toc-link:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--bg-mute) 80%, transparent);
+}
+.docs-prose {
+  display: grid;
+  gap: 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.docs-prose ul,
+.docs-prose ol {
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.4rem;
+  color: var(--ink-dim);
+}
+.docs-note {
+  padding: 0.75rem 0.9rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--gold) 10%, var(--bg-mute));
+  border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--line));
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+.docs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.docs-table th,
+.docs-table td {
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.docs-endpoint {
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+.docs-method {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sage) 18%, var(--bg-mute));
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.docs-scope {
+  display: inline-flex;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--bg-mute);
+  color: var(--ink-dim);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.docs-scope.is-open {
+  background: color-mix(in srgb, var(--gold) 16%, var(--bg-mute));
+}
+.docs-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--ink-dim);
+}
