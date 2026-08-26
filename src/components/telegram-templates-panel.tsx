@@ -49,8 +49,7 @@ export function TelegramTemplatesPanel({
     setBody((current) => `${current}${current.endsWith("\n") || current.length === 0 ? "" : " "}{{${key}}}`);
   }
 
-  async function save(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function save() {
     setPending(true);
     setStatus(null);
     const creating = activeId === "new";
@@ -101,10 +100,9 @@ export function TelegramTemplatesPanel({
 
   return (
     <section className="card p-5 sm:p-6">
-      <h2 className="font-display text-2xl">Telegram templates</h2>
+      <h2 className="font-display text-2xl">Message templates</h2>
       <p className="mt-1 text-sm text-ink-dim">
-        Write the Telegram body once, then pick it on each job. Unknown placeholders become empty. Email, Slack, and
-        Discord still use the built-in message.
+        Write the Telegram body once, then pick it on each job. Unknown placeholders become empty.
       </p>
       <div className="mt-5 grid gap-5 lg:grid-cols-[14rem_1fr]">
         <div>
@@ -134,7 +132,7 @@ export function TelegramTemplatesPanel({
             </button>
           ) : null}
         </div>
-        <form className="space-y-4" onSubmit={save}>
+        <div className="space-y-4">
           <label className="block">
             <span className="field-label">Name</span>
             <input
@@ -177,7 +175,7 @@ export function TelegramTemplatesPanel({
           </div>
           {canEdit ? (
             <div className="flex flex-wrap gap-3">
-              <button className="btn btn-gold" type="submit" disabled={pending}>
+              <button className="btn btn-gold" type="button" disabled={pending} onClick={() => void save()}>
                 {pending ? "Saving…" : active ? "Save template" : "Create template"}
               </button>
               {active ? (
@@ -190,7 +188,7 @@ export function TelegramTemplatesPanel({
             <p className="text-sm text-ink-dim">You do not have permission to edit templates.</p>
           )}
           {status ? <p className="text-sm text-ink-dim">{status}</p> : null}
-        </form>
+        </div>
       </div>
     </section>
   );

@@ -83,6 +83,11 @@ export const notifyTestSchema = z.object({
   channel: z.enum(["email", "telegram", "slack", "discord", "sms"]),
 });
 
+export const telegramWorkspaceActionSchema = z.object({
+  action: z.enum(["me", "chats", "hook", "unhook"]),
+  origin: z.string().max(400).optional(),
+});
+
 export const passwordChangeSchema = z.object({
   currentPassword: z.string().min(1).max(128),
   nextPassword: z.string().min(8).max(128),

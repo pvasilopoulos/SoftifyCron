@@ -75,6 +75,7 @@ export default async function TenantDetailPage({
         <NotificationsPanel
           canEdit
           endpoint={`/api/admin/tenants/${tenant.id}/notify`}
+          telegramEndpoint={`/api/admin/tenants/${tenant.id}/notify/telegram`}
           initial={publicNotify(tenant)}
         />
       </section>
