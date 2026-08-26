@@ -264,7 +264,7 @@ export function JobsBoard({
                         />
                       ) : null}
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start justify-between gap-3">
                           <Link href={`/jobs/${job.id}`} className="min-w-0 break-any font-medium">
                             {job.name}
                           </Link>
@@ -325,7 +325,7 @@ export function JobsBoard({
                       <th className="px-4 py-3 font-medium">Schedule</th>
                       <th className="px-4 py-3 font-medium">Next</th>
                       <th className="px-4 py-3 font-medium">Status</th>
-                      <th className="px-4 py-3 font-medium"> </th>
+                      <th className="job-menu-col px-2 py-3 font-medium"> </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -344,7 +344,7 @@ export function JobsBoard({
                           <Link href={`/jobs/${job.id}`} className="font-medium hover:text-gold">
                             {job.name}
                           </Link>
-                          <p className="mono mt-1 text-xs text-ink-dim">
+                          <p className="mono mt-1 max-w-[28rem] truncate text-xs text-ink-dim">
                             {job.type} · {job.method} {job.url}
                           </p>
                         </td>
@@ -367,7 +367,7 @@ export function JobsBoard({
                             <p className="mt-1 text-xs text-ink-dim">{chainHint(job, names)}</p>
                           ) : null}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="job-menu-col px-2 py-3">
                           <JobMenu
                             jobId={job.id}
                             name={job.name}

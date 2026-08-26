@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   confirmDeleteJob,
   deleteJobRequest,
@@ -69,22 +70,44 @@ export function JobMenu({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
   const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
   const labelId = useId();
+
+  function placeMenu() {
+    const el = trigger.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const width = 216;
+    const left = Math.min(Math.max(8, rect.right - width), window.innerWidth - width - 8);
+    setCoords({ top: rect.bottom + 6, left });
+  }
 
   useEffect(() => {
     if (!open) return;
+    placeMenu();
     function onPointer(event: MouseEvent) {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (root.current?.contains(target) || menu.current?.contains(target)) return;
+      setOpen(false);
     }
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);
     }
+    function onReposition() {
+      placeMenu();
+    }
     document.addEventListener("mousedown", onPointer);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onReposition);
+    window.addEventListener("scroll", onReposition, true);
     return () => {
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
     };
   }, [open]);
 
@@ -102,26 +125,40 @@ export function JobMenu({
   }
 
   return (
-    <div className="relative text-left" ref={root}>
+    <div className="relative shrink-0" ref={root}>
       <button
+        ref={trigger}
         className="menu-trigger"
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-labelledby={labelId}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          if (open) {
+            setOpen(false);
+            return;
+          }
+          placeMenu();
+          setOpen(true);
+        }}
       >
         <span id={labelId} className="sr-only">
           Job menu
         </span>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-          <circle cx="12" cy="5" r="1.7" />
-          <circle cx="12" cy="12" r="1.7" />
-          <circle cx="12" cy="19" r="1.7" />
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+          <circle cx="12" cy="5" r="2.35" />
+          <circle cx="12" cy="12" r="2.35" />
+          <circle cx="12" cy="19" r="2.35" />
         </svg>
       </button>
-      {open ? (
-        <div role="menu" className="menu-pop">
+      {open && coords
+        ? createPortal(
+            <div
+              ref={menu}
+              role="menu"
+              className="menu-pop is-fixed"
+              style={{ top: coords.top, left: coords.left }}
+            >
           <Item href={`/jobs/${jobId}`} onClick={() => setOpen(false)}>
             <Icon>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -324,8 +361,10 @@ export function JobMenu({
               </Item>
             </>
           ) : null}
-        </div>
-      ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
