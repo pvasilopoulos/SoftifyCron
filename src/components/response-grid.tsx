@@ -1414,7 +1414,7 @@ export function ResponseGridView({
   return (
     <>
       <div className="grid-full-ph" aria-hidden />
-      {createPortal(shell, document.body)}
+      {createPortal(<div className="grid-full-root">{shell}</div>, document.body)}
     </>
   );
 }
