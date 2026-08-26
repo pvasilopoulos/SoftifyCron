@@ -20,6 +20,8 @@ import { sendTenantPush } from "@/lib/push";
 import { appUrl } from "@/lib/app-url";
 import { ackUrl } from "@/lib/inbound";
 import { signAckToken } from "@/lib/ack-token";
+import { DEFAULT_TELEGRAM_TEMPLATE, interpolateNotifyTemplate, notifyVarsFrom } from "@/lib/notify-template";
+import { resolveTelegramTemplate } from "@/lib/notify-templates";
 
 export type NotifyJob = {
   id: string;
@@ -38,6 +40,8 @@ export type NotifyJob = {
   paused?: boolean;
   previousFailures?: number;
   httpStatus?: number | null;
+  telegramTemplateId?: string | null;
+  telegramNote?: string | null;
 };
 
 function subjectFor(name: string, events: NotifyEvent[]) {
@@ -282,8 +286,32 @@ export async function notifyJob(
       throw new Error("Telegram is not configured on this workspace");
     }
     const bot = decryptSecret(tenant.telegramBotTokenEnc);
+    const template = await resolveTelegramTemplate(job.tenantId, job.telegramTemplateId);
+    const ack =
+      liveEvents.some((event) => event !== "success" && event !== "recovery")
+        ? ackUrl(appUrl(), signAckToken(job.id, job.tenantId))
+        : null;
+    const telegramText = interpolateNotifyTemplate(
+      template?.body ?? DEFAULT_TELEGRAM_TEMPLATE,
+      notifyVarsFrom({
+        jobId: job.id,
+        jobName: job.name,
+        tenantName: tenant.name,
+        status: job.lastStatus,
+        events: liveEvents,
+        httpStatus: job.httpStatus,
+        error: job.error,
+        failures: job.consecutiveFailures,
+        paused: job.paused,
+        subject,
+        ackUrl: ack,
+        jobUrl: `${appUrl()}/jobs/${job.id}`,
+        runId,
+        note: job.telegramNote,
+      }),
+    );
     for (const chat of chats) {
-      await sendTelegram(bot, chat, `${subject}\n${text}`);
+      await sendTelegram(bot, chat, telegramText);
     }
   });
 

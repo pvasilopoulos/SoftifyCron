@@ -68,9 +68,12 @@ type JobFormValues = {
   assertFinalUrl: string;
   assertJsonSchema: string;
   hookHmac: string;
+  telegramTemplateId: string;
+  telegramNote: string;
 };
 
 type JobOption = { id: string; name: string };
+type TelegramTemplateOption = { id: string; name: string };
 
 const DEFAULTS: JobFormValues = {
   name: "",
@@ -119,6 +122,8 @@ const DEFAULTS: JobFormValues = {
   assertFinalUrl: "",
   assertJsonSchema: "",
   hookHmac: "",
+  telegramTemplateId: "",
+  telegramNote: "",
 };
 
 export function JobForm({
@@ -126,12 +131,14 @@ export function JobForm({
   jobId,
   groups,
   jobs = [],
+  telegramTemplates = [],
   tenantHolidays = false,
 }: {
   initial?: Partial<JobFormValues>;
   jobId?: string;
   groups: Group[];
   jobs?: JobOption[];
+  telegramTemplates?: TelegramTemplateOption[];
   tenantHolidays?: boolean;
 }) {
   const [seed, setSeed] = useState(() => ({ ...DEFAULTS, ...initial }));
@@ -317,6 +324,30 @@ export function JobForm({
               webhookOn={values.notifyWebhookOn}
             />
           </div>
+          <label className="block">
+            <span className="field-label">Telegram message</span>
+            <select className="field" name="telegramTemplateId" defaultValue={values.telegramTemplateId}>
+              <option value="">Built-in default</option>
+              {telegramTemplates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-ink-dim">
+              Create templates in Workspace → Notifications. Leave default for the built-in Telegram text.
+            </p>
+          </label>
+          <label className="block">
+            <span className="field-label">Telegram note</span>
+            <input
+              className="field"
+              name="telegramNote"
+              defaultValue={values.telegramNote}
+              maxLength={500}
+              placeholder="Optional line for {{note}}"
+            />
+          </label>
           <label className="block">
             <span className="field-label">Webhook URL</span>
             <input className="field mono" name="notifyUrl" defaultValue={values.notifyUrl} placeholder="https://…" />

@@ -127,6 +127,7 @@ model Tenant {
   pushSubs                 PushSubscription[]
   incidents                Incident[]
   library                  JobLibrary[]
+  notifyTemplates          NotifyTemplate[]
 }
 
 model User {
@@ -233,6 +234,8 @@ model CronJob {
   hookTokenHash        String?    @unique
   hookTokenPrefix      String?    @db.VarChar(16)
   hookHmac             String     @default("") @db.VarChar(16)
+  telegramTemplateId   String?
+  telegramNote         String     @default("") @db.VarChar(500)
   assigneeEmail        String     @default("") @db.VarChar(190)
   configLocked         Boolean    @default(false)
   authUrl              String     @default("") @db.VarChar(2048)
@@ -276,10 +279,13 @@ model CronJob {
   updatedAt            DateTime   @updatedAt
   tenant               Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   group                JobGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  telegramTemplate     NotifyTemplate? @relation(fields: [telegramTemplateId], references: [id], onDelete: SetNull)
   runs                 JobRun[]
   revisions            JobRevision[]
   deliveries           NotifyDelivery[]
   incidents            Incident[]
+
+  @@index([telegramTemplateId])
 
   @@index([tenantId, enabled, nextRunAt])
   @@index([tenantId, groupId])
@@ -340,6 +346,19 @@ model JobLibrary {
   snapshot    Json
   createdAt   DateTime @default(now())
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model NotifyTemplate {
+  id        String    @id @default(cuid())
+  tenantId  String
+  name      String
+  body      String    @db.Text
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  jobs      CronJob[]
 
   @@index([tenantId])
 }

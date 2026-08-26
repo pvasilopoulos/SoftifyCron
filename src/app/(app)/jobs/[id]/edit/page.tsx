@@ -5,6 +5,7 @@ import { listGroups } from "@/lib/groups";
 import { JobForm } from "@/components/job-form";
 import { hasPermission } from "@/lib/acl";
 import { prisma } from "@/lib/prisma";
+import { listNotifyTemplates } from "@/lib/notify-templates";
 
 export const metadata = { title: "Edit job" };
 
@@ -16,11 +17,12 @@ export default async function EditJobPage({
   const session = await requireSession();
   if (!hasPermission(session, "jobs.edit")) redirect("/jobs");
   const { id } = await params;
-  const [job, groups, jobs, tenant] = await Promise.all([
+  const [job, groups, jobs, tenant, telegramTemplates] = await Promise.all([
     getJobForTenant(session.tid, id),
     listGroups(session.tid),
     listJobOptions(session.tid),
     prisma.tenant.findUnique({ where: { id: session.tid }, select: { skipGreekHolidays: true } }),
+    listNotifyTemplates(session.tid),
   ]);
   if (!job) notFound();
 
@@ -39,6 +41,7 @@ export default async function EditJobPage({
         jobId={job.id}
         groups={groups}
         jobs={jobs}
+        telegramTemplates={telegramTemplates}
         tenantHolidays={Boolean(tenant?.skipGreekHolidays)}
         initial={{
           name: job.name,
@@ -87,6 +90,8 @@ export default async function EditJobPage({
           assertFinalUrl: job.assertFinalUrl,
           assertJsonSchema: job.assertJsonSchema,
           hookHmac: job.hookHmac,
+          telegramTemplateId: job.telegramTemplateId ?? "",
+          telegramNote: job.telegramNote ?? "",
         }}
       />
     </div>

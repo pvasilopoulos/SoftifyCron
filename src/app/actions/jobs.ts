@@ -86,6 +86,8 @@ export async function saveJobAction(
     assertFinalUrl: String(formData.get("assertFinalUrl") ?? ""),
     assertJsonSchema: String(formData.get("assertJsonSchema") ?? ""),
     hookHmac: String(formData.get("hookHmac") ?? "") || "",
+    telegramTemplateId: String(formData.get("telegramTemplateId") ?? "") || null,
+    telegramNote: String(formData.get("telegramNote") ?? ""),
   });
   if (!parsed.success) {
     return {

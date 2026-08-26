@@ -55,7 +55,7 @@ function applyTypeDefaults(input: JobInput): JobInput {
   return input;
 }
 
-function extraJobFields(data: JobInput) {
+async function extraJobFields(tenantId: string, data: JobInput) {
   if (data.assertJsonSchema?.trim()) parseLiteSchema(data.assertJsonSchema);
   return {
     assigneeEmail: data.assigneeEmail?.trim() ?? "",
@@ -66,7 +66,19 @@ function extraJobFields(data: JobInput) {
     assertFinalUrl: data.assertFinalUrl?.trim() ?? "",
     assertJsonSchema: data.assertJsonSchema ?? "",
     hookHmac: parseHookHmac(data.hookHmac),
+    ...(await resolveTelegramFields(tenantId, data)),
   };
+}
+
+async function resolveTelegramFields(tenantId: string, data: JobInput) {
+  const telegramNote = (data.telegramNote ?? "").trim().slice(0, 500);
+  const templateId = data.telegramTemplateId?.trim() || "";
+  if (!templateId) return { telegramNote, telegramTemplateId: null };
+  const found = await prisma.notifyTemplate.findFirst({
+    where: { id: templateId, tenantId },
+    select: { id: true },
+  });
+  return { telegramNote, telegramTemplateId: found?.id ?? null };
 }
 
 function configChanged(existing: CronJob, data: JobInput) {
@@ -90,7 +102,7 @@ export async function createJob(tenantId: string, input: JobInput) {
   await assertJobTarget(data.type, data.url);
   if (data.notifyUrl) await assertSafeUrl(data.notifyUrl);
   if (data.authUrl?.trim()) await assertSafeUrl(data.authUrl.trim());
-  const extra = extraJobFields(data);
+  const extra = await extraJobFields(tenantId, data);
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { capJobs: true } });
   const jobCount = await prisma.cronJob.count({ where: { tenantId } });
   if (capHit(jobCount, tenant?.capJobs ?? 0)) {
@@ -168,7 +180,7 @@ export async function updateJob(
   if (data.authUrl?.trim()) await assertSafeUrl(data.authUrl.trim());
   const existing = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
   if (!existing) return null;
-  const extra = extraJobFields(data);
+  const extra = await extraJobFields(tenantId, data);
   if (existing.configLocked && !opts?.overrideLock && configChanged(existing, data)) {
     throw new Error("This job is locked. Only an owner can change the target or schedule.");
   }
@@ -242,7 +254,7 @@ export async function getLatestRun(tenantId: string, jobId: string) {
 export async function getJobForTenant(tenantId: string, jobId: string) {
   return prisma.cronJob.findFirst({
     where: { id: jobId, tenantId },
-    include: { group: true },
+    include: { group: true, telegramTemplate: { select: { id: true, name: true } } },
   });
 }
 
@@ -349,6 +361,8 @@ export async function duplicateJob(tenantId: string, jobId: string) {
       assertFinalUrl: job.assertFinalUrl,
       assertJsonSchema: job.assertJsonSchema,
       hookHmac: job.hookHmac,
+      telegramTemplateId: job.telegramTemplateId,
+      telegramNote: job.telegramNote,
       nextRunAt: null,
     },
   });
@@ -580,6 +594,8 @@ export function jobSnapshot(job: CronJob) {
     assertFinalUrl: job.assertFinalUrl,
     assertJsonSchema: job.assertJsonSchema,
     hookHmac: job.hookHmac,
+    telegramTemplateId: job.telegramTemplateId,
+    telegramNote: job.telegramNote,
   };
 }
 

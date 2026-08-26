@@ -10,6 +10,7 @@ import { SecurityPanel } from "@/components/security-panel";
 import { ApiTokensPanel } from "@/components/api-tokens-panel";
 import { JobIoPanel } from "@/components/job-io-panel";
 import { NotificationsPanel, type NotifySettings } from "@/components/notifications-panel";
+import { TelegramTemplatesPanel, type TelegramTemplateRow } from "@/components/telegram-templates-panel";
 
 const TABS = [
   { id: "people", label: "People" },
@@ -54,6 +55,7 @@ export function WorkspaceSettings({
   totpEnabled = false,
   tokens = [],
   notify,
+  telegramTemplates = [],
 }: {
   tenant: { name: string; slug: string; timezone: string };
   members: Parameters<typeof PeopleBoard>[0]["members"];
@@ -71,6 +73,7 @@ export function WorkspaceSettings({
   totpEnabled?: boolean;
   tokens?: Parameters<typeof ApiTokensPanel>[0]["tokens"];
   notify: NotifySettings;
+  telegramTemplates?: TelegramTemplateRow[];
 }) {
   const tab = useSyncExternalStore(subscribeHash, tabFromHash, () => "people");
 
@@ -144,7 +147,10 @@ export function WorkspaceSettings({
       ) : null}
 
       {tab === "notifications" ? (
-        <NotificationsPanel initial={notify} canEdit={canEditSettings} />
+        <div className="space-y-4">
+          <NotificationsPanel initial={notify} canEdit={canEditSettings} />
+          <TelegramTemplatesPanel initial={telegramTemplates} canEdit={canEditSettings} />
+        </div>
       ) : null}
 
       {tab === "security" ? (

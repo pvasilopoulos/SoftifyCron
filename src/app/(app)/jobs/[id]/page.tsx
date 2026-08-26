@@ -317,6 +317,10 @@ export default async function JobDetailPage({
             {job.notifyUrl ? (
               <p className="mono break-all text-xs text-ink-dim">{job.notifyUrl}</p>
             ) : null}
+            <p className="text-xs text-ink-dim">
+              Telegram: {job.telegramTemplate?.name ?? "built-in default"}
+              {job.telegramNote ? " · note set" : ""}
+            </p>
           </div>
           <pre className="mono mt-6 overflow-x-auto rounded-2xl bg-bg p-4 text-xs text-gold-2">
             {headers}

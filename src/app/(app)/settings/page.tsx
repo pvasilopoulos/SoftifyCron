@@ -10,6 +10,7 @@ import { listApiTokens } from "@/lib/api-tokens";
 import { hasPermission } from "@/lib/acl";
 import { notFound } from "next/navigation";
 import { publicNotify } from "@/lib/tenant-notify";
+import { listNotifyTemplates } from "@/lib/notify-templates";
 
 export const metadata = { title: "Workspace" };
 
@@ -22,7 +23,7 @@ export default async function SettingsPage() {
   const tenant = await prisma.tenant.findUnique({ where: { id: session.tid } });
   if (!tenant) notFound();
 
-  const [groups, secrets, invites, members, roles, tokens, user] = await Promise.all([
+  const [groups, secrets, invites, members, roles, tokens, user, telegramTemplates] = await Promise.all([
     listGroups(session.tid),
     canManageSecrets ? listSecrets(session.tid) : Promise.resolve([]),
     canManagePeople ? listInvites(session.tid) : Promise.resolve([]),
@@ -33,6 +34,7 @@ export default async function SettingsPage() {
       where: { id: session.sub },
       select: { totpEnabled: true },
     }),
+    listNotifyTemplates(session.tid),
   ]);
 
   return (
@@ -57,6 +59,7 @@ export default async function SettingsPage() {
       canEditJobs={canEditJobs}
       actorRole={session.role}
       platform={session.platform}
+      telegramTemplates={telegramTemplates}
     />
   );
 }

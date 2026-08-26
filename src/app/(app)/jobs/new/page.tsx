@@ -6,17 +6,19 @@ import { hasPermission } from "@/lib/acl";
 import { tenantNotifyDefaults } from "@/lib/tenant-notify";
 import { listJobOptions } from "@/lib/jobs";
 import { prisma } from "@/lib/prisma";
+import { listNotifyTemplates } from "@/lib/notify-templates";
 
 export const metadata = { title: "New job" };
 
 export default async function NewJobPage() {
   const session = await requireSession();
   if (!hasPermission(session, "jobs.edit")) redirect("/jobs");
-  const [groups, defaults, jobs, tenant] = await Promise.all([
+  const [groups, defaults, jobs, tenant, telegramTemplates] = await Promise.all([
     listGroups(session.tid),
     tenantNotifyDefaults(session.tid),
     listJobOptions(session.tid),
     prisma.tenant.findUnique({ where: { id: session.tid }, select: { skipGreekHolidays: true } }),
+    listNotifyTemplates(session.tid),
   ]);
 
   return (
@@ -32,6 +34,7 @@ export default async function NewJobPage() {
       <JobForm
         groups={groups}
         jobs={jobs}
+        telegramTemplates={telegramTemplates}
         tenantHolidays={Boolean(tenant?.skipGreekHolidays)}
         initial={{
           timezone: defaults.timezone,

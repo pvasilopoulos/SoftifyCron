@@ -59,6 +59,8 @@ export async function exportJobs(tenantId: string) {
       assertFinalUrl: job.assertFinalUrl,
       assertJsonSchema: job.assertJsonSchema,
       hookHmac: job.hookHmac,
+      telegramTemplateId: job.telegramTemplateId,
+      telegramNote: job.telegramNote,
     })),
   };
 }

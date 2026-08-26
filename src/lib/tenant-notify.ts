@@ -24,6 +24,11 @@ import {
   parseSmtpPort,
 } from "@/lib/notify-policy";
 import { parsePhones, sendSms } from "@/lib/sms";
+import {
+  DEFAULT_TELEGRAM_TEMPLATE,
+  interpolateNotifyTemplate,
+  sampleNotifyVars,
+} from "@/lib/notify-template";
 
 export type TenantNotifyInput = {
   notifyEmail?: string;
@@ -525,12 +530,14 @@ export async function testTenantNotify(
     throw new Error("Save a Telegram bot token and chat id for this workspace first");
   }
   const bot = decryptSecret(tenant.telegramBotTokenEnc);
+  const text = interpolateNotifyTemplate(DEFAULT_TELEGRAM_TEMPLATE, {
+    ...sampleNotifyVars(),
+    tenant: tenant.name,
+    subject: `[SoftifyCron] Test from ${tenant.name}`,
+    note: "This is a test from Workspace → Notifications.",
+  });
   for (const chat of chats) {
-    await sendTelegram(
-      bot,
-      chat,
-      `[SoftifyCron] Test from ${tenant.name}\nTelegram alerts stay inside this workspace.`,
-    );
+    await sendTelegram(bot, chat, text);
   }
   return { sent: true, logged: false };
 }

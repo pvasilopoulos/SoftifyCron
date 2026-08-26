@@ -170,6 +170,18 @@ export const jobInputSchema = z.object({
   assertFinalUrl: z.string().max(2048).optional().default(""),
   assertJsonSchema: z.string().max(20_000).optional().default(""),
   hookHmac: z.enum(["", "github", "gitlab"]).optional().default(""),
+  telegramTemplateId: z.string().max(191).optional().nullable(),
+  telegramNote: z.string().max(500).optional().default(""),
+});
+
+export const notifyTemplateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  body: z.string().max(4000).optional(),
+});
+
+export const notifyTemplateUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  body: z.string().trim().min(1).max(4000).optional(),
 });
 
 export const groupInputSchema = z.object({
