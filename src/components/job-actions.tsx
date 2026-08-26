@@ -60,8 +60,9 @@ export function JobActions({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="job-toolbar">
       {access.run ? (
+      <div className="job-toolbar-row">
         <button
           className="btn btn-gold"
           type="button"
@@ -77,7 +78,6 @@ export function JobActions({
         >
           {busy === "run" ? "Running…" : "Run now"}
         </button>
-      ) : null}
       {access.run ? (
         <button
           className="btn btn-ghost"
@@ -135,9 +135,12 @@ export function JobActions({
           Ack
         </button>
       ) : null}
+      </div>
+      ) : null}
       {access.edit ? (
+      <div className="job-toolbar-row">
         <select
-          className="field w-auto min-w-40"
+          className="field field-inline"
           disabled={!!busy}
           defaultValue=""
           onChange={(event) => {
@@ -163,12 +166,10 @@ export function JobActions({
           <option value="failure:0">Clear fail mute</option>
           <option value="missed:0">Clear missed mute</option>
         </select>
-      ) : null}
-      {access.edit ? (
         <label className="inline-flex flex-wrap items-center gap-2 text-sm">
           <span className="sr-only">Fire once at</span>
           <input
-            className="field w-auto"
+            className="field field-inline"
             type="datetime-local"
             value={onceValue}
             disabled={!!busy}
@@ -208,29 +209,27 @@ export function JobActions({
             </button>
           ) : null}
         </label>
-      ) : null}
-      {access.edit && enabled ? (
-        <button
-          className="btn btn-ghost"
-          type="button"
-          disabled={!!busy}
-          onClick={() =>
-            wrap("skip", async () => {
-              await skipJobRequest(jobId);
-              setMessage("Skipped next fire");
-              toast("Skipped next fire");
-              router.refresh();
-            })
-          }
-        >
-          {busy === "skip" ? "Skipping…" : "Skip next"}
-        </button>
-      ) : null}
-      {access.edit ? (
+        {enabled ? (
+          <button
+            className="btn btn-ghost"
+            type="button"
+            disabled={!!busy}
+            onClick={() =>
+              wrap("skip", async () => {
+                await skipJobRequest(jobId);
+                setMessage("Skipped next fire");
+                toast("Skipped next fire");
+                router.refresh();
+              })
+            }
+          >
+            {busy === "skip" ? "Skipping…" : "Skip next"}
+          </button>
+        ) : null}
         <label className="inline-flex items-center gap-2 text-sm">
           <span className="sr-only">Snooze</span>
           <select
-            className="field w-auto min-w-36"
+            className="field field-inline"
             disabled={!!busy}
             defaultValue=""
             onChange={(event) => {
@@ -255,7 +254,9 @@ export function JobActions({
             <option value="0">Clear snooze</option>
           </select>
         </label>
+      </div>
       ) : null}
+      <div className="job-toolbar-row">
       {keepResponse ? (
         <Link
           href={responseBoard ? `/responses?job=${jobId}` : `/jobs/${jobId}/response`}
@@ -325,7 +326,8 @@ export function JobActions({
           Delete job
         </button>
       ) : null}
-      {message ? <span className="text-sm text-ink-dim">{message}</span> : null}
+      </div>
+      {message ? <p className="text-sm text-ink-dim">{message}</p> : null}
     </div>
   );
 }

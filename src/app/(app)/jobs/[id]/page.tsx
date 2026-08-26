@@ -26,6 +26,26 @@ import { maintAction, maintFromRow } from "@/lib/maintenance";
 
 export const metadata = { title: "Job" };
 
+function channelLabel(channel: string) {
+  const labels: Record<string, string> = {
+    email: "Email",
+    telegram: "Telegram",
+    slack: "Slack",
+    discord: "Discord",
+    sms: "SMS",
+    webhook: "Webhook",
+    push: "Push",
+  };
+  return labels[channel] ?? channel;
+}
+
+function httpTone(status: number | null | undefined) {
+  if (status == null) return "";
+  if (status >= 200 && status < 400) return "is-ok";
+  if (status >= 400) return "is-bad";
+  return "";
+}
+
 export default async function JobDetailPage({
   params,
 }: {
@@ -103,8 +123,8 @@ export default async function JobDetailPage({
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
+      <div className="flex flex-wrap items-start justify-between gap-6">
+        <div className="min-w-0 flex-1">
           <Link href="/jobs" className="text-xs uppercase tracking-[0.16em] text-ink-dim">
             ← Jobs
           </Link>
@@ -121,9 +141,9 @@ export default async function JobDetailPage({
               {job.ackNote ? ` · ${job.ackNote}` : ""}
             </p>
           ) : null}
-          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <span
-              className="rounded-full px-2.5 py-1"
+              className="job-chip"
               style={{
                 background: `${job.group?.color ?? "#8b93a7"}22`,
                 color: job.group?.color ?? "#8b93a7",
@@ -131,42 +151,34 @@ export default async function JobDetailPage({
             >
               {job.group?.name ?? "Ungrouped"}
             </span>
-            <span className="rounded-full bg-bg-mute px-2.5 py-1">{job.type}</span>
+            <span className="job-chip">{job.type}</span>
             {tags.map((tag) => (
-              <span key={tag} className="rounded-full bg-bg-mute px-2.5 py-1 text-ink-dim">
+              <span key={tag} className="job-chip job-chip-dim">
                 {tag}
               </span>
             ))}
             {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
             <Sparkline days={spark} />
             {job.flapScore > 0 ? (
-              <span className="rounded-full bg-bg-mute px-2.5 py-1 text-ink-dim">
+              <span className="job-chip job-chip-dim">
                 {flapLabel(job.flapScore)} · {job.flapScore}
               </span>
             ) : null}
-            {job.configLocked ? (
-              <span className="rounded-full bg-bg-mute px-2.5 py-1 text-ink-dim">Locked</span>
-            ) : null}
+            {job.configLocked ? <span className="job-chip job-chip-dim">Locked</span> : null}
             {job.responseBoard ? (
-              <Link
-                href={`/responses?job=${job.id}`}
-                className="rounded-full bg-gold/15 px-2.5 py-1 text-gold-2"
-              >
+              <Link href={`/responses?job=${job.id}`} className="job-chip text-gold-2">
                 Response board
               </Link>
             ) : job.keepResponse ? (
-              <Link
-                href={`/jobs/${job.id}/response`}
-                className="rounded-full bg-gold/15 px-2.5 py-1 text-gold-2"
-              >
+              <Link href={`/jobs/${job.id}/response`} className="job-chip text-gold-2">
                 View response
               </Link>
             ) : null}
           </div>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex w-full min-w-0 flex-col items-stretch gap-3 lg:w-auto lg:items-end">
           {access.edit ? (
-            <Link href={`/jobs/${job.id}/edit`} className="btn btn-ghost">
+            <Link href={`/jobs/${job.id}/edit`} className="btn btn-ghost self-start lg:self-end">
               Edit
             </Link>
           ) : null}
@@ -185,78 +197,90 @@ export default async function JobDetailPage({
       </div>
 
       <section className="grid gap-4 lg:grid-cols-3">
-        <div className="card p-6 lg:col-span-2">
-          <p className="text-xs uppercase tracking-[0.16em] text-gold">Target</p>
-          <p className="mono mt-3 break-all text-lg">
-            {job.method} {job.url}
-          </p>
-          <dl className="mt-6 grid gap-4 sm:grid-cols-2 text-sm">
+        <div className="card p-5 sm:p-6 lg:col-span-2">
+          <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <dt className="text-ink-dim">Cron</dt>
-              <dd className="mono mt-1">{job.cronExpr}</dd>
+              <p className="text-xs uppercase tracking-[0.16em] text-gold">Target</p>
+              <p className="mt-1 text-sm text-ink-dim">{describeCron(job.cronExpr)}</p>
             </div>
-            <div>
-              <dt className="text-ink-dim">Timezone</dt>
-              <dd className="mt-1">{job.timezone}</dd>
-            </div>
-            <div>
-              <dt className="text-ink-dim">Next run</dt>
-              <dd className="mt-1">
+            <span className={job.enabled ? "job-chip text-sage" : "job-chip job-chip-dim"}>
+              {job.enabled ? "Armed" : "Paused"}
+            </span>
+          </div>
+          <div className="job-url">
+            <span className="job-url-method mono">{job.method}</span>
+            <span className="job-url-path mono break-all">{job.url}</span>
+          </div>
+          <dl className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="job-stat">
+              <dt>Next run</dt>
+              <dd>
                 <RelativeTime value={job.nextRunAt} timeZone={job.timezone} />
-                <span className="mt-1 block text-xs text-ink-dim">
+                <span className="mt-1 block text-xs font-medium text-ink-dim">
                   {formatDateTime(job.nextRunAt, job.timezone)}
                 </span>
               </dd>
             </div>
-            <div>
-              <dt className="text-ink-dim">Timeout</dt>
-              <dd className="mt-1">{formatDuration(job.timeoutMs)}</dd>
-            </div>
-            <div>
-              <dt className="text-ink-dim">Retries</dt>
-              <dd className="mt-1">
-                {job.retryMax} × {job.retryDelaySec}s
+            <div className="job-stat">
+              <dt>Schedule</dt>
+              <dd>
+                <span className="mono">{job.cronExpr}</span>
+                <span className="mt-1 block text-xs font-medium text-ink-dim">{job.timezone}</span>
               </dd>
             </div>
-            <div>
-              <dt className="text-ink-dim">Failures</dt>
-              <dd className="mt-1">
+            <div className="job-stat">
+              <dt>Timeout / retries</dt>
+              <dd>
+                {formatDuration(job.timeoutMs)}
+                <span className="mt-1 block text-xs font-medium text-ink-dim">
+                  {job.retryMax} × {job.retryDelaySec}s
+                </span>
+              </dd>
+            </div>
+            <div className="job-stat">
+              <dt>Failures</dt>
+              <dd>
                 {job.consecutiveFailures}
-                {job.pauseAfter > 0 ? ` · auto-pause at ${job.pauseAfter}` : ""}
+                <span className="mt-1 block text-xs font-medium text-ink-dim">
+                  {job.pauseAfter > 0 ? `Auto-pause at ${job.pauseAfter}` : "No auto-pause"}
+                </span>
               </dd>
             </div>
             {job.snoozeUntil ? (
-              <div>
-                <dt className="text-ink-dim">Snoozed until</dt>
-                <dd className="mt-1">
+              <div className="job-stat">
+                <dt>Snoozed until</dt>
+                <dd>
                   <RelativeTime value={job.snoozeUntil} timeZone={job.timezone} />
-                  <span className="mt-1 block text-xs text-ink-dim">
+                  <span className="mt-1 block text-xs font-medium text-ink-dim">
                     {formatDateTime(job.snoozeUntil, job.timezone)}
                   </span>
                 </dd>
               </div>
             ) : null}
             {job.onceAt ? (
-              <div>
-                <dt className="text-ink-dim">Once-off</dt>
-                <dd className="mt-1">
+              <div className="job-stat">
+                <dt>Once-off</dt>
+                <dd>
                   <RelativeTime value={job.onceAt} timeZone={job.timezone} />
-                  <span className="mt-1 block text-xs text-ink-dim">
+                  <span className="mt-1 block text-xs font-medium text-ink-dim">
                     {formatDateTime(job.onceAt, job.timezone)}
                   </span>
                 </dd>
               </div>
             ) : null}
             {job.sloFailPerDay > 0 ? (
-              <div>
-                <dt className="text-ink-dim">SLO</dt>
-                <dd className="mt-1 text-ink-dim">Alert at {job.sloFailPerDay} fails / 24h</dd>
+              <div className="job-stat">
+                <dt>SLO</dt>
+                <dd>
+                  {job.sloFailPerDay} fails / 24h
+                  <span className="mt-1 block text-xs font-medium text-ink-dim">Alert when the budget breaks</span>
+                </dd>
               </div>
             ) : null}
             {job.followUpJobId || job.dependsOnJobId ? (
-              <div>
-                <dt className="text-ink-dim">Chain</dt>
-                <dd className="mt-1 text-ink-dim">
+              <div className="job-stat">
+                <dt>Chain</dt>
+                <dd className="font-medium text-ink">
                   {job.followUpJobId ? "Follow-up set" : null}
                   {job.followUpJobId && job.dependsOnJobId ? " · " : ""}
                   {job.dependsOnJobId ? "Depends on another job" : null}
@@ -264,9 +288,9 @@ export default async function JobDetailPage({
               </div>
             ) : null}
             {job.assertStatus > 0 || job.assertJsonPath || job.assertContains ? (
-              <div className="sm:col-span-2">
-                <dt className="text-ink-dim">Assertions</dt>
-                <dd className="mt-1 text-ink-dim">
+              <div className="job-stat sm:col-span-2">
+                <dt>Assertions</dt>
+                <dd className="font-medium text-ink">
                   {job.assertStatus > 0 ? `HTTP ${job.assertStatus}` : ""}
                   {job.assertJsonPath ? ` · ${job.assertJsonPath}${job.assertEquals ? ` = ${job.assertEquals}` : ""}` : ""}
                   {job.assertContains ? ` · contains “${job.assertContains}”` : ""}
@@ -274,9 +298,9 @@ export default async function JobDetailPage({
               </div>
             ) : null}
             {job.skipHolidays || job.skipWeekends || job.activeHoursStart || job.slowAfterMs > 0 ? (
-              <div className="sm:col-span-2">
-                <dt className="text-ink-dim">Windows</dt>
-                <dd className="mt-1 text-ink-dim">
+              <div className="job-stat sm:col-span-2">
+                <dt>Windows</dt>
+                <dd className="font-medium text-ink">
                   {job.skipHolidays ? "Skip Greek holidays" : ""}
                   {job.skipWeekends ? `${job.skipHolidays ? " · " : ""}Skip weekends` : ""}
                   {job.activeHoursStart && job.activeHoursEnd
@@ -289,57 +313,62 @@ export default async function JobDetailPage({
               </div>
             ) : null}
             {job.type === "HEARTBEAT" ? (
-              <div className="sm:col-span-2">
-                <dt className="text-ink-dim">Last heartbeat</dt>
-                <dd className="mt-1">
+              <div className="job-stat sm:col-span-2">
+                <dt>Last heartbeat</dt>
+                <dd>
                   <RelativeTime value={job.lastHeartbeatAt} timeZone={job.timezone} />
-                  <span className="mono mt-1 block break-all text-xs text-ink-dim">
+                  <span className="mono mt-1 block break-all text-xs font-medium text-ink-dim">
                     {jobHeartbeatUrl(job.id)}
                   </span>
                 </dd>
               </div>
             ) : null}
           </dl>
-          <div className="mt-6 space-y-2 text-sm">
-            <p className="text-ink-dim">Notifications</p>
+          <div className="mt-6">
+            <p className="field-label">Notifications</p>
             {notifyRows.length === 0 ? (
-              <p className="text-ink-dim">No events selected.</p>
+              <p className="text-sm text-ink-dim">No events selected.</p>
             ) : (
-              <ul className="space-y-1">
+              <ul className="flex flex-wrap gap-2">
                 {notifyRows.map((row) => (
-                  <li key={row.event}>
+                  <li key={row.event} className="job-chip">
                     {NOTIFY_EVENT_LABELS[row.event].title}
-                    <span className="text-ink-dim"> · {row.channels.join(", ")}</span>
+                    <span className="job-chip-dim">{row.channels.map(channelLabel).join(" · ")}</span>
                   </li>
                 ))}
               </ul>
             )}
             {job.notifyUrl ? (
-              <p className="mono break-all text-xs text-ink-dim">{job.notifyUrl}</p>
+              <p className="mono mt-2 break-all text-xs text-ink-dim">{job.notifyUrl}</p>
             ) : null}
-            <p className="text-xs text-ink-dim">
+            <p className="mt-2 text-xs text-ink-dim">
               Telegram: {job.telegramTemplate?.name ?? "built-in default"}
               {job.telegramNote ? " · note set" : ""}
             </p>
           </div>
-          <pre className="mono mt-6 overflow-x-auto rounded-2xl bg-bg p-4 text-xs text-gold-2">
-            {headers}
-          </pre>
+          {headers !== "—" ? (
+            <div className="mt-6">
+              <p className="field-label">Request headers</p>
+              <pre className="mono overflow-x-auto rounded-2xl bg-bg p-4 text-xs text-gold-2">{headers}</pre>
+            </div>
+          ) : null}
         </div>
-        <div className="card p-6">
+        <div className="card p-5 sm:p-6">
           <p className="text-xs uppercase tracking-[0.16em] text-gold">Upcoming</p>
-          <ol className="mt-4 space-y-2 text-sm text-ink-dim">
-            {upcoming.length === 0 ? (
-              <li>Paused</li>
-            ) : (
-              upcoming.map((date) => (
-                <li key={date.toISOString()} className="flex items-center justify-between gap-3">
-                  <span className="mono">{formatAbsolute(date, job.timezone)}</span>
-                  <RelativeTime value={date} timeZone={job.timezone} />
+          {upcoming.length === 0 ? (
+            <p className="mt-4 text-sm text-ink-dim">Paused — nothing is queued.</p>
+          ) : (
+            <ol className="upcoming-line mt-4 text-sm">
+              {upcoming.map((date) => (
+                <li key={date.toISOString()} className="flex items-baseline justify-between gap-3">
+                  <span className="mono text-ink">{formatAbsolute(date, job.timezone)}</span>
+                  <span className="shrink-0 text-ink-dim">
+                    <RelativeTime value={date} timeZone={job.timezone} />
+                  </span>
                 </li>
-              ))
-            )}
-          </ol>
+              ))}
+            </ol>
+          )}
         </div>
       </section>
 
@@ -363,27 +392,32 @@ export default async function JobDetailPage({
       <JobChainMap jobs={peers} focusId={job.id} />
 
       <section className="card overflow-hidden p-0">
-        <div className="border-b border-line px-5 py-4 sm:px-6">
-          <h2 className="font-display text-2xl">Alert log</h2>
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line px-5 py-4 sm:px-6">
+          <div>
+            <h2 className="font-display text-2xl">Alert log</h2>
+            <p className="mt-1 text-sm text-ink-dim">
+              {deliveries.length ? "Latest deliveries for this job, including cooldown skips." : "Nothing has been sent yet."}
+            </p>
+          </div>
         </div>
         {deliveries.length === 0 ? (
-          <p className="px-5 py-8 text-sm text-ink-dim sm:px-6">No deliveries yet.</p>
+          <p className="px-5 py-10 text-sm text-ink-dim sm:px-6">No deliveries yet.</p>
         ) : (
           <ul className="divide-y divide-line">
             {deliveries.map((row) => (
-              <li key={row.id} className="px-5 py-3 text-sm sm:px-6">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+              <li key={row.id} className="alert-row">
+                <span className={`alert-dot is-${row.status}`} aria-hidden />
+                <div className="min-w-0">
                   <p className="font-medium">
-                    {row.channel} · {row.event}
+                    {channelLabel(row.channel)}
+                    <span className="font-normal text-ink-dim"> · {row.event}</span>
                   </p>
-                  <span className={row.status === "sent" ? "text-sage" : row.status === "failed" ? "text-rose" : "text-ink-dim"}>
-                    {row.status}
-                  </span>
+                  <p className="mt-1 text-xs text-ink-dim">
+                    <RelativeTime value={row.createdAt} timeZone={job.timezone} />
+                    {row.detail ? ` · ${row.detail}` : ""}
+                  </p>
                 </div>
-                <p className="mt-1 text-xs text-ink-dim">
-                  <RelativeTime value={row.createdAt} timeZone={job.timezone} />
-                  {row.detail ? ` · ${row.detail}` : ""}
-                </p>
+                <span className={`alert-status is-${row.status}`}>{row.status}</span>
               </li>
             ))}
           </ul>
@@ -391,11 +425,19 @@ export default async function JobDetailPage({
       </section>
 
       <section className="card overflow-hidden p-0">
-        <div className="border-b border-line px-5 py-4 sm:px-6">
-          <h2 className="font-display text-2xl">Runs</h2>
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line px-5 py-4 sm:px-6">
+          <div>
+            <h2 className="font-display text-2xl">Runs</h2>
+            <p className="mt-1 text-sm text-ink-dim">
+              {runs.length ? `Latest ${runs.length} executions.` : "This job has not fired yet."}
+            </p>
+          </div>
+          <Link href={`/runs?jobId=${job.id}`} className="btn btn-ghost btn-sm">
+            All runs
+          </Link>
         </div>
         {runs.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-ink-dim">No executions yet.</p>
+          <p className="px-6 py-10 text-sm text-ink-dim">No executions yet.</p>
         ) : (
           <>
             <div className="grid gap-3 p-4 md:hidden">
@@ -403,18 +445,24 @@ export default async function JobDetailPage({
                 <Link key={run.id} href={`/runs/${run.id}`} className="rounded-2xl border border-line bg-bg p-4">
                   <div className="flex items-center justify-between gap-2">
                     <StatusPill status={run.status} />
-                    <span className="text-xs text-ink-dim">{run.trigger.toLowerCase()}</span>
+                    <span className="job-chip job-chip-dim">{run.trigger.toLowerCase()}</span>
                   </div>
-                  <p className="mt-2 text-xs text-ink-dim">
+                  <p className="mt-3 text-sm font-medium">
                     <RelativeTime value={run.startedAt} timeZone={job.timezone} />
                   </p>
                   <p className="mono mt-1 text-xs text-ink-dim">
                     {formatAbsolute(run.startedAt, job.timezone)}
                   </p>
-                  <p className="mt-1 text-sm">
-                    HTTP {run.httpStatus ?? "—"} · {formatDuration(run.durationMs)}
-                    {run.ttfbMs != null ? ` · TTFB ${run.ttfbMs}ms` : ""}
-                    {run.silent ? " · silent" : ""}
+                  <p className="mt-2 text-sm">
+                    <span className={`mono run-http ${httpTone(run.httpStatus)}`}>
+                      {run.httpStatus != null ? `HTTP ${run.httpStatus}` : "HTTP —"}
+                    </span>
+                    <span className="text-ink-dim">
+                      {" "}
+                      · {formatDuration(run.durationMs)}
+                      {run.ttfbMs != null ? ` · TTFB ${run.ttfbMs}ms` : ""}
+                      {run.silent ? " · silent" : ""}
+                    </span>
                   </p>
                   {run.comment ? <p className="mt-2 text-xs text-ink-dim">{run.comment}</p> : null}
                 </Link>
@@ -422,7 +470,7 @@ export default async function JobDetailPage({
             </div>
             <div className="table-wrap hidden md:block rounded-none border-0">
               <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="text-xs uppercase tracking-[0.14em] text-ink-dim">
+                <thead className="bg-bg-mute/70 text-xs uppercase tracking-[0.14em] text-ink-dim">
                   <tr>
                     <th className="px-6 py-3 font-medium">When</th>
                     <th className="px-6 py-3 font-medium">Trigger</th>
@@ -435,28 +483,30 @@ export default async function JobDetailPage({
                 </thead>
                 <tbody>
                   {runs.map((run) => (
-                    <tr key={run.id} className="border-t border-line">
-                      <td className="px-6 py-3">
-                        <Link href={`/runs/${run.id}`} className="hover:text-gold">
+                    <tr key={run.id} className="row-hover border-t border-line">
+                      <td className="px-6 py-3.5">
+                        <Link href={`/runs/${run.id}`} className="font-medium hover:text-gold">
                           <RelativeTime value={run.startedAt} timeZone={job.timezone} />
                         </Link>
                         <p className="mono mt-1 text-xs text-ink-dim">
                           {formatAbsolute(run.startedAt, job.timezone)}
                         </p>
                       </td>
-                      <td className="px-6 py-3 text-ink-dim">
-                        {run.trigger.toLowerCase()}
+                      <td className="px-6 py-3.5">
+                        <span className="job-chip job-chip-dim">{run.trigger.toLowerCase()}</span>
                       </td>
-                      <td className="px-6 py-3">
+                      <td className="px-6 py-3.5">
                         <StatusPill status={run.status} />
                       </td>
-                      <td className="px-6 py-3 mono">{run.httpStatus ?? "—"}</td>
-                      <td className="px-6 py-3">{formatDuration(run.durationMs)}</td>
-                      <td className="px-6 py-3 text-ink-dim">
+                      <td className={`px-6 py-3.5 mono run-http ${httpTone(run.httpStatus)}`}>
+                        {run.httpStatus ?? "—"}
+                      </td>
+                      <td className="px-6 py-3.5">{formatDuration(run.durationMs)}</td>
+                      <td className="px-6 py-3.5 text-ink-dim">
                         {run.ttfbMs != null ? `${run.ttfbMs}ms` : "—"}
                         {run.silent ? " · silent" : ""}
                       </td>
-                      <td className="px-6 py-3 text-xs text-ink-dim">{run.comment ?? "—"}</td>
+                      <td className="px-6 py-3.5 text-xs text-ink-dim">{run.comment ?? "—"}</td>
                     </tr>
                   ))}
                 </tbody>
