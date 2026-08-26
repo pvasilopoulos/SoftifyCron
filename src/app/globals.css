@@ -600,6 +600,7 @@ details > summary::-webkit-details-marker { display: none; }
 }
 .grid-col-resizer {
   position: relative;
+  display: inline-block;
   flex: none;
   z-index: 4;
   width: 14px;
