@@ -599,13 +599,29 @@ details > summary::-webkit-details-marker { display: none; }
   top: 0;
   right: 0;
   z-index: 4;
-  width: 8px;
+  width: 10px;
   height: 100%;
   cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+.grid-col-resizer::after {
+  content: "";
+  position: absolute;
+  top: 22%;
+  right: 3px;
+  width: 2px;
+  height: 56%;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--muted) 55%, transparent);
+}
+.grid-col-resizer:hover::after,
+body.is-col-resizing .grid-col-resizer::after {
+  background: var(--gold);
 }
 .grid-col-resizer:hover,
 body.is-col-resizing .grid-col-resizer {
-  background: color-mix(in srgb, var(--gold) 55%, transparent);
+  background: color-mix(in srgb, var(--gold) 28%, transparent);
 }
 body.is-col-resizing {
   cursor: col-resize;

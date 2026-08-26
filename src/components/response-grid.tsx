@@ -30,6 +30,7 @@ import {
   columnLooksNumeric,
   highlightParts,
   moveColumnTo,
+  stepGridCell,
 } from "@/lib/grid-layout";
 import {
   deleteJobViewRequest,
@@ -136,7 +137,7 @@ export function ResponseGridView({
   const [filters, setFilters] = useState<ColumnFilter[]>([]);
   const [panel, setPanel] = useState<Panel>(null);
   const [page, setPage] = useState(1);
-  const [diffOn, setDiffOn] = useState(Boolean(previousRaw));
+  const [diffOn, setDiffOn] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [views, setViews] = useState<GridView[]>(() => parseGridViews(savedViews));
   const [watches, setWatches] = useState<GridWatch[]>(() => parseGridWatches(savedWatches));
@@ -460,18 +461,62 @@ export function ResponseGridView({
       ref={root}
       tabIndex={0}
       onKeyDown={(event) => {
+        const target = event.target;
         const typing =
-          event.target instanceof HTMLInputElement ||
-          event.target instanceof HTMLTextAreaElement ||
-          event.target instanceof HTMLSelectElement;
+          target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement ||
+          target instanceof HTMLSelectElement;
         if (typing) return;
-        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c" && activeCell) {
-          const value = pageRows[activeCell.row - pageOffset]?.[activeCell.col];
-          if (value != null) {
+        const meta = event.ctrlKey || event.metaKey;
+        if (meta && event.key.toLowerCase() === "c") {
+          if (selected.size > 0) {
             event.preventDefault();
-            copyText(value, view.columns[activeCell.col] ?? "Cell");
+            copyText(gridToTsv({ ...view, rows: selectedRows }), selected.size === 1 ? "Row" : "Rows");
+            return;
           }
+          if (activeCell) {
+            const value = pageRows[activeCell.row - pageOffset]?.[activeCell.col];
+            if (value != null) {
+              event.preventDefault();
+              copyText(value, view.columns[activeCell.col] ?? "Cell");
+            }
+          }
+          return;
         }
+        if (mode !== "grid" || view.columns.length === 0 || view.rows.length === 0) return;
+        if (target instanceof HTMLElement && target.closest("button, a, .grid-toolbar, .grid-pager, .grid-panel, .menu-pop")) {
+          return;
+        }
+        const key = event.key;
+        const step =
+          key === "ArrowLeft"
+            ? "left"
+            : key === "ArrowRight" || key === "Tab"
+              ? event.shiftKey && key === "Tab"
+                ? "left"
+                : "right"
+              : key === "ArrowUp"
+                ? "up"
+                : key === "ArrowDown" || key === "Enter"
+                  ? "down"
+                  : key === "Home"
+                    ? meta
+                      ? "first"
+                      : "home"
+                    : key === "End"
+                      ? meta
+                        ? "last"
+                        : "end"
+                      : null;
+        if (!step) return;
+        event.preventDefault();
+        const current = activeCell ?? { row: pageOffset, col: 0 };
+        const next = stepGridCell(current.row, current.col, step, view.columns.length, view.rows.length);
+        if (pageSize > 0) {
+          const targetPage = Math.floor(next.row / pageSize) + 1;
+          if (targetPage !== safePage) setPage(targetPage);
+        }
+        setActiveCell(next);
       }}
     >
       <div className="grid-toolbar">
@@ -585,7 +630,7 @@ export function ResponseGridView({
         {selected.size ? ` · ${selected.size} selected` : ""}
         {diff ? ` · ${diff.changedCount} cells changed vs previous run` : ""}
         {diffActive ? " · showing changes only" : ""}
-        {sized ? " · column widths saved" : " · drag a column edge to resize"}
+        {sized ? " · column widths saved" : " · drag a column edge to resize · double-click to autosize"}
       </p>
 
       {panel === "columns" ? (
@@ -603,6 +648,12 @@ export function ResponseGridView({
             </button>
             <button className="btn btn-ghost btn-sm" type="button" onClick={() => patchPrefs({ visible: undefined })}>
               Reset
+            </button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={fitAllColumns}>
+              Autosize
+            </button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={() => patchPrefs({ widths: undefined })}>
+              Reset widths
             </button>
           </div>
           <ul className="grid-col-list">
@@ -904,7 +955,12 @@ export function ResponseGridView({
       ) : view.columns.length === 0 ? (
         <p className="text-sm text-ink-dim">Empty payload.</p>
       ) : diffActive && view.rows.length === 0 ? (
-        <p className="text-sm text-ink-dim">No cells changed vs the previous run.</p>
+        <div className="space-y-3">
+          <p className="text-sm text-ink-dim">No cells changed vs the previous run.</p>
+          <button className="btn btn-ghost btn-sm" type="button" onClick={() => setDiffOn(false)}>
+            Show all rows
+          </button>
+        </div>
       ) : isPairs ? (
         <dl className="grid-pairs">
           {pageRows.map((row, index) => {
@@ -1190,7 +1246,7 @@ export function ResponseGridView({
               style={{
                 position: "fixed",
                 left: Math.min(headerMenu.x, window.innerWidth - 180),
-                top: Math.min(headerMenu.y + 8, window.innerHeight - 240),
+                top: Math.min(headerMenu.y + 8, window.innerHeight - 320),
                 right: "auto",
                 marginTop: 0,
               }}
@@ -1226,6 +1282,34 @@ export function ResponseGridView({
                 }}
               >
                 Autosize
+              </button>
+              <button
+                className="menu-item"
+                type="button"
+                onClick={() => {
+                  const next = { ...widths };
+                  delete next[headerMenu.column];
+                  patchPrefs({ widths: Object.keys(next).length ? next : undefined });
+                  setHeaderMenu(null);
+                }}
+              >
+                Reset width
+              </button>
+              <button
+                className="menu-item"
+                type="button"
+                onClick={() => {
+                  const index = view.columns.indexOf(headerMenu.column);
+                  if (index >= 0) {
+                    copyText(
+                      view.rows.map((row) => row[index] ?? "").join("\n"),
+                      headerMenu.column,
+                    );
+                  }
+                  setHeaderMenu(null);
+                }}
+              >
+                Copy column
               </button>
               <button
                 className="menu-item"

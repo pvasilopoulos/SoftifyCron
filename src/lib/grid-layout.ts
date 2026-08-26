@@ -88,3 +88,52 @@ export function moveColumnTo(columns: string[], name: string, toIndex: number) {
   copy.splice(next, 0, item!);
   return copy;
 }
+
+export type GridStep = "left" | "right" | "up" | "down" | "home" | "end" | "first" | "last";
+
+export function stepGridCell(
+  row: number,
+  col: number,
+  step: GridStep,
+  colCount: number,
+  rowCount: number,
+) {
+  if (colCount <= 0 || rowCount <= 0) return { row: 0, col: 0 };
+  let nextRow = row;
+  let nextCol = col;
+  if (step === "left") {
+    nextCol -= 1;
+    if (nextCol < 0) {
+      if (nextRow > 0) {
+        nextCol = colCount - 1;
+        nextRow -= 1;
+      } else {
+        nextCol = 0;
+      }
+    }
+  } else if (step === "right") {
+    nextCol += 1;
+    if (nextCol >= colCount) {
+      if (nextRow < rowCount - 1) {
+        nextCol = 0;
+        nextRow += 1;
+      } else {
+        nextCol = colCount - 1;
+      }
+    }
+  } else if (step === "up") nextRow -= 1;
+  else if (step === "down") nextRow += 1;
+  else if (step === "home") nextCol = 0;
+  else if (step === "end") nextCol = colCount - 1;
+  else if (step === "first") {
+    nextRow = 0;
+    nextCol = 0;
+  } else if (step === "last") {
+    nextRow = rowCount - 1;
+    nextCol = colCount - 1;
+  }
+  return {
+    row: Math.max(0, Math.min(rowCount - 1, nextRow)),
+    col: Math.max(0, Math.min(colCount - 1, nextCol)),
+  };
+}

@@ -7,6 +7,7 @@ import {
   highlightParts,
   moveColumnTo,
   parseColWidths,
+  stepGridCell,
 } from "./grid-layout";
 
 describe("grid layout", () => {
@@ -35,5 +36,15 @@ describe("grid layout", () => {
   it("moves a column to an index", () => {
     expect(moveColumnTo(["a", "b", "c"], "c", 0)).toEqual(["c", "a", "b"]);
     expect(moveColumnTo(["a", "b", "c"], "a", 2)).toEqual(["b", "c", "a"]);
+  });
+
+  it("steps the active cell like a spreadsheet", () => {
+    expect(stepGridCell(0, 0, "left", 3, 4)).toEqual({ row: 0, col: 0 });
+    expect(stepGridCell(1, 0, "left", 3, 4)).toEqual({ row: 0, col: 2 });
+    expect(stepGridCell(0, 2, "right", 3, 4)).toEqual({ row: 1, col: 0 });
+    expect(stepGridCell(3, 1, "down", 3, 4)).toEqual({ row: 3, col: 1 });
+    expect(stepGridCell(3, 2, "right", 3, 4)).toEqual({ row: 3, col: 2 });
+    expect(stepGridCell(2, 1, "home", 3, 4)).toEqual({ row: 2, col: 0 });
+    expect(stepGridCell(2, 1, "last", 3, 4)).toEqual({ row: 3, col: 2 });
   });
 });
