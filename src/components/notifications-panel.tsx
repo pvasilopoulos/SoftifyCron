@@ -16,11 +16,19 @@ export type NotifySettings = {
   telegramChatId: string;
   telegramHasToken: boolean;
   slackHasWebhook: boolean;
+  discordHasWebhook: boolean;
+  smsUrl: string;
+  smsUser: string;
+  smsFrom: string;
+  smsTo: string;
+  smsHasPassword: boolean;
   hasSigningSecret: boolean;
   defaultNotifyEmailOn: string;
   defaultNotifyTelegramOn: string;
   defaultNotifyWebhookOn: string;
   defaultNotifySlackOn: string;
+  defaultNotifyDiscordOn: string;
+  defaultNotifySmsOn: string;
   quietHoursStart: string;
   quietHoursEnd: string;
   quietHoursAllow: string;
@@ -58,7 +66,7 @@ export function NotificationsPanel({
 }) {
   const [status, setStatus] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [testing, setTesting] = useState<"email" | "telegram" | "slack" | null>(null);
+  const [testing, setTesting] = useState<"email" | "telegram" | "slack" | "discord" | "sms" | null>(null);
   const [secret, setSecret] = useState(initial.signingSecret ?? null);
   const [hasSecret, setHasSecret] = useState(initial.hasSigningSecret);
 
@@ -83,11 +91,20 @@ export function NotificationsPanel({
         clearTelegramToken: form.get("clearTelegramToken") === "on",
         slackWebhookUrl: String(form.get("slackWebhookUrl") ?? ""),
         clearSlackWebhook: form.get("clearSlackWebhook") === "on",
+        discordWebhookUrl: String(form.get("discordWebhookUrl") ?? ""),
+        clearDiscordWebhook: form.get("clearDiscordWebhook") === "on",
+        smsUrl: String(form.get("smsUrl") ?? ""),
+        smsUser: String(form.get("smsUser") ?? ""),
+        smsPass: String(form.get("smsPass") ?? ""),
+        smsFrom: String(form.get("smsFrom") ?? ""),
+        smsTo: String(form.get("smsTo") ?? ""),
         rotateWebhookSecret: form.get("rotateWebhookSecret") === "on",
         defaultNotifyEmailOn: form.getAll("defaultNotifyEmailOn").map(String),
         defaultNotifyTelegramOn: form.getAll("defaultNotifyTelegramOn").map(String),
         defaultNotifyWebhookOn: form.getAll("defaultNotifyWebhookOn").map(String),
         defaultNotifySlackOn: form.getAll("defaultNotifySlackOn").map(String),
+        defaultNotifyDiscordOn: form.getAll("defaultNotifyDiscordOn").map(String),
+        defaultNotifySmsOn: form.getAll("defaultNotifySmsOn").map(String),
         quietHoursStart: String(form.get("quietHoursStart") ?? ""),
         quietHoursEnd: String(form.get("quietHoursEnd") ?? ""),
         quietHoursAllow: form.getAll("quietHoursAllow").map(String),
@@ -124,7 +141,7 @@ export function NotificationsPanel({
     setStatus("Saved");
   }
 
-  async function test(channel: "email" | "telegram" | "slack") {
+  async function test(channel: "email" | "telegram" | "slack" | "discord" | "sms") {
     setTesting(channel);
     setStatus(null);
     const response = await fetch(endpoint, {
@@ -138,13 +155,14 @@ export function NotificationsPanel({
       setStatus(data.error ?? "Test failed");
       return;
     }
-    setStatus(
-      channel === "email"
-        ? "Test email sent"
-        : channel === "telegram"
-          ? "Test Telegram sent"
-          : "Test Slack sent",
-    );
+    const labels: Record<typeof channel, string> = {
+      email: "Test email sent",
+      telegram: "Test Telegram sent",
+      slack: "Test Slack sent",
+      discord: "Test Discord sent",
+      sms: "Test SMS sent",
+    };
+    setStatus(labels[channel]);
   }
 
   return (
@@ -290,6 +308,79 @@ export function NotificationsPanel({
       </section>
 
       <section className="card p-5 sm:p-6">
+        <h2 className="font-display text-2xl">Discord</h2>
+        <p className="mt-1 text-sm text-ink-dim">
+          Incoming webhook URL from a Discord channel. Paste the https://discord.com/api/webhooks/… link.
+        </p>
+        <label className="mt-5 block">
+          <span className="field-label">Webhook URL</span>
+          <input
+            className="field mono"
+            name="discordWebhookUrl"
+            type="password"
+            disabled={!canEdit}
+            placeholder={initial.discordHasWebhook ? "Leave blank to keep" : "https://discord.com/api/webhooks/…"}
+            autoComplete="off"
+          />
+        </label>
+        {initial.discordHasWebhook ? (
+          <label className="mt-3 flex items-center gap-3">
+            <input type="checkbox" name="clearDiscordWebhook" disabled={!canEdit} />
+            <span className="text-sm">Remove saved Discord webhook</span>
+          </label>
+        ) : null}
+      </section>
+
+      <section className="card p-5 sm:p-6">
+        <h2 className="font-display text-2xl">SMS gateway</h2>
+        <p className="mt-1 text-sm text-ink-dim">
+          Generic HTTPS JSON POST: from, to[], text, user, pass. Use any provider that accepts this shape.
+        </p>
+        <div className="mt-5 grid max-w-3xl gap-4 sm:grid-cols-2">
+          <label className="block sm:col-span-2">
+            <span className="field-label">Gateway URL</span>
+            <input
+              className="field mono"
+              name="smsUrl"
+              defaultValue={initial.smsUrl}
+              disabled={!canEdit}
+              placeholder="https://sms.example.com/send"
+              autoComplete="off"
+            />
+          </label>
+          <label className="block">
+            <span className="field-label">User</span>
+            <input className="field" name="smsUser" defaultValue={initial.smsUser} disabled={!canEdit} autoComplete="off" />
+          </label>
+          <label className="block">
+            <span className="field-label">Password</span>
+            <input
+              className="field"
+              type="password"
+              name="smsPass"
+              disabled={!canEdit}
+              placeholder={initial.smsHasPassword ? "Leave blank to keep" : "Optional"}
+              autoComplete="new-password"
+            />
+          </label>
+          <label className="block">
+            <span className="field-label">From</span>
+            <input className="field" name="smsFrom" defaultValue={initial.smsFrom} disabled={!canEdit} placeholder="SoftifyCron" />
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="field-label">To</span>
+            <textarea
+              className="field min-h-20"
+              name="smsTo"
+              defaultValue={initial.smsTo}
+              disabled={!canEdit}
+              placeholder="+3069…, +447…"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section className="card p-5 sm:p-6">
         <h2 className="font-display text-2xl">Defaults for new jobs</h2>
         <p className="mt-1 mb-4 text-sm text-ink-dim">
           Applied when someone creates a job. Existing jobs keep their own matrix.
@@ -298,11 +389,15 @@ export function NotificationsPanel({
           emailOn={initial.defaultNotifyEmailOn}
           telegramOn={initial.defaultNotifyTelegramOn}
           slackOn={initial.defaultNotifySlackOn}
+          discordOn={initial.defaultNotifyDiscordOn}
+          smsOn={initial.defaultNotifySmsOn}
           webhookOn={initial.defaultNotifyWebhookOn}
           names={{
             email: "defaultNotifyEmailOn",
             telegram: "defaultNotifyTelegramOn",
             slack: "defaultNotifySlackOn",
+            discord: "defaultNotifyDiscordOn",
+            sms: "defaultNotifySmsOn",
             webhook: "defaultNotifyWebhookOn",
           }}
         />
@@ -591,6 +686,12 @@ export function NotificationsPanel({
           </button>
           <button className="btn btn-ghost" type="button" disabled={testing !== null} onClick={() => test("slack")}>
             {testing === "slack" ? "Sending…" : "Send test Slack"}
+          </button>
+          <button className="btn btn-ghost" type="button" disabled={testing !== null} onClick={() => test("discord")}>
+            {testing === "discord" ? "Sending…" : "Send test Discord"}
+          </button>
+          <button className="btn btn-ghost" type="button" disabled={testing !== null} onClick={() => test("sms")}>
+            {testing === "sms" ? "Sending…" : "Send test SMS"}
           </button>
         </div>
       ) : (

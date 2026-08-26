@@ -18,6 +18,7 @@ import { JobChainMap } from "@/components/job-chain-map";
 import { JobHistory } from "@/components/job-history";
 import { Sparkline } from "@/components/sparkline";
 import { weekSparks } from "@/lib/spark-data";
+import { JobHookCard } from "@/components/job-hook-card";
 
 export const metadata = { title: "Job" };
 
@@ -296,6 +297,8 @@ export default async function JobDetailPage({
           </ol>
         </div>
       </section>
+
+      <JobHookCard jobId={job.id} prefix={job.hookTokenPrefix} canEdit={access.edit} />
 
       <JobChainMap jobs={peers} focusId={job.id} />
 

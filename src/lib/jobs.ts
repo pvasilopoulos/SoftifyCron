@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getNextRunAt, skipNextFire, validateCron } from "@/lib/cron";
 import { assertSafeUrl } from "@/lib/ssrf";
+import { assertJobTarget, isProbeType } from "@/lib/probes";
 import { resolveGroupId } from "@/lib/groups";
 import { tenantNotifyDefaults } from "@/lib/tenant-notify";
 import { nextAllowedFire } from "@/lib/schedule-policy";
@@ -45,13 +46,16 @@ function applyTypeDefaults(input: JobInput): JobInput {
   if (input.type === "WEBHOOK") {
     return { ...input, method: input.method === "GET" ? "POST" : input.method };
   }
+  if (isProbeType(input.type)) {
+    return { ...input, method: "GET", body: null };
+  }
   return input;
 }
 
 export async function createJob(tenantId: string, input: JobInput) {
   const data = applyTypeDefaults(input);
   validateCron(data.cronExpr, data.timezone);
-  await assertSafeUrl(data.url);
+  await assertJobTarget(data.type, data.url);
   if (data.notifyUrl) await assertSafeUrl(data.notifyUrl);
   const groupId = await resolveGroupId(tenantId, data);
   const [followUpJobId, dependsOnJobId, defaults] = await Promise.all([
@@ -86,6 +90,8 @@ export async function createJob(tenantId: string, input: JobInput) {
       notifyTelegramOn: data.notifyTelegramOn ?? defaults.notifyTelegramOn,
       notifyWebhookOn: data.notifyWebhookOn ?? defaults.notifyWebhookOn,
       notifySlackOn: data.notifySlackOn ?? defaults.notifySlackOn,
+      notifyDiscordOn: data.notifyDiscordOn ?? defaults.notifyDiscordOn,
+      notifySmsOn: data.notifySmsOn ?? defaults.notifySmsOn,
       keepResponse,
       responseBoard: data.responseBoard,
       pauseAfter: data.pauseAfter,
@@ -111,7 +117,7 @@ export async function createJob(tenantId: string, input: JobInput) {
 export async function updateJob(tenantId: string, jobId: string, input: JobInput, actor = "system") {
   const data = applyTypeDefaults(input);
   validateCron(data.cronExpr, data.timezone);
-  await assertSafeUrl(data.url);
+  await assertJobTarget(data.type, data.url);
   if (data.notifyUrl) await assertSafeUrl(data.notifyUrl);
   const existing = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId } });
   if (!existing) return null;
@@ -148,6 +154,8 @@ export async function updateJob(tenantId: string, jobId: string, input: JobInput
       notifyTelegramOn: data.notifyTelegramOn ?? existing.notifyTelegramOn,
       notifyWebhookOn: data.notifyWebhookOn ?? existing.notifyWebhookOn,
       notifySlackOn: data.notifySlackOn ?? existing.notifySlackOn,
+      notifyDiscordOn: data.notifyDiscordOn ?? existing.notifyDiscordOn,
+      notifySmsOn: data.notifySmsOn ?? existing.notifySmsOn,
       keepResponse,
       responseBoard: data.responseBoard,
       pauseAfter: data.pauseAfter,
@@ -261,6 +269,8 @@ export async function duplicateJob(tenantId: string, jobId: string) {
       notifyTelegramOn: job.notifyTelegramOn,
       notifyWebhookOn: job.notifyWebhookOn,
       notifySlackOn: job.notifySlackOn,
+      notifyDiscordOn: job.notifyDiscordOn,
+      notifySmsOn: job.notifySmsOn,
       keepResponse: job.keepResponse,
       responseBoard: job.responseBoard,
       pauseAfter: job.pauseAfter,
@@ -482,6 +492,8 @@ export function jobSnapshot(job: CronJob) {
     notifyTelegramOn: job.notifyTelegramOn,
     notifyWebhookOn: job.notifyWebhookOn,
     notifySlackOn: job.notifySlackOn,
+    notifyDiscordOn: job.notifyDiscordOn,
+    notifySmsOn: job.notifySmsOn,
     keepResponse: job.keepResponse,
     responseBoard: job.responseBoard,
     pauseAfter: job.pauseAfter,
@@ -577,5 +589,26 @@ export async function deleteJobWatch(tenantId: string, jobId: string, watchId: s
   return prisma.cronJob.update({
     where: { id: jobId },
     data: { gridWatches: watches as Prisma.InputJsonValue },
+  });
+}
+
+export async function rotateJobHook(tenantId: string, jobId: string) {
+  const job = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId }, select: { id: true } });
+  if (!job) return null;
+  const { newHookToken } = await import("./inbound");
+  const token = newHookToken();
+  await prisma.cronJob.update({
+    where: { id: jobId },
+    data: { hookTokenHash: token.hash, hookTokenPrefix: token.prefix },
+  });
+  return token;
+}
+
+export async function clearJobHook(tenantId: string, jobId: string) {
+  const job = await prisma.cronJob.findFirst({ where: { id: jobId, tenantId }, select: { id: true } });
+  if (!job) return null;
+  return prisma.cronJob.update({
+    where: { id: jobId },
+    data: { hookTokenHash: null, hookTokenPrefix: null },
   });
 }

@@ -12,6 +12,7 @@ import {
 } from "@/lib/nav";
 import { useEffect, useMemo, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { PushEnable } from "@/components/push-enable";
 
 export function AppearancePanel({ platform = false }: { platform?: boolean }) {
   const [density, setDensity] = useState<DensityPreference>("comfortable");
@@ -70,6 +71,14 @@ export function AppearancePanel({ platform = false }: { platform?: boolean }) {
             </button>
           ))}
         </div>
+      </div>
+      <div className="mt-8 border-t border-line pt-6">
+        <h3 className="font-display text-2xl">Install and push</h3>
+        <p className="mt-2 text-sm text-ink-dim">
+          Add SoftifyCron to your phone home screen from the browser menu. Enable push to get job
+          alerts on this device when a workspace channel would fire.
+        </p>
+        <PushEnable />
       </div>
       <div className="mt-8 border-t border-line pt-6">
         <h3 className="font-display text-2xl">Mobile footer</h3>

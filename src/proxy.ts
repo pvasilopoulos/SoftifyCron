@@ -6,7 +6,17 @@ import {
   verifySessionToken,
 } from "@/lib/session-token";
 
-const APP_PREFIXES = ["/dashboard", "/jobs", "/runs", "/responses", "/settings", "/audit"];
+const APP_PREFIXES = [
+  "/dashboard",
+  "/jobs",
+  "/runs",
+  "/responses",
+  "/inbox",
+  "/calendar",
+  "/usage",
+  "/settings",
+  "/audit",
+];
 
 function isAppPath(pathname: string) {
   return APP_PREFIXES.some(
@@ -77,6 +87,12 @@ export const config = {
     "/runs/:path*",
     "/responses",
     "/responses/:path*",
+    "/inbox",
+    "/inbox/:path*",
+    "/calendar",
+    "/calendar/:path*",
+    "/usage",
+    "/usage/:path*",
     "/audit",
     "/audit/:path*",
     "/settings/:path*",

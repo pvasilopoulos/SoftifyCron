@@ -7,6 +7,7 @@ import { StatusPill } from "@/components/status-pill";
 import { ResponseGridView } from "@/components/response-grid";
 import { parseResponseGrid } from "@/lib/response-grid";
 import { prisma } from "@/lib/prisma";
+import { GridSeriesChart } from "@/components/grid-series-chart";
 
 export const metadata = { title: "Last response" };
 
@@ -22,7 +23,7 @@ export default async function JobResponsePage({
   const runs = await prisma.jobRun.findMany({
     where: { tenantId: session.tid, jobId: job.id },
     orderBy: { startedAt: "desc" },
-    take: 2,
+    take: 40,
   });
   const run = runs[0] ?? null;
   const previousRaw = runs[1]?.responseBody ?? null;
@@ -70,7 +71,14 @@ export default async function JobResponsePage({
             {run.responseCharset ? ` · decoded as ${run.responseCharset}` : ""}
           </p>
           {run.error ? <p className="mt-3 text-sm text-rose">{run.error}</p> : null}
-          <div className="mt-5">
+          <div className="mt-5 space-y-4">
+            <GridSeriesChart
+              runs={runs.map((row) => ({
+                startedAt: row.startedAt.toISOString(),
+                responseBody: row.responseBody,
+              }))}
+              columns={[...new Set(runs.flatMap((row) => parseResponseGrid(row.responseBody).columns))]}
+            />
             {run.responseBody ? (
               <ResponseGridView
                 grid={grid}

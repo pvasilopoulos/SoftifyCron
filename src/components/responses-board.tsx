@@ -6,6 +6,7 @@ import { StatusPill } from "@/components/status-pill";
 import { RelativeTime } from "@/components/relative-time";
 import { ResponseGridView } from "@/components/response-grid";
 import { parseResponseGrid } from "@/lib/response-grid";
+import { GridSeriesChart } from "@/components/grid-series-chart";
 
 export type ResponseCatalogRow = {
   jobId: string;
@@ -96,6 +97,15 @@ export function ResponsesBoard({
     () => parseResponseGrid(selectedRun?.responseBody),
     [selectedRun?.responseBody],
   );
+  const seriesColumns = useMemo(() => {
+    const names = new Set<string>();
+    for (const run of runs.slice(0, 40)) {
+      for (const col of parseResponseGrid(run.responseBody).columns) {
+        if (col) names.add(col);
+      }
+    }
+    return [...names];
+  }, [runs]);
   const needle = query.trim().toLowerCase();
   const visibleCatalog = needle
     ? catalog.filter(
@@ -285,7 +295,8 @@ export function ResponsesBoard({
             <RelativeTime value={selectedRun?.startedAt} timeZone={timezone} />
             {selectedRun?.responseCharset ? ` · decoded as ${selectedRun.responseCharset}` : ""}
           </p>
-          <div className="mt-5">
+          <div className="mt-5 space-y-4">
+            <GridSeriesChart runs={runs} columns={seriesColumns} />
             <ResponseGridView
               key={`${selectedId}-${selectedRun.id}`}
               grid={grid}

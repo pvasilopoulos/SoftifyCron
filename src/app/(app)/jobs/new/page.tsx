@@ -39,6 +39,8 @@ export default async function NewJobPage() {
           notifyTelegramOn: defaults.notifyTelegramOn,
           notifyWebhookOn: defaults.notifyWebhookOn,
           notifySlackOn: defaults.notifySlackOn,
+          notifyDiscordOn: defaults.notifyDiscordOn,
+          notifySmsOn: defaults.notifySmsOn,
         }}
       />
     </div>

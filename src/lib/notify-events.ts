@@ -13,7 +13,7 @@ export const NOTIFY_EVENTS = [
 ] as const;
 
 export type NotifyEvent = (typeof NOTIFY_EVENTS)[number];
-export type NotifyChannel = "email" | "telegram" | "webhook" | "slack";
+export type NotifyChannel = "email" | "telegram" | "webhook" | "slack" | "discord" | "sms" | "push";
 
 export const NOTIFY_EVENT_LABELS: Record<NotifyEvent, { title: string; hint: string }> = {
   failure: { title: "Fails", hint: "HTTP error or unexpected exception" },
@@ -33,6 +33,8 @@ export const DEFAULT_NOTIFY_EMAIL_ON = "failure,timeout,blocked,pause,recovery,m
 export const DEFAULT_NOTIFY_TELEGRAM_ON = "failure,timeout,blocked,pause,recovery,missed,slow,escalate,watch,slo";
 export const DEFAULT_NOTIFY_WEBHOOK_ON = "failure,timeout,blocked,pause,missed,escalate,watch,slo";
 export const DEFAULT_NOTIFY_SLACK_ON = "failure,timeout,blocked,pause,recovery,missed,slow,escalate,watch,slo";
+export const DEFAULT_NOTIFY_DISCORD_ON = "failure,timeout,blocked,pause,recovery,missed,slow,escalate,watch,slo";
+export const DEFAULT_NOTIFY_SMS_ON = "failure,timeout,blocked,pause,missed,escalate,slo";
 export const DEFAULT_QUIET_ALLOW = "failure,timeout,blocked,pause,missed,escalate,slo";
 export const LATE_SCHEDULE_MS = 120_000;
 
@@ -102,6 +104,8 @@ export function summarizeNotify(job: {
   notifyTelegramOn: string;
   notifyWebhookOn: string;
   notifySlackOn?: string;
+  notifyDiscordOn?: string;
+  notifySmsOn?: string;
   notifyUrl: string | null;
 }) {
   return NOTIFY_EVENTS.map((event) => {
@@ -109,7 +113,9 @@ export function summarizeNotify(job: {
     if (channelHasEvent(job.notifyEmailOn, event)) channels.push("email");
     if (channelHasEvent(job.notifyTelegramOn, event)) channels.push("telegram");
     if (channelHasEvent(job.notifySlackOn, event)) channels.push("slack");
+    if (channelHasEvent(job.notifyDiscordOn, event)) channels.push("discord");
     if (job.notifyUrl && channelHasEvent(job.notifyWebhookOn, event)) channels.push("webhook");
+    if (channelHasEvent(job.notifySmsOn, event)) channels.push("sms");
     return { event, channels };
   }).filter((row) => row.channels.length > 0);
 }

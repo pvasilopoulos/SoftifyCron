@@ -4,6 +4,8 @@ import { decryptSecret } from "@/lib/crypto";
 import { sendMail } from "@/lib/mail";
 import { sendTelegram } from "@/lib/telegram";
 import { sendSlack } from "@/lib/slack";
+import { sendDiscord } from "@/lib/discord";
+import { parsePhones, sendSms } from "@/lib/sms";
 import {
   channelMatches,
   eventsForRun,
@@ -14,6 +16,8 @@ import { applyQuietHours, parseChatIds, parseEmails } from "@/lib/notify-policy"
 import { currentOncall, mergeOncallEmails } from "@/lib/oncall";
 import { webhookSignatureHeader } from "@/lib/notify-sign";
 import { ensureWebhookSecret, smtpFromTenant } from "@/lib/tenant-notify";
+import { sendTenantPush } from "@/lib/push";
+import { appUrl } from "@/lib/app-url";
 
 export type NotifyJob = {
   id: string;
@@ -24,6 +28,8 @@ export type NotifyJob = {
   notifyTelegramOn: string;
   notifyWebhookOn: string;
   notifySlackOn?: string;
+  notifyDiscordOn?: string;
+  notifySmsOn?: string;
   consecutiveFailures: number;
   lastStatus: string | null;
   error?: string | null;
@@ -168,8 +174,10 @@ export async function notifyJob(
   const wantEmail = channelMatches(job.notifyEmailOn, liveEvents);
   const wantTelegram = channelMatches(job.notifyTelegramOn, liveEvents);
   const wantSlack = channelMatches(job.notifySlackOn, liveEvents);
+  const wantDiscord = channelMatches(job.notifyDiscordOn, liveEvents);
+  const wantSms = channelMatches(job.notifySmsOn, liveEvents);
   const wantWebhook = Boolean(job.notifyUrl) && channelMatches(job.notifyWebhookOn, liveEvents);
-  if (!wantEmail && !wantTelegram && !wantSlack && !wantWebhook) return;
+  if (!wantEmail && !wantTelegram && !wantSlack && !wantDiscord && !wantSms && !wantWebhook) return;
 
   const payload = {
     event: webhookEventName(liveEvents),
@@ -273,6 +281,33 @@ export async function notifyJob(
   await sendChannel("slack", wantSlack, async () => {
     if (!tenant.slackWebhookEnc) throw new Error("Slack is not configured on this workspace");
     await sendSlack(decryptSecret(tenant.slackWebhookEnc), `${subject}\n${text}`);
+  });
+
+  await sendChannel("discord", wantDiscord, async () => {
+    if (!tenant.discordWebhookEnc) throw new Error("Discord is not configured on this workspace");
+    await sendDiscord(decryptSecret(tenant.discordWebhookEnc), `${subject}\n${text}`);
+  });
+
+  await sendChannel("sms", wantSms, async () => {
+    const to = parsePhones(tenant.smsTo);
+    if (!tenant.smsUrl || to.length === 0) throw new Error("SMS is not configured on this workspace");
+    await sendSms({
+      url: tenant.smsUrl,
+      user: tenant.smsUser,
+      pass: tenant.smsPassEnc ? decryptSecret(tenant.smsPassEnc) : null,
+      from: tenant.smsFrom,
+      to,
+      text: `${subject}\n${text}`,
+    });
+  });
+
+  const pushCount = await prisma.pushSubscription.count({ where: { tenantId: tenant.id } });
+  await sendChannel("push", pushCount > 0, async () => {
+    await sendTenantPush(tenant.id, {
+      title: subject,
+      body: text,
+      url: `${appUrl()}/jobs/${job.id}`,
+    });
   });
 
   if (liveEvents.includes("escalate")) {

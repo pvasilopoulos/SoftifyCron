@@ -60,6 +60,8 @@ export default async function EditJobPage({
           notifyTelegramOn: job.notifyTelegramOn,
           notifyWebhookOn: job.notifyWebhookOn,
           notifySlackOn: job.notifySlackOn,
+          notifyDiscordOn: job.notifyDiscordOn,
+          notifySmsOn: job.notifySmsOn,
           keepResponse: job.keepResponse,
           responseBoard: job.responseBoard,
           pauseAfter: job.pauseAfter,

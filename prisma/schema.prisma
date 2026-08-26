@@ -30,6 +30,9 @@ enum JobType {
   HTTP
   HEARTBEAT
   WEBHOOK
+  TCP
+  DNS
+  TLS
 }
 
 enum RunStatus {
@@ -68,6 +71,14 @@ model Tenant {
   defaultNotifyTelegramOn  String           @default("failure,timeout,blocked,pause,recovery") @db.VarChar(120)
   defaultNotifyWebhookOn   String           @default("failure,timeout,blocked,pause") @db.VarChar(120)
   defaultNotifySlackOn     String           @default("failure,timeout,blocked,pause,recovery") @db.VarChar(120)
+  discordWebhookEnc        String?          @db.Text
+  defaultNotifyDiscordOn   String           @default("failure,timeout,blocked,pause,recovery") @db.VarChar(120)
+  smsUrl                   String?          @db.VarChar(2048)
+  smsUser                  String?          @db.VarChar(160)
+  smsPassEnc               String?          @db.Text
+  smsFrom                  String?          @db.VarChar(40)
+  smsTo                    String?          @db.Text
+  defaultNotifySmsOn       String           @default("failure,timeout,blocked,pause,missed,escalate,slo") @db.VarChar(120)
   quietHoursStart          String           @default("") @db.VarChar(5)
   quietHoursEnd            String           @default("") @db.VarChar(5)
   quietHoursAllow          String           @default("failure,timeout,blocked,pause,missed") @db.VarChar(120)
@@ -105,6 +116,7 @@ model Tenant {
   auditEvents              AuditEvent[]
   deliveries               NotifyDelivery[]
   statusSubscribers        StatusSubscriber[]
+  pushSubs                 PushSubscription[]
 }
 
 model User {
@@ -120,6 +132,7 @@ model User {
   memberships    Membership[]
   passwordResets PasswordReset[]
   auditEvents    AuditEvent[]
+  pushSubs       PushSubscription[]
 }
 
 model Membership {
@@ -203,6 +216,10 @@ model CronJob {
   notifyTelegramOn     String     @default("") @db.VarChar(120)
   notifyWebhookOn      String     @default("failure,timeout,blocked,pause") @db.VarChar(120)
   notifySlackOn        String     @default("") @db.VarChar(120)
+  notifyDiscordOn      String     @default("") @db.VarChar(120)
+  notifySmsOn          String     @default("") @db.VarChar(120)
+  hookTokenHash        String?    @unique
+  hookTokenPrefix      String?    @db.VarChar(16)
   keepResponse         Boolean    @default(false)
   responseBoard        Boolean    @default(false)
   pauseAfter           Int        @default(0)
@@ -391,4 +408,26 @@ model WorkerHeartbeat {
   tickedAt    DateTime
   hostname    String?
   jobsClaimed Int      @default(0)
+}
+
+model PushSubscription {
+  id           String   @id @default(cuid())
+  userId       String
+  tenantId     String
+  endpoint     String   @db.Text
+  endpointHash String   @db.VarChar(64)
+  p256dh       String   @db.VarChar(255)
+  auth         String   @db.VarChar(255)
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpointHash])
+  @@index([tenantId])
+}
+
+model AppMeta {
+  id              String @id
+  vapidPublic     String @db.Text
+  vapidPrivateEnc String @db.Text
 }

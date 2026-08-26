@@ -92,6 +92,30 @@ export function MoreIcon() {
   );
 }
 
+export function InboxIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M4 7.5 12 3l8 4.5v9L12 21 4 16.5v-9Z" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M4 8h16M12 8v13" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+export function CalendarIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M8 3.5v4M16 3.5v4M4 10h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+export function UsageIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M5 18V9M10 18V6M15 18v-7M20 18V8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export const NAV_ICONS = {
   tenants: TenantsIcon,
   monitor: MonitorIcon,
@@ -99,6 +123,9 @@ export const NAV_ICONS = {
   jobs: JobsIcon,
   runs: RunsIcon,
   responses: ResponsesIcon,
+  inbox: InboxIcon,
+  calendar: CalendarIcon,
+  usage: UsageIcon,
   audit: AuditIcon,
   people: PeopleIcon,
   roles: RolesIcon,

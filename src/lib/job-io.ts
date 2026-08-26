@@ -32,6 +32,8 @@ export async function exportJobs(tenantId: string) {
       notifyTelegramOn: job.notifyTelegramOn,
       notifyWebhookOn: job.notifyWebhookOn,
       notifySlackOn: job.notifySlackOn,
+      notifyDiscordOn: job.notifyDiscordOn,
+      notifySmsOn: job.notifySmsOn,
       keepResponse: job.keepResponse,
       responseBoard: job.responseBoard,
       pauseAfter: job.pauseAfter,
@@ -83,6 +85,8 @@ export async function exportTenantBackup(tenantId: string) {
       defaultNotifyTelegramOn: true,
       defaultNotifyWebhookOn: true,
       defaultNotifySlackOn: true,
+      defaultNotifyDiscordOn: true,
+      defaultNotifySmsOn: true,
     },
   });
   if (!tenant) throw new Error("Workspace not found");

@@ -2,16 +2,19 @@
 
 import { useActionState, useState } from "react";
 import { saveJobAction } from "@/app/actions/jobs";
-import { HTTP_METHODS, CRON_PRESETS } from "@/lib/constants";
+import { HTTP_METHODS } from "@/lib/constants";
 import { TIMEZONES } from "@/lib/format";
 import { JOB_TYPES } from "@/lib/acl";
 import { NotifyMatrix } from "@/components/notify-matrix";
 import { FirePreview } from "@/components/fire-preview";
+import { CronBuilder } from "@/components/cron-builder";
 import { jobHeartbeatUrl } from "@/lib/app-url";
 import { JOB_TEMPLATES } from "@/lib/job-templates";
 import {
   DEFAULT_NOTIFY_EMAIL_ON,
   DEFAULT_NOTIFY_SLACK_ON,
+  DEFAULT_NOTIFY_DISCORD_ON,
+  DEFAULT_NOTIFY_SMS_ON,
   DEFAULT_NOTIFY_TELEGRAM_ON,
   DEFAULT_NOTIFY_WEBHOOK_ON,
 } from "@/lib/notify-events";
@@ -38,6 +41,8 @@ type JobFormValues = {
   notifyTelegramOn: string;
   notifyWebhookOn: string;
   notifySlackOn: string;
+  notifyDiscordOn: string;
+  notifySmsOn: string;
   keepResponse: boolean;
   responseBoard: boolean;
   pauseAfter: number;
@@ -79,6 +84,8 @@ const DEFAULTS: JobFormValues = {
   notifyTelegramOn: DEFAULT_NOTIFY_TELEGRAM_ON,
   notifyWebhookOn: DEFAULT_NOTIFY_WEBHOOK_ON,
   notifySlackOn: DEFAULT_NOTIFY_SLACK_ON,
+  notifyDiscordOn: DEFAULT_NOTIFY_DISCORD_ON,
+  notifySmsOn: DEFAULT_NOTIFY_SMS_ON,
   keepResponse: false,
   responseBoard: false,
   pauseAfter: 0,
@@ -220,13 +227,10 @@ export function JobForm({
           <span className="field-label">Tags</span>
           <input className="field" name="tags" defaultValue={values.tags} placeholder="critical, nightly" />
         </label>
-        <label className="block">
-          <span className="field-label">Cron</span>
-          <input className="field mono" name="cronExpr" defaultValue={values.cronExpr} required autoComplete="off" />
-          <p className="mt-2 text-xs text-ink-dim">
-            {CRON_PRESETS.map((preset) => preset.value).join(" · ")}
-          </p>
-        </label>
+        <div className="block">
+          <span className="field-label">Schedule</span>
+          <CronBuilder defaultValue={values.cronExpr} />
+        </div>
         <label className="block">
           <span className="field-label">Timezone</span>
           <select className="field" name="timezone" defaultValue={values.timezone}>
@@ -245,8 +249,14 @@ export function JobForm({
             </select>
           </label>
           <label className="block">
-            <span className="field-label">URL</span>
-            <input className="field mono" name="url" defaultValue={values.url} required />
+            <span className="field-label">Target</span>
+            <input
+              className="field mono"
+              name="url"
+              defaultValue={values.url}
+              required
+              placeholder="https://example.com or host:443"
+            />
           </label>
         </div>
         <label className="block">
@@ -280,12 +290,14 @@ export function JobForm({
           <div>
             <p className="field-label">Notifications</p>
             <p className="mb-3 text-xs text-ink-dim">
-              Pick channels per event. Email, Telegram, and Slack use Workspace → Notifications. Webhook uses the URL below.
+              Pick channels per event. Email, Telegram, Slack, Discord, and SMS use Workspace → Notifications. Webhook uses the URL below.
             </p>
             <NotifyMatrix
               emailOn={values.notifyEmailOn}
               telegramOn={values.notifyTelegramOn}
               slackOn={values.notifySlackOn}
+              discordOn={values.notifyDiscordOn}
+              smsOn={values.notifySmsOn}
               webhookOn={values.notifyWebhookOn}
             />
           </div>
@@ -364,16 +376,18 @@ export function JobForm({
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
-            <span className="field-label">Assert HTTP status</span>
+            <span className="field-label">Assert HTTP status / TLS days</span>
             <input
               className="field"
               type="number"
               name="assertStatus"
               min={0}
-              max={599}
+              max={3650}
               defaultValue={values.assertStatus}
             />
-            <p className="mt-2 text-xs text-ink-dim">0 skips the check. 200 fails the run unless the response is HTTP 200.</p>
+            <p className="mt-2 text-xs text-ink-dim">
+              HTTP: 0 skips, 200 requires that status. TLS: minimum days left (14 if 0). DNS: put the expected IP in Equals.
+            </p>
           </label>
           <label className="block">
             <span className="field-label">Slow after ms</span>
@@ -475,6 +489,9 @@ export function JobForm({
             .
           </li>
           <li><b className="text-ink">WEBHOOK</b> — POST payload to an endpoint.</li>
+          <li><b className="text-ink">TCP</b> — open host:port.</li>
+          <li><b className="text-ink">DNS</b> — resolve a hostname, optional IP pin in Equals.</li>
+          <li><b className="text-ink">TLS</b> — certificate expiry in days (Assert HTTP status).</li>
         </ul>
         <p className="mt-5 text-sm text-ink-dim">
           Put secrets in headers as <span className="mono text-gold-2">{"{{SECRET:API_TOKEN}}"}</span>.
@@ -486,7 +503,7 @@ export function JobForm({
           Skip next jumps over one fire. Auto-pause stops a flapping job after N failures so it stops paging you.
         </p>
         <p className="mt-4 text-sm text-ink-dim">
-          Configure SMTP, Telegram, and Slack under Workspace → Notifications, then tick events on this job.
+          Configure SMTP, Telegram, Slack, Discord, and SMS under Workspace → Notifications, then tick events on this job.
         </p>
         <p className="mt-4 text-sm text-ink-dim">
           Follow-up runs the other job once after a successful schedule. Depends-on skips this slot unless that parent last succeeded. Snooze lives on the job menu.

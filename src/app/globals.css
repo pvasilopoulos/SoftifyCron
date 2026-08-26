@@ -415,7 +415,7 @@ details > summary::-webkit-details-marker { display: none; }
 @media (min-width: 720px) {
   .notify-head {
     display: grid;
-    grid-template-columns: minmax(8rem, 1.3fr) repeat(4, minmax(0, 0.55fr));
+    grid-template-columns: minmax(8rem, 1.3fr) repeat(6, minmax(0, 0.45fr));
     align-items: center;
     padding: 0 0.75rem;
     font-size: 0.7rem;
@@ -424,7 +424,7 @@ details > summary::-webkit-details-marker { display: none; }
     color: var(--ink-dim);
   }
   .notify-row {
-    grid-template-columns: minmax(8rem, 1.3fr) repeat(4, minmax(0, 0.55fr));
+    grid-template-columns: minmax(8rem, 1.3fr) repeat(6, minmax(0, 0.45fr));
     align-items: center;
     gap: 0.5rem;
   }

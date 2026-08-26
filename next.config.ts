@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@prisma/client", "prisma", "bcryptjs"],
+  serverExternalPackages: ["@prisma/client", "prisma", "bcryptjs", "web-push"],
   allowedDevOrigins: [
     "127.0.0.1",
     "*.cursor.sh",

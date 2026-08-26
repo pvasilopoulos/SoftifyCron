@@ -69,7 +69,7 @@ export default async function TenantDetailPage({
         <div>
           <h2 className="font-display text-2xl">Notifications</h2>
           <p className="mt-1 text-sm text-ink-dim">
-            SMTP, Telegram, Slack, and default event matrix for this workspace.
+            SMTP, Telegram, Slack, Discord, SMS, and default event matrix for this workspace.
           </p>
         </div>
         <NotificationsPanel

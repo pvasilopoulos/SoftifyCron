@@ -1,12 +1,16 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { encryptSecret, decryptSecret, randomToken } from "@/lib/crypto";
 import { sendMail, type SmtpConfig } from "@/lib/mail";
 import { looksLikeTelegramToken, sendTelegram } from "@/lib/telegram";
+import { sendDiscord } from "@/lib/discord";
 import { sendSlack } from "@/lib/slack";
 import { assertSafeUrl } from "@/lib/ssrf";
 import {
   DEFAULT_NOTIFY_EMAIL_ON,
   DEFAULT_NOTIFY_SLACK_ON,
+  DEFAULT_NOTIFY_DISCORD_ON,
+  DEFAULT_NOTIFY_SMS_ON,
   DEFAULT_NOTIFY_TELEGRAM_ON,
   DEFAULT_NOTIFY_WEBHOOK_ON,
   DEFAULT_QUIET_ALLOW,
@@ -19,7 +23,7 @@ import {
   parseEmailsStrict,
   parseSmtpPort,
 } from "@/lib/notify-policy";
-import { Prisma } from "@prisma/client";
+import { parsePhones, sendSms } from "@/lib/sms";
 
 export type TenantNotifyInput = {
   notifyEmail?: string;
@@ -34,11 +38,20 @@ export type TenantNotifyInput = {
   clearTelegramToken?: boolean;
   slackWebhookUrl?: string;
   clearSlackWebhook?: boolean;
+  discordWebhookUrl?: string;
+  clearDiscordWebhook?: boolean;
+  smsUrl?: string;
+  smsUser?: string;
+  smsPass?: string;
+  smsFrom?: string;
+  smsTo?: string;
   rotateWebhookSecret?: boolean;
   defaultNotifyEmailOn?: string | string[];
   defaultNotifyTelegramOn?: string | string[];
   defaultNotifyWebhookOn?: string | string[];
   defaultNotifySlackOn?: string | string[];
+  defaultNotifyDiscordOn?: string | string[];
+  defaultNotifySmsOn?: string | string[];
   quietHoursStart?: string;
   quietHoursEnd?: string;
   quietHoursAllow?: string | string[];
@@ -106,10 +119,18 @@ export function publicNotify(
     telegramBotTokenEnc: string | null;
     slackWebhookEnc: string | null;
     webhookSignEnc: string | null;
+    discordWebhookEnc?: string | null;
+    smsUrl?: string | null;
+    smsUser?: string | null;
+    smsFrom?: string | null;
+    smsTo?: string | null;
+    smsPassEnc?: string | null;
     defaultNotifyEmailOn?: string;
     defaultNotifyTelegramOn?: string;
     defaultNotifyWebhookOn?: string;
     defaultNotifySlackOn?: string;
+    defaultNotifyDiscordOn?: string;
+    defaultNotifySmsOn?: string;
     quietHoursStart?: string;
     quietHoursEnd?: string;
     quietHoursAllow?: string;
@@ -147,11 +168,19 @@ export function publicNotify(
     telegramChatId: tenant.telegramChatId ?? "",
     telegramHasToken: Boolean(tenant.telegramBotTokenEnc),
     slackHasWebhook: Boolean(tenant.slackWebhookEnc),
+    discordHasWebhook: Boolean(tenant.discordWebhookEnc),
+    smsUrl: tenant.smsUrl ?? "",
+    smsUser: tenant.smsUser ?? "",
+    smsFrom: tenant.smsFrom ?? "",
+    smsTo: tenant.smsTo ?? "",
+    smsHasPassword: Boolean(tenant.smsPassEnc),
     hasSigningSecret: Boolean(tenant.webhookSignEnc),
     defaultNotifyEmailOn: tenant.defaultNotifyEmailOn ?? DEFAULT_NOTIFY_EMAIL_ON,
     defaultNotifyTelegramOn: tenant.defaultNotifyTelegramOn ?? DEFAULT_NOTIFY_TELEGRAM_ON,
     defaultNotifyWebhookOn: tenant.defaultNotifyWebhookOn ?? DEFAULT_NOTIFY_WEBHOOK_ON,
     defaultNotifySlackOn: tenant.defaultNotifySlackOn ?? DEFAULT_NOTIFY_SLACK_ON,
+    defaultNotifyDiscordOn: tenant.defaultNotifyDiscordOn ?? DEFAULT_NOTIFY_DISCORD_ON,
+    defaultNotifySmsOn: tenant.defaultNotifySmsOn ?? DEFAULT_NOTIFY_SMS_ON,
     quietHoursStart: tenant.quietHoursStart ?? "",
     quietHoursEnd: tenant.quietHoursEnd ?? "",
     quietHoursAllow: tenant.quietHoursAllow ?? DEFAULT_QUIET_ALLOW,
@@ -194,6 +223,8 @@ export async function tenantNotifyDefaults(tenantId: string) {
       defaultNotifyTelegramOn: true,
       defaultNotifyWebhookOn: true,
       defaultNotifySlackOn: true,
+      defaultNotifyDiscordOn: true,
+      defaultNotifySmsOn: true,
     },
   });
   return {
@@ -202,6 +233,8 @@ export async function tenantNotifyDefaults(tenantId: string) {
     notifyTelegramOn: tenant?.defaultNotifyTelegramOn ?? DEFAULT_NOTIFY_TELEGRAM_ON,
     notifyWebhookOn: tenant?.defaultNotifyWebhookOn ?? DEFAULT_NOTIFY_WEBHOOK_ON,
     notifySlackOn: tenant?.defaultNotifySlackOn ?? DEFAULT_NOTIFY_SLACK_ON,
+    notifyDiscordOn: tenant?.defaultNotifyDiscordOn ?? DEFAULT_NOTIFY_DISCORD_ON,
+    notifySmsOn: tenant?.defaultNotifySmsOn ?? DEFAULT_NOTIFY_SMS_ON,
   };
 }
 
@@ -253,6 +286,12 @@ export async function updateTenantNotify(tenantId: string, input: TenantNotifyIn
     defaultNotifySlackOn: serializeNotifyList(
       input.defaultNotifySlackOn ?? existing.defaultNotifySlackOn,
     ),
+    defaultNotifyDiscordOn: serializeNotifyList(
+      input.defaultNotifyDiscordOn ?? existing.defaultNotifyDiscordOn,
+    ),
+    defaultNotifySmsOn: serializeNotifyList(
+      input.defaultNotifySmsOn ?? existing.defaultNotifySmsOn,
+    ),
     quietHoursStart: clockOrEmpty(input.quietHoursStart, existing.quietHoursStart),
     quietHoursEnd: clockOrEmpty(input.quietHoursEnd, existing.quietHoursEnd),
     quietHoursAllow: serializeNotifyList(input.quietHoursAllow ?? existing.quietHoursAllow),
@@ -300,6 +339,10 @@ export async function updateTenantNotify(tenantId: string, input: TenantNotifyIn
     digestHour: clockOrEmpty(input.digestHour, existing.digestHour) || "08:00",
     oncallEnabled: input.oncallEnabled ?? existing.oncallEnabled,
     oncallRoster: parseEmailsStrict(input.oncallRoster ?? existing.oncallRoster).join(", "),
+    smsUrl: input.smsUrl !== undefined ? input.smsUrl.trim() || null : existing.smsUrl,
+    smsUser: input.smsUser !== undefined ? input.smsUser.trim() || null : existing.smsUser,
+    smsFrom: input.smsFrom !== undefined ? input.smsFrom.trim() || null : existing.smsFrom,
+    smsTo: input.smsTo !== undefined ? input.smsTo.trim() || null : existing.smsTo,
   };
   if (input.smtpPass?.trim()) {
     data.smtpPassEnc = encryptSecret(input.smtpPass.trim());
@@ -317,6 +360,18 @@ export async function updateTenantNotify(tenantId: string, input: TenantNotifyIn
   } else if (slackUrl) {
     data.slackWebhookEnc = encryptSecret(slackUrl);
   }
+  const discordUrl = input.discordWebhookUrl?.trim() ?? "";
+  if (discordUrl) {
+    if (!looksLikeSlackWebhook(discordUrl)) throw new Error("Discord webhook must be an https URL");
+    await assertSafeUrl(discordUrl);
+  }
+  if (input.clearDiscordWebhook) {
+    data.discordWebhookEnc = null;
+  } else if (discordUrl) {
+    data.discordWebhookEnc = encryptSecret(discordUrl);
+  }
+  if (input.smsUrl?.trim()) await assertSafeUrl(input.smsUrl.trim());
+  if (input.smsPass?.trim()) data.smsPassEnc = encryptSecret(input.smsPass.trim());
 
   if (data.statusPageSlug && typeof data.statusPageSlug === "string") {
     const taken = await prisma.tenant.findFirst({
@@ -348,7 +403,7 @@ export async function updateTenantNotify(tenantId: string, input: TenantNotifyIn
 
 export async function testTenantNotify(
   tenantId: string,
-  channel: "email" | "telegram" | "slack",
+  channel: "email" | "telegram" | "slack" | "discord" | "sms",
 ) {
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) throw new Error("Workspace not found");
@@ -375,6 +430,29 @@ export async function testTenantNotify(
       decryptSecret(tenant.slackWebhookEnc),
       `[SoftifyCron] Test from ${tenant.name}\nSlack alerts stay inside this workspace.`,
     );
+    return { sent: true, logged: false };
+  }
+
+  if (channel === "discord") {
+    if (!tenant.discordWebhookEnc) throw new Error("Save a Discord webhook for this workspace first");
+    await sendDiscord(
+      decryptSecret(tenant.discordWebhookEnc),
+      `[SoftifyCron] Test from ${tenant.name}\nDiscord alerts stay inside this workspace.`,
+    );
+    return { sent: true, logged: false };
+  }
+
+  if (channel === "sms") {
+    const to = parsePhones(tenant.smsTo);
+    if (!tenant.smsUrl || to.length === 0) throw new Error("Save an SMS gateway URL and recipients first");
+    await sendSms({
+      url: tenant.smsUrl,
+      user: tenant.smsUser,
+      pass: tenant.smsPassEnc ? decryptSecret(tenant.smsPassEnc) : null,
+      from: tenant.smsFrom,
+      to,
+      text: `[SoftifyCron] Test from ${tenant.name}`,
+    });
     return { sent: true, logged: false };
   }
 

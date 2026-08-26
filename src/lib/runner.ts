@@ -14,6 +14,8 @@ import { maintAction, maintFromRow } from "@/lib/maintenance";
 import { applyEventMutes } from "@/lib/event-mutes";
 import { evalGridWatches, parseGridWatches, watchSummary } from "@/lib/grid-watch";
 import { failsInWindow } from "@/lib/spark-data";
+import { runProbe } from "@/lib/probe-run";
+import { isProbeType } from "@/lib/probes";
 
 function needsResponseBody(job: CronJob) {
   return Boolean(
@@ -53,6 +55,9 @@ async function safeFetch(rawUrl: string, init: RequestInit, timeoutMs: number) {
 }
 
 async function performRequest(job: CronJob) {
+  if (isProbeType(job.type)) {
+    return runProbe(job);
+  }
   const rawHeaders = headerRecord(job.headers);
   const headers = new Headers();
   for (const [key, value] of Object.entries(rawHeaders)) {
@@ -155,8 +160,17 @@ export async function executeJob(job: CronJob, trigger: RunTrigger, opts?: { mut
     responseBody = result.responseBody;
     responseCharset = result.encoding;
     status = result.ok ? "SUCCESS" : "FAILED";
-    if (!result.ok) error = `HTTP ${result.httpStatus}`;
-    const assertion = checkAssertions(result.responseBody, result.httpStatus, job);
+    if (!result.ok) {
+      error =
+        result.httpStatus != null
+          ? `HTTP ${result.httpStatus}`
+          : result.responseBody?.slice(0, 240) || "Probe failed";
+    }
+    const assertion = checkAssertions(
+      result.responseBody,
+      result.httpStatus,
+      isProbeType(job.type) ? { ...job, assertStatus: 0 } : job,
+    );
     if (assertion) {
       status = "FAILED";
       error = `Assertion: ${assertion}`;

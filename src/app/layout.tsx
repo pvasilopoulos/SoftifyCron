@@ -37,6 +37,14 @@ export const metadata: Metadata = {
   },
   description:
     "Multi-tenant cron control plane. Isolated workspaces, MySQL-backed jobs, and HTTP schedules you can actually manage.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: { url: "/icons/icon-192.png", sizes: "192x192" },
+  },
   appleWebApp: {
     capable: true,
     title: "SoftifyCron",
