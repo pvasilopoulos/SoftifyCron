@@ -120,58 +120,75 @@ export function JobsBoard({
   return (
     <div className="space-y-4">
       <form
-        className="card p-3 sm:p-4"
+        className="jobs-filter card p-3 sm:p-4"
         onSubmit={(event) => {
           event.preventDefault();
           apply({ q });
         }}
       >
-        <div className="flex flex-col gap-3 lg:flex-row">
+        <label className="jobs-filter-search block">
+          <span className="field-label">Search</span>
           <input
             className="field"
             value={q}
             onChange={(event) => setQ(event.target.value)}
-            placeholder="Search name, URL, tags…"
+            placeholder="Name, URL, or tags"
             aria-label="Search jobs"
           />
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <select
-              className="field"
-              value={query.group}
-              onChange={(event) => apply({ group: event.target.value })}
-            >
-              <option value="">All groups</option>
-              <option value="none">Ungrouped</option>
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
-            <select
-              className="field"
-              value={query.type}
-              onChange={(event) => apply({ type: event.target.value })}
-            >
-              <option value="">All types</option>
-              <option>HTTP</option>
-              <option>HEARTBEAT</option>
-              <option>WEBHOOK</option>
-            </select>
-            <select
-              className="field"
-              value={query.state}
-              onChange={(event) => apply({ state: event.target.value })}
-            >
-              <option value="">Any state</option>
-              <option value="armed">Armed</option>
-              <option value="paused">Paused</option>
-              <option value="failing">Failing</option>
-            </select>
-            <button className="btn btn-gold" type="submit">
-              Search
-            </button>
-          </div>
+        </label>
+        <label className="block min-w-0">
+          <span className="field-label">Group</span>
+          <select
+            className="field"
+            value={query.group}
+            onChange={(event) => apply({ group: event.target.value })}
+            aria-label="Filter by group"
+          >
+            <option value="">All groups</option>
+            <option value="none">Ungrouped</option>
+            {groups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block min-w-0">
+          <span className="field-label">Type</span>
+          <select
+            className="field"
+            value={query.type}
+            onChange={(event) => apply({ type: event.target.value })}
+            aria-label="Filter by type"
+          >
+            <option value="">All types</option>
+            <option>HTTP</option>
+            <option>HEARTBEAT</option>
+            <option>WEBHOOK</option>
+            <option>TCP</option>
+            <option>DNS</option>
+            <option>TLS</option>
+            <option>DOMAIN</option>
+          </select>
+        </label>
+        <label className="block min-w-0">
+          <span className="field-label">State</span>
+          <select
+            className="field"
+            value={query.state}
+            onChange={(event) => apply({ state: event.target.value })}
+            aria-label="Filter by state"
+          >
+            <option value="">Any state</option>
+            <option value="armed">Armed</option>
+            <option value="paused">Paused</option>
+            <option value="failing">Failing</option>
+          </select>
+        </label>
+        <div className="jobs-filter-go">
+          <button className="btn btn-gold" type="submit">
+            Search
+          </button>
         </div>
       </form>
 

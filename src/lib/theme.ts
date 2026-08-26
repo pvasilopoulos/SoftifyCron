@@ -3,8 +3,8 @@ export type DensityPreference = "comfortable" | "compact";
 
 export const THEME_KEY = "sc-theme";
 export const DENSITY_KEY = "sc-density";
-
-export const THEME_BOOTSTRAP = `(function(){try{var t=localStorage.getItem(${JSON.stringify(THEME_KEY)})||"system";var dark=window.matchMedia("(prefers-color-scheme: dark)").matches;var resolved=t==="light"||t==="dark"?t:(dark?"dark":"light");var r=document.documentElement;r.setAttribute("data-theme",resolved);r.style.colorScheme=resolved;var d=localStorage.getItem(${JSON.stringify(DENSITY_KEY)});if(d==="compact"||d==="comfortable")r.setAttribute("data-density",d);}catch(e){}})();`;
+export const THEME_COOKIE = "sc-resolved-theme";
+export const DENSITY_COOKIE = "sc-density";
 
 export function resolveTheme(pref: ThemePreference, darkMq = true): "dark" | "light" {
   if (pref === "light" || pref === "dark") return pref;
@@ -31,6 +31,10 @@ export function readDensity(): DensityPreference {
   return "comfortable";
 }
 
+function writeCookie(name: string, value: string) {
+  document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; Path=/; Max-Age=31536000; SameSite=Lax`;
+}
+
 export function applyAppearance(pref: ThemePreference, density: DensityPreference) {
   const root = document.documentElement;
   const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -38,6 +42,8 @@ export function applyAppearance(pref: ThemePreference, density: DensityPreferenc
   root.setAttribute("data-theme", resolved);
   root.style.colorScheme = resolved;
   root.setAttribute("data-density", density);
+  writeCookie(THEME_COOKIE, resolved);
+  writeCookie(DENSITY_COOKIE, density);
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute("content", resolved === "light" ? "#eef2ef" : "#06070a");
 }

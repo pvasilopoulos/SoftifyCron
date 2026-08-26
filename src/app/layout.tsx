@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Geist_Mono, Inter, Outfit } from "next/font/google";
-import { ThemeScript } from "@/components/theme-script";
 import { AppAmbient } from "@/components/app-ambient";
 import { AppProviders } from "@/components/app-providers";
+import { DENSITY_COOKIE, THEME_COOKIE } from "@/lib/theme";
 import "./globals.css";
 
 const inter = Inter({
@@ -52,18 +53,20 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const jar = await cookies();
+  const theme = jar.get(THEME_COOKIE)?.value === "light" ? "light" : "dark";
+  const density = jar.get(DENSITY_COOKIE)?.value === "compact" ? "compact" : "comfortable";
+
   return (
     <html
       lang="en"
       suppressHydrationWarning
-      data-theme="dark"
-      data-density="comfortable"
+      data-theme={theme}
+      data-density={density}
+      style={{ colorScheme: theme }}
       className={`${inter.variable} ${outfit.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <head>
-        <ThemeScript />
-      </head>
       <body className="min-h-full min-h-dvh flex flex-col text-ink">
         <AppAmbient />
         <div className="relative z-10 flex min-h-dvh flex-col">

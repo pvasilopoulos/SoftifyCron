@@ -26,14 +26,8 @@ async function hydrateSession(session: SessionPayload): Promise<SessionPayload |
     where: { id: session.sub },
     select: { platformRole: true, name: true, email: true, sessionEpoch: true },
   });
-  if (!user) {
-    await clearSessionCookie();
-    return null;
-  }
-  if ((session.sv ?? 0) !== (user.sessionEpoch ?? 0)) {
-    await clearSessionCookie();
-    return null;
-  }
+  if (!user) return null;
+  if ((session.sv ?? 0) !== (user.sessionEpoch ?? 0)) return null;
   const platform = user.platformRole === "SUPERADMIN";
   const base = {
     ...session,
@@ -52,10 +46,7 @@ async function hydrateSession(session: SessionPayload): Promise<SessionPayload |
       include: { tenant: true, roleRef: true },
       orderBy: { createdAt: "asc" },
     });
-    if (!membership) {
-      await clearSessionCookie();
-      return null;
-    }
+    if (!membership) return null;
     return {
       ...base,
       tid: membership.tenantId,
@@ -71,10 +62,7 @@ async function hydrateSession(session: SessionPayload): Promise<SessionPayload |
     where: { userId_tenantId: { userId: session.sub, tenantId: session.tid } },
     include: { roleRef: true },
   });
-  if (!membership) {
-    await clearSessionCookie();
-    return null;
-  }
+  if (!membership) return null;
   return {
     ...base,
     role: membership.role,
