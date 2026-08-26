@@ -1,3 +1,12 @@
+export function toFiniteCount(value: unknown) {
+  if (typeof value === "bigint") {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  }
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
   const units = ["B", "KB", "MB", "GB"];
@@ -8,6 +17,23 @@ export function formatBytes(bytes: number) {
     unit += 1;
   }
   return `${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+}
+
+const FAILING_STATUSES = new Set(["FAILED", "TIMEOUT", "BLOCKED"]);
+
+export function summarizeJobCounts(
+  rows: Array<{ enabled: boolean; lastStatus: string | null; count: number }>,
+) {
+  let jobs = 0;
+  let armed = 0;
+  let failing = 0;
+  for (const row of rows) {
+    const n = toFiniteCount(row.count);
+    jobs += n;
+    if (row.enabled) armed += n;
+    if (row.lastStatus && FAILING_STATUSES.has(row.lastStatus)) failing += n;
+  }
+  return { jobs, armed, failing };
 }
 
 export type UsageCounts = {

@@ -61,10 +61,15 @@ function uniqueKey(name: string, taken: Set<string>) {
 }
 
 export async function ensureDefaultRoles(tenantId: string) {
-  const existing = await prisma.tenantRole.findMany({ where: { tenantId } });
+  const existing = await prisma.tenantRole.findMany({
+    where: { tenantId },
+    select: { id: true, key: true },
+  });
   const byKey = new Map(existing.map((role) => [role.key, role]));
-  for (const def of DEFAULTS) {
-    if (byKey.has(def.key)) continue;
+  const missing = DEFAULTS.filter((def) => !byKey.has(def.key));
+  if (missing.length === 0) return;
+
+  for (const def of missing) {
     await prisma.tenantRole.create({
       data: {
         tenantId,
@@ -79,7 +84,10 @@ export async function ensureDefaultRoles(tenantId: string) {
     });
   }
 
-  const roles = await prisma.tenantRole.findMany({ where: { tenantId } });
+  const roles = await prisma.tenantRole.findMany({
+    where: { tenantId },
+    select: { id: true, key: true },
+  });
   const idByKey = Object.fromEntries(roles.map((role) => [role.key, role.id]));
   for (const rank of ["OWNER", "ADMIN", "MEMBER"] as const) {
     const roleId = idByKey[rank];

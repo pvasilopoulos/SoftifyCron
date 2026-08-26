@@ -1,20 +1,25 @@
-import { localIsoDate } from "./holidays-gr";
-
 export type HeatCell = { weekday: number; hour: number; count: number };
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function failureHeatmap(
   runs: { startedAt: Date | string; status: string }[],
   timeZone: string,
 ): HeatCell[] {
   const FAILING = new Set(["FAILED", "TIMEOUT", "BLOCKED"]);
+  const hourFmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    hourCycle: "h23",
+  });
+  const weekdayFmt = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" });
   const counts = new Map<string, number>();
   for (const run of runs) {
     if (!FAILING.has(run.status)) continue;
     const at = new Date(run.startedAt);
-    const hour = Number(
-      new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", hourCycle: "h23" }).format(at),
-    );
-    const weekday = new Date(`${localIsoDate(at, timeZone)}T12:00:00Z`).getUTCDay();
+    const hour = Number(hourFmt.format(at));
+    const weekday = WEEKDAYS.indexOf(weekdayFmt.format(at));
+    if (!Number.isFinite(hour) || weekday < 0) continue;
     const key = `${weekday}:${hour}`;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
