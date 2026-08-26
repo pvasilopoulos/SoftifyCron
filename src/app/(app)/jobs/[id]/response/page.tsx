@@ -26,7 +26,7 @@ export default async function JobResponsePage({
     take: 40,
   });
   const run = runs[0] ?? null;
-  const previousRaw = runs[1]?.responseBody ?? null;
+  const previousRaw = job.goldenBody || runs[1]?.responseBody || null;
   const grid = parseResponseGrid(run?.responseBody);
 
   return (
@@ -80,7 +80,11 @@ export default async function JobResponsePage({
               columns={[...new Set(runs.flatMap((row) => parseResponseGrid(row.responseBody).columns))]}
             />
             {run.responseBody ? (
-              <ResponseGridView
+              <>
+                <a className="text-sm text-gold" href={`/api/runs/${run.id}/body`}>
+                  Download raw body
+                </a>
+                <ResponseGridView
                 grid={grid}
                 raw={run.responseBody}
                 previousRaw={previousRaw}
@@ -89,6 +93,7 @@ export default async function JobResponsePage({
                 savedViews={job.gridViews}
                 savedWatches={job.gridWatches}
               />
+              </>
             ) : (
               <p className="text-sm text-ink-dim">
                 No body stored on this run. Run the job again after enabling the flag.

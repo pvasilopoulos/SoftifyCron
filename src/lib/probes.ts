@@ -8,6 +8,10 @@ export function isProbeType(type: string): type is ProbeKind {
   return type === "TCP" || type === "DNS" || type === "TLS";
 }
 
+export function skipsHttpStatusAssert(type: string) {
+  return isProbeType(type) || type === "DOMAIN";
+}
+
 export type ProbeTarget = {
   host: string;
   port: number;
@@ -78,8 +82,8 @@ export function dnsMatchesExpected(addresses: string[], expected: string) {
 }
 
 export async function assertJobTarget(type: string, raw: string) {
-  if (isProbeType(type)) {
-    const target = parseProbeTarget(raw, type);
+  if (isProbeType(type) || type === "DOMAIN") {
+    const target = parseProbeTarget(raw, type === "DOMAIN" ? "TLS" : type);
     await assertSafeHost(target.host);
     return;
   }

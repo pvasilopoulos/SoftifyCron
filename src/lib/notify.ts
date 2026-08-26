@@ -18,6 +18,8 @@ import { webhookSignatureHeader } from "@/lib/notify-sign";
 import { ensureWebhookSecret, smtpFromTenant } from "@/lib/tenant-notify";
 import { sendTenantPush } from "@/lib/push";
 import { appUrl } from "@/lib/app-url";
+import { ackUrl } from "@/lib/inbound";
+import { signAckToken } from "@/lib/ack-token";
 
 export type NotifyJob = {
   id: string;
@@ -191,7 +193,14 @@ export async function notifyJob(
     error: job.error ?? null,
     paused: Boolean(job.paused),
   };
-  const text = messageLines(job, tenant.name, liveEvents).join("\n");
+  const text = [
+    ...messageLines(job, tenant.name, liveEvents),
+    liveEvents.some((event) => event !== "success" && event !== "recovery")
+      ? `Ack: ${ackUrl(appUrl(), signAckToken(job.id, job.tenantId))}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
   const subject = subjectFor(job.name, liveEvents);
   const cooldown = tenant.notifyCooldownSec ?? 300;
 

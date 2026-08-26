@@ -39,6 +39,7 @@ export async function POST(request: Request, { params }: Ctx) {
       id,
       body.revisionId,
       `${session.name} <${session.email}>`,
+      { overrideLock: session.role === "OWNER" || session.platform },
     );
     if (!job) return jsonError("Revision not found", 404);
     await writeAudit({

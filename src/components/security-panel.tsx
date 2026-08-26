@@ -5,6 +5,8 @@ import {
   changePasswordAction,
   confirmTotpAction,
   disableTotpAction,
+  logoutAllAction,
+  rotateRecoveryAction,
   startTotpAction,
 } from "@/app/actions/auth";
 
@@ -20,6 +22,8 @@ export function SecurityPanel({
   const [pwState, pwAction, pwPending] = useActionState(changePasswordAction, null);
   const [totpState, totpAction, totpPending] = useActionState(confirmTotpAction, null);
   const [offState, offAction, offPending] = useActionState(disableTotpAction, null);
+  const [allState, allAction, allPending] = useActionState(logoutAllAction, null);
+  const [recState, recAction, recPending] = useActionState(rotateRecoveryAction, null);
 
   async function start() {
     setSetupError(null);
@@ -117,6 +121,36 @@ export function SecurityPanel({
             {setupError ? <p className="text-sm text-rose">{setupError}</p> : null}
           </div>
         )}
+      </section>
+
+      {totpEnabled ? (
+        <section className="card p-6">
+          <h2 className="font-display text-2xl">Recovery codes</h2>
+          <p className="mt-2 text-sm text-ink-dim">Shown once. Use a code instead of the authenticator if you lose the device.</p>
+          <form className="mt-5 max-w-lg space-y-4" action={recAction}>
+            <label className="block">
+              <span className="field-label">Password</span>
+              <input className="field" type="password" name="password" required />
+            </label>
+            {recState?.error ? <p className="text-sm text-rose">{recState.error}</p> : null}
+            {recState?.message ? <p className="mono break-all text-sm text-ink-dim">{recState.message}</p> : null}
+            <button className="btn btn-ghost" type="submit" disabled={recPending}>
+              {recPending ? "Rotating…" : "Rotate recovery codes"}
+            </button>
+          </form>
+        </section>
+      ) : null}
+
+      <section className="card p-6">
+        <h2 className="font-display text-2xl">Sessions</h2>
+        <p className="mt-2 text-sm text-ink-dim">Sign out every other browser. This session stays signed in.</p>
+        <form className="mt-5" action={allAction}>
+          {allState?.error ? <p className="text-sm text-rose">{allState.error}</p> : null}
+          {allState?.message ? <p className="text-sm text-ink-dim">{allState.message}</p> : null}
+          <button className="btn btn-ghost" type="submit" disabled={allPending}>
+            {allPending ? "Signing out…" : "Sign out other sessions"}
+          </button>
+        </form>
       </section>
     </div>
   );

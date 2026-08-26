@@ -84,6 +84,23 @@ export function JobActions({
           type="button"
           disabled={!!busy}
           onClick={() =>
+            wrap("silent", async () => {
+              const data = await runJobRequest(jobId, { silent: true });
+              setMessage(`Silent ${String(data.status).toLowerCase()}`);
+              toast(`Silent ${String(data.status).toLowerCase()}`);
+              router.refresh();
+            })
+          }
+        >
+          {busy === "silent" ? "Running…" : "Run silent"}
+        </button>
+      ) : null}
+      {access.run ? (
+        <button
+          className="btn btn-ghost"
+          type="button"
+          disabled={!!busy}
+          onClick={() =>
             wrap("preview", async () => {
               const data = await previewJobRequest(jobId);
               const text = data.ok

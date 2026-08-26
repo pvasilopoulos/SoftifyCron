@@ -53,6 +53,15 @@ export type NotifySettings = {
   oncallEnabled: boolean;
   oncallRoster: string;
   signingSecret?: string;
+  capJobs: number;
+  capRunsMonth: number;
+  statusLogoUrl: string;
+  statusCustomHost: string;
+  loginAllowIps: string;
+  portalTokenPrefix: string;
+  portalToken?: string;
+  telegramCommandSecret?: string;
+  slackCommandSecret?: string;
 };
 
 export function NotificationsPanel({
@@ -69,6 +78,7 @@ export function NotificationsPanel({
   const [testing, setTesting] = useState<"email" | "telegram" | "slack" | "discord" | "sms" | null>(null);
   const [secret, setSecret] = useState(initial.signingSecret ?? null);
   const [hasSecret, setHasSecret] = useState(initial.hasSigningSecret);
+  const [portalToken, setPortalToken] = useState(initial.portalToken ?? null);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -128,6 +138,12 @@ export function NotificationsPanel({
         digestHour: String(form.get("digestHour") ?? "08:00"),
         oncallEnabled: form.get("oncallEnabled") === "on",
         oncallRoster: String(form.get("oncallRoster") ?? ""),
+        capJobs: String(form.get("capJobs") ?? "0"),
+        capRunsMonth: String(form.get("capRunsMonth") ?? "0"),
+        statusLogoUrl: String(form.get("statusLogoUrl") ?? ""),
+        statusCustomHost: String(form.get("statusCustomHost") ?? ""),
+        loginAllowIps: String(form.get("loginAllowIps") ?? ""),
+        rotatePortalToken: form.get("rotatePortalToken") === "on",
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -138,6 +154,7 @@ export function NotificationsPanel({
     }
     setHasSecret(Boolean(data.hasSigningSecret));
     if (data.signingSecret) setSecret(data.signingSecret);
+    if (data.portalToken) setPortalToken(data.portalToken);
     setStatus("Saved");
   }
 
@@ -571,8 +588,16 @@ export function NotificationsPanel({
             placeholder="aurora"
           />
           <p className="mt-2 text-xs text-ink-dim">
-            Live at /status/{initial.statusPageSlug || "your-slug"}
+            Live at /status/{initial.statusPageSlug || "your-slug"} · badge at /status/{initial.statusPageSlug || "your-slug"}/badge
           </p>
+        </label>
+        <label className="mt-4 block max-w-md">
+          <span className="field-label">Logo URL</span>
+          <input className="field" name="statusLogoUrl" defaultValue={initial.statusLogoUrl} disabled={!canEdit} placeholder="https://…" />
+        </label>
+        <label className="mt-4 block max-w-md">
+          <span className="field-label">Custom host</span>
+          <input className="field mono" name="statusCustomHost" defaultValue={initial.statusCustomHost} disabled={!canEdit} placeholder="status.example.com" />
         </label>
       </section>
 
@@ -651,6 +676,51 @@ export function NotificationsPanel({
             placeholder="alice@example.com, bob@example.com"
           />
         </label>
+      </section>
+
+      <section className="card p-5 sm:p-6">
+        <h2 className="font-display text-2xl">Caps, portal, login IPs</h2>
+        <p className="mt-1 text-sm text-ink-dim">0 means unlimited. Caps skip scheduled fires at 100% and warn on Usage at 80%.</p>
+        <div className="mt-4 grid max-w-xl gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="field-label">Job cap</span>
+            <input className="field" type="number" name="capJobs" min={0} defaultValue={initial.capJobs} disabled={!canEdit} />
+          </label>
+          <label className="block">
+            <span className="field-label">Runs / month cap</span>
+            <input className="field" type="number" name="capRunsMonth" min={0} defaultValue={initial.capRunsMonth} disabled={!canEdit} />
+          </label>
+        </div>
+        <label className="mt-4 block">
+          <span className="field-label">Login IP allowlist</span>
+          <textarea
+            className="field min-h-20 mono"
+            name="loginAllowIps"
+            defaultValue={initial.loginAllowIps}
+            disabled={!canEdit}
+            placeholder="10.0.0.0/8, 203.0.113.10"
+          />
+        </label>
+        <p className="mt-3 text-sm text-ink-dim">
+          Client portal prefix {initial.portalTokenPrefix || "none"}. Tick rotate to mint a new /portal/… token (shown once).
+        </p>
+        {portalToken ? <p className="mono mt-3 break-all rounded-2xl bg-bg p-3 text-sm">{portalToken}</p> : null}
+        {canEdit ? (
+          <label className="mt-3 flex items-center gap-3">
+            <input type="checkbox" name="rotatePortalToken" />
+            <span className="text-sm">Rotate client portal token</span>
+          </label>
+        ) : null}
+        {initial.telegramCommandSecret ? (
+          <p className="mt-4 text-xs text-ink-dim">
+            Telegram commands: POST /api/bots/telegram?secret={initial.telegramCommandSecret} — /ack /run /snooze
+          </p>
+        ) : null}
+        {initial.slackCommandSecret ? (
+          <p className="mt-2 text-xs text-ink-dim">
+            Slack commands: POST /api/bots/slack?secret={initial.slackCommandSecret}
+          </p>
+        ) : null}
       </section>
 
       <section className="card p-5 sm:p-6">

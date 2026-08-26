@@ -6,6 +6,7 @@ import { StatusPill } from "@/components/status-pill";
 import { AckButton } from "@/components/ack-button";
 import { RelativeTime } from "@/components/relative-time";
 import { hasPermission } from "@/lib/acl";
+import { AssignInline } from "@/components/assign-inline";
 
 export const metadata = { title: "Inbox" };
 
@@ -44,6 +45,7 @@ export default async function InboxPage() {
                   </Link>
                   <p className="text-xs text-ink-dim">
                     {job.consecutiveFailures} consecutive
+                    {job.assigneeEmail ? ` · ${job.assigneeEmail}` : ""}
                     {job.lastRunAt ? (
                       <>
                         {" · "}
@@ -52,8 +54,9 @@ export default async function InboxPage() {
                     ) : null}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
+                  {canAck ? <AssignInline jobId={job.id} email={job.assigneeEmail ?? ""} /> : null}
                   {canAck ? <AckButton jobId={job.id} /> : null}
                 </div>
               </li>

@@ -27,7 +27,9 @@ export async function PUT(request: Request, { params }: Ctx) {
   if (!parsed.success) return zodError(parsed.error);
 
   try {
-    const job = await updateJob(session.tid, id, parsed.data, `${session.name} <${session.email}>`);
+    const job = await updateJob(session.tid, id, parsed.data, `${session.name} <${session.email}>`, {
+      overrideLock: session.role === "OWNER" || session.platform,
+    });
     if (!job) return jsonError("Job not found", 404);
     return NextResponse.json({ job });
   } catch (error) {

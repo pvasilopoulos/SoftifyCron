@@ -67,6 +67,21 @@ export const JOB_TEMPLATES: JobTemplate[] = [
     },
   },
   {
+    id: "domain",
+    name: "Domain expiry",
+    hint: "RDAP lookup. Fail if fewer than 14 days remain.",
+    values: {
+      name: "Domain expiry",
+      type: "DOMAIN",
+      cronExpr: "0 8 * * *",
+      method: "GET",
+      url: "example.com",
+      keepResponse: true,
+      responseBoard: false,
+      assertStatus: 14,
+    },
+  },
+  {
     id: "tcp",
     name: "TCP port check",
     hint: "Open a TCP connection to host:port.",

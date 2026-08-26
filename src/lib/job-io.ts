@@ -51,6 +51,14 @@ export async function exportJobs(tenantId: string) {
       notes: job.notes,
       sloFailPerDay: job.sloFailPerDay,
       enabled: false,
+      assigneeEmail: job.assigneeEmail,
+      configLocked: false,
+      authUrl: job.authUrl,
+      authBody: job.authBody,
+      extraHosts: job.extraHosts,
+      assertFinalUrl: job.assertFinalUrl,
+      assertJsonSchema: job.assertJsonSchema,
+      hookHmac: job.hookHmac,
     })),
   };
 }

@@ -36,6 +36,9 @@ export default async function CalendarPage() {
         <p className="text-xs uppercase tracking-[0.16em] text-gold">Schedule</p>
         <h1 className="mt-2 font-display text-4xl">Calendar</h1>
         <p className="mt-2 text-sm text-ink-dim">Next 7 days of armed jobs. Late and holiday skips show as blocked.</p>
+        <a className="mt-3 inline-block text-sm text-gold" href="/api/calendar">
+          Download iCal
+        </a>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
         {days.map((day) => (

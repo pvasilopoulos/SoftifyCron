@@ -19,6 +19,10 @@ import { JobHistory } from "@/components/job-history";
 import { Sparkline } from "@/components/sparkline";
 import { weekSparks } from "@/lib/spark-data";
 import { JobHookCard } from "@/components/job-hook-card";
+import { OpsJobPanel } from "@/components/ops-job-panel";
+import { whyNotFired } from "@/lib/why-skipped";
+import { flapLabel } from "@/lib/flap";
+import { maintAction, maintFromRow } from "@/lib/maintenance";
 
 export const metadata = { title: "Job" };
 
@@ -33,7 +37,7 @@ export default async function JobDetailPage({
   if (!job) notFound();
   const access = jobAccess(session);
 
-  const [runs, tenants, deliveries, peers, revisions, sparkMap] = await Promise.all([
+  const [runs, tenants, deliveries, peers, revisions, sparkMap, tenant, parent, monthRuns] = await Promise.all([
     prisma.jobRun.findMany({
       where: { tenantId: session.tid, jobId: job.id },
       orderBy: { startedAt: "desc" },
@@ -48,8 +52,37 @@ export default async function JobDetailPage({
     listJobOptions(session.tid),
     listJobRevisions(session.tid, job.id, 12),
     weekSparks(session.tid, [job.id], 7, job.timezone),
+    prisma.tenant.findUnique({ where: { id: session.tid } }),
+    job.dependsOnJobId
+      ? prisma.cronJob.findFirst({
+          where: { id: job.dependsOnJobId, tenantId: session.tid },
+          select: { lastStatus: true },
+        })
+      : Promise.resolve(null),
+    prisma.jobRun.count({
+      where: {
+        tenantId: session.tid,
+        startedAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+      },
+    }),
   ]);
   const spark = sparkMap.get(job.id);
+  const maint = maintAction(new Date(), job.timezone, maintFromRow(tenant), maintFromRow(job.group));
+  const skipped = whyNotFired({
+    enabled: job.enabled,
+    cronExpr: job.cronExpr,
+    timezone: job.timezone,
+    nextRunAt: job.nextRunAt,
+    lockedUntil: job.lockedUntil,
+    dependsOnJobId: job.dependsOnJobId,
+    parentLastStatus: parent?.lastStatus,
+    schedule: { ...job, maintSkip: maint.skip },
+    tenantHolidays: Boolean(tenant?.skipGreekHolidays),
+    capJobs: tenant?.capJobs,
+    capRunsMonth: tenant?.capRunsMonth,
+    jobs: await prisma.cronJob.count({ where: { tenantId: session.tid } }),
+    runsMonth: monthRuns,
+  });
 
   let upcoming: Date[] = [];
   try {
@@ -106,6 +139,14 @@ export default async function JobDetailPage({
             ))}
             {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
             <Sparkline days={spark} />
+            {job.flapScore > 0 ? (
+              <span className="rounded-full bg-bg-mute px-2.5 py-1 text-ink-dim">
+                {flapLabel(job.flapScore)} · {job.flapScore}
+              </span>
+            ) : null}
+            {job.configLocked ? (
+              <span className="rounded-full bg-bg-mute px-2.5 py-1 text-ink-dim">Locked</span>
+            ) : null}
             {job.responseBoard ? (
               <Link
                 href={`/responses?job=${job.id}`}
@@ -300,6 +341,21 @@ export default async function JobDetailPage({
 
       <JobHookCard jobId={job.id} prefix={job.hookTokenPrefix} canEdit={access.edit} />
 
+      <section className="card p-5">
+        <h2 className="font-display text-2xl">Why didn’t this fire?</h2>
+        <p className="mt-2 text-sm text-ink-dim">
+          {skipped.length ? skipped.join(" · ") : "No skip reasons right now. If it is late, the worker may be busy."}
+        </p>
+        <div className="mt-4">
+          <OpsJobPanel
+            jobId={job.id}
+            assigneeEmail={job.assigneeEmail}
+            hasGolden={Boolean(job.goldenBody)}
+            canEdit={access.edit}
+          />
+        </div>
+      </section>
+
       <JobChainMap jobs={peers} focusId={job.id} />
 
       <section className="card overflow-hidden p-0">
@@ -353,6 +409,8 @@ export default async function JobDetailPage({
                   </p>
                   <p className="mt-1 text-sm">
                     HTTP {run.httpStatus ?? "—"} · {formatDuration(run.durationMs)}
+                    {run.ttfbMs != null ? ` · TTFB ${run.ttfbMs}ms` : ""}
+                    {run.silent ? " · silent" : ""}
                   </p>
                   {run.comment ? <p className="mt-2 text-xs text-ink-dim">{run.comment}</p> : null}
                 </Link>
@@ -367,6 +425,7 @@ export default async function JobDetailPage({
                     <th className="px-6 py-3 font-medium">Status</th>
                     <th className="px-6 py-3 font-medium">HTTP</th>
                     <th className="px-6 py-3 font-medium">Duration</th>
+                    <th className="px-6 py-3 font-medium">TTFB</th>
                     <th className="px-6 py-3 font-medium">Note</th>
                   </tr>
                 </thead>
@@ -389,6 +448,10 @@ export default async function JobDetailPage({
                       </td>
                       <td className="px-6 py-3 mono">{run.httpStatus ?? "—"}</td>
                       <td className="px-6 py-3">{formatDuration(run.durationMs)}</td>
+                      <td className="px-6 py-3 text-ink-dim">
+                        {run.ttfbMs != null ? `${run.ttfbMs}ms` : "—"}
+                        {run.silent ? " · silent" : ""}
+                      </td>
                       <td className="px-6 py-3 text-xs text-ink-dim">{run.comment ?? "—"}</td>
                     </tr>
                   ))}

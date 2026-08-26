@@ -71,6 +71,12 @@ export const tenantNotifySchema = z.object({
   digestHour: z.string().max(5).optional(),
   oncallEnabled: z.boolean().optional(),
   oncallRoster: z.string().max(2000).optional(),
+  capJobs: z.union([z.number(), z.string()]).optional(),
+  capRunsMonth: z.union([z.number(), z.string()]).optional(),
+  statusLogoUrl: z.string().max(2048).optional().or(z.literal("")),
+  statusCustomHost: z.string().max(255).optional().or(z.literal("")),
+  loginAllowIps: z.string().max(4000).optional().or(z.literal("")),
+  rotatePortalToken: z.boolean().optional(),
 });
 
 export const notifyTestSchema = z.object({
@@ -156,6 +162,14 @@ export const jobInputSchema = z.object({
   activeHoursEnd: z.string().max(5).optional().default(""),
   notes: z.string().max(4000).optional().default(""),
   sloFailPerDay: intField(0, 0, 100),
+  assigneeEmail: z.string().max(190).optional().default(""),
+  configLocked: z.boolean().optional().default(false),
+  authUrl: z.string().max(2048).optional().default(""),
+  authBody: z.string().max(20_000).optional().default(""),
+  extraHosts: z.string().max(20_000).optional().default(""),
+  assertFinalUrl: z.string().max(2048).optional().default(""),
+  assertJsonSchema: z.string().max(20_000).optional().default(""),
+  hookHmac: z.enum(["", "github", "gitlab"]).optional().default(""),
 });
 
 export const groupInputSchema = z.object({

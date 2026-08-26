@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   beginTotp,
@@ -8,9 +9,11 @@ import {
   disableTotp,
   loginUser,
   loginWithTotp,
+  logoutAllSessions,
   registerUser,
   requestPasswordReset,
   resetPasswordWithToken,
+  rotateRecoveryCodes,
 } from "@/lib/auth";
 import { acceptInvite } from "@/lib/invites";
 import { writeAudit } from "@/lib/audit";
@@ -49,7 +52,10 @@ export async function loginAction(_prev: AuthFormState, formData: FormData): Pro
   const invite = String(formData.get("invite") ?? "") || null;
   let next = "/dashboard";
   try {
-    const result = await loginUser(parsed.data.email, parsed.data.password, invite);
+    const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim()
+      || (await headers()).get("x-real-ip")
+      || "";
+    const result = await loginUser(parsed.data.email, parsed.data.password, invite, { ip });
     if ("needsTotp" in result) {
       return { needsTotp: true, challenge: result.challenge };
     }
@@ -205,17 +211,17 @@ export async function confirmTotpAction(
   const session = await requireSession();
   const code = String(formData.get("code") ?? "");
   try {
-    await confirmTotp(session.sub, code);
+    const result = await confirmTotp(session.sub, code);
     await writeAudit({
       tenantId: session.tid || null,
       actorId: session.sub,
       action: "totp.enable",
       target: session.sub,
     });
+    return { message: `Authenticator enabled. Recovery codes (save once): ${result.codes.join(" ")}` };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Could not enable 2FA" };
   }
-  return { message: "Authenticator app enabled." };
 }
 
 export async function disableTotpAction(
@@ -235,6 +241,38 @@ export async function disableTotpAction(
     return { error: error instanceof Error ? error.message : "Could not disable 2FA" };
   }
   return { message: "Authenticator app disabled." };
+}
+
+export async function logoutAllAction(prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  void prev;
+  void formData;
+  const session = await requireSession();
+  try {
+    const epoch = await logoutAllSessions(session.sub);
+    await setSessionCookie(await signSession({ ...session, sv: epoch }));
+    await writeAudit({
+      tenantId: session.tid || null,
+      actorId: session.sub,
+      action: "session.logout_all",
+      target: session.sub,
+    });
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not sign out other sessions" };
+  }
+  return { message: "Other sessions were signed out." };
+}
+
+export async function rotateRecoveryAction(
+  _prev: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
+  const session = await requireSession();
+  try {
+    const result = await rotateRecoveryCodes(session.sub, String(formData.get("password") ?? ""));
+    return { message: `New recovery codes: ${result.codes.join(" ")}` };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not rotate recovery codes" };
+  }
 }
 
 export async function acceptInviteAction(formData: FormData) {

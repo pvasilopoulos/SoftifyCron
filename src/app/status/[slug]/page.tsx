@@ -29,7 +29,7 @@ export default async function PublicStatusPage({
   const { slug } = await params;
   const tenant = await prisma.tenant.findFirst({
     where: { statusPageSlug: slug, statusPageEnabled: true },
-    select: { id: true, name: true, timezone: true },
+    select: { id: true, name: true, timezone: true, statusLogoUrl: true, statusPageSlug: true },
   });
   if (!tenant) notFound();
 
@@ -59,7 +59,12 @@ export default async function PublicStatusPage({
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
       <div className="flex items-center justify-between gap-4">
-        <Logo />
+        {tenant.statusLogoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={tenant.statusLogoUrl} alt={tenant.name} className="h-10 max-w-[180px] object-contain" />
+        ) : (
+          <Logo />
+        )}
         <p className="text-xs uppercase tracking-[0.18em] text-ink-dim">Public status</p>
       </div>
       <h1 className="mt-8 font-display text-4xl">{tenant.name}</h1>
@@ -67,6 +72,11 @@ export default async function PublicStatusPage({
         {jobs.length} jobs · {healthy} healthy · {failing} need attention
         {stats.uptime != null ? ` · ${stats.days}d uptime ${stats.uptime}%` : ""}
       </p>
+      {tenant.statusPageSlug ? (
+        <p className="mt-2 text-xs text-ink-dim">
+          Badge: /status/{tenant.statusPageSlug}/badge
+        </p>
+      ) : null}
       {stats.lastOutage ? (
         <p className="mt-2 text-sm text-ink-dim">
           Last outage: {stats.lastOutage.job.name} · {stats.lastOutage.status.toLowerCase()} ·{" "}

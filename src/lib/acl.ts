@@ -135,7 +135,7 @@ export function jobAccess(actor: PermissionActor): JobAccess {
   };
 }
 
-export const JOB_TYPES = ["HTTP", "HEARTBEAT", "WEBHOOK", "TCP", "DNS", "TLS"] as const;
+export const JOB_TYPES = ["HTTP", "HEARTBEAT", "WEBHOOK", "TCP", "DNS", "TLS", "DOMAIN"] as const;
 
 export const GROUP_COLORS = [
   "#7dffce",

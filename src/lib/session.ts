@@ -24,9 +24,13 @@ export {
 async function hydrateSession(session: SessionPayload): Promise<SessionPayload | null> {
   const user = await prisma.user.findUnique({
     where: { id: session.sub },
-    select: { platformRole: true, name: true, email: true },
+    select: { platformRole: true, name: true, email: true, sessionEpoch: true },
   });
   if (!user) {
+    await clearSessionCookie();
+    return null;
+  }
+  if ((session.sv ?? 0) !== (user.sessionEpoch ?? 0)) {
     await clearSessionCookie();
     return null;
   }

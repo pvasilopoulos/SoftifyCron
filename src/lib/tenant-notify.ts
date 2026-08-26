@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { encryptSecret, decryptSecret, randomToken } from "@/lib/crypto";
+import { encryptSecret, decryptSecret, randomToken, hashToken } from "@/lib/crypto";
 import { sendMail, type SmtpConfig } from "@/lib/mail";
 import { looksLikeTelegramToken, sendTelegram } from "@/lib/telegram";
 import { sendDiscord } from "@/lib/discord";
@@ -75,6 +75,12 @@ export type TenantNotifyInput = {
   digestHour?: string;
   oncallEnabled?: boolean;
   oncallRoster?: string;
+  capJobs?: number | string;
+  capRunsMonth?: number | string;
+  statusLogoUrl?: string;
+  statusCustomHost?: string;
+  loginAllowIps?: string;
+  rotatePortalToken?: boolean;
 };
 
 export function smtpFromTenant(tenant: {
@@ -154,8 +160,14 @@ export function publicNotify(
     digestHour?: string;
     oncallEnabled?: boolean;
     oncallRoster?: string;
+    capJobs?: number;
+    capRunsMonth?: number;
+    statusLogoUrl?: string | null;
+    statusCustomHost?: string | null;
+    loginAllowIps?: string | null;
+    portalTokenPrefix?: string | null;
   },
-  extra?: { signingSecret?: string },
+  extra?: { signingSecret?: string; portalToken?: string },
 ) {
   return {
     notifyEmail: tenant.notifyEmail ?? "",
@@ -204,8 +216,26 @@ export function publicNotify(
     digestHour: tenant.digestHour ?? "08:00",
     oncallEnabled: Boolean(tenant.oncallEnabled),
     oncallRoster: tenant.oncallRoster ?? "",
+    capJobs: tenant.capJobs ?? 0,
+    capRunsMonth: tenant.capRunsMonth ?? 0,
+    statusLogoUrl: tenant.statusLogoUrl ?? "",
+    statusCustomHost: tenant.statusCustomHost ?? "",
+    loginAllowIps: tenant.loginAllowIps ?? "",
+    portalTokenPrefix: tenant.portalTokenPrefix ?? "",
     signingSecret: extra?.signingSecret,
+    portalToken: extra?.portalToken,
+    telegramCommandSecret: hashedEnc(tenant.telegramBotTokenEnc),
+    slackCommandSecret: hashedEnc(tenant.slackWebhookEnc),
   };
+}
+
+function hashedEnc(enc: string | null | undefined) {
+  if (!enc) return "";
+  try {
+    return hashToken(decryptSecret(enc));
+  } catch {
+    return "";
+  }
 }
 
 export async function loadPublicNotify(tenantId: string) {
@@ -343,6 +373,21 @@ export async function updateTenantNotify(tenantId: string, input: TenantNotifyIn
     smsUser: input.smsUser !== undefined ? input.smsUser.trim() || null : existing.smsUser,
     smsFrom: input.smsFrom !== undefined ? input.smsFrom.trim() || null : existing.smsFrom,
     smsTo: input.smsTo !== undefined ? input.smsTo.trim() || null : existing.smsTo,
+    capJobs:
+      input.capJobs == null
+        ? existing.capJobs
+        : Math.min(10_000, Math.max(0, Math.trunc(Number(input.capJobs) || 0))),
+    capRunsMonth:
+      input.capRunsMonth == null
+        ? existing.capRunsMonth
+        : Math.min(1_000_000, Math.max(0, Math.trunc(Number(input.capRunsMonth) || 0))),
+    statusLogoUrl: input.statusLogoUrl !== undefined ? input.statusLogoUrl.trim() || null : existing.statusLogoUrl,
+    statusCustomHost: (() => {
+      if (input.statusCustomHost === undefined) return existing.statusCustomHost;
+      const host = input.statusCustomHost.trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0] ?? "";
+      return host || null;
+    })(),
+    loginAllowIps: input.loginAllowIps !== undefined ? input.loginAllowIps.trim() || null : existing.loginAllowIps,
   };
   if (input.smtpPass?.trim()) {
     data.smtpPassEnc = encryptSecret(input.smtpPass.trim());
@@ -380,6 +425,14 @@ export async function updateTenantNotify(tenantId: string, input: TenantNotifyIn
     });
     if (taken) throw new Error("That status page URL is already taken");
   }
+  if (data.statusCustomHost && typeof data.statusCustomHost === "string") {
+    const takenHost = await prisma.tenant.findFirst({
+      where: { statusCustomHost: data.statusCustomHost, NOT: { id: tenantId } },
+      select: { id: true },
+    });
+    if (takenHost) throw new Error("That custom status host is already taken");
+  }
+  if (input.statusLogoUrl?.trim()) await assertSafeUrl(input.statusLogoUrl.trim());
 
   let signingSecret: string | undefined;
   if (input.rotateWebhookSecret || !existing.webhookSignEnc) {
@@ -387,12 +440,23 @@ export async function updateTenantNotify(tenantId: string, input: TenantNotifyIn
     data.webhookSignEnc = encryptSecret(signingSecret);
   }
 
+  let portalToken: string | undefined;
+  if (input.rotatePortalToken || (!existing.portalTokenHash && input.rotatePortalToken !== false)) {
+    if (input.rotatePortalToken) {
+      const { newPortalToken } = await import("./inbound");
+      const token = newPortalToken();
+      data.portalTokenHash = token.hash;
+      data.portalTokenPrefix = token.prefix;
+      portalToken = token.token;
+    }
+  }
+
   try {
     const tenant = await prisma.tenant.update({
       where: { id: tenantId },
       data,
     });
-    return publicNotify(tenant, { signingSecret });
+    return publicNotify(tenant, { signingSecret, portalToken });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       throw new Error("That status page URL is already taken");

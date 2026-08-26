@@ -51,3 +51,14 @@ export async function resolveSecrets(
   const map = new Map(rows.map((row) => [row.key, decryptSecret(row.valueEnc)]));
   return interpolateSecrets(text, (key) => map.get(key));
 }
+
+export async function listSecretValues(tenantId: string) {
+  const rows = await prisma.secret.findMany({ where: { tenantId }, select: { valueEnc: true, key: true } });
+  return rows.map((row) => {
+    try {
+      return { key: row.key, value: decryptSecret(row.valueEnc) };
+    } catch {
+      return { key: row.key, value: "" };
+    }
+  });
+}

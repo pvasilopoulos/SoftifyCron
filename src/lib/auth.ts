@@ -9,6 +9,8 @@ import { verifyTotpChallenge } from "@/lib/session-token";
 import { acceptInvite, getInviteByToken } from "@/lib/invites";
 import { ensureDefaultGroups } from "@/lib/groups";
 import { ensureDefaultRoles } from "@/lib/roles";
+import { ipAllowed, parseAllowlist } from "@/lib/allowlist";
+import { consumeRecoveryCode, encodeRecoveryCodes, generateRecoveryCodes } from "@/lib/recovery-codes";
 import type { PlatformRole, Role } from "@prisma/client";
 
 export async function hashPassword(password: string) {
@@ -30,7 +32,7 @@ export async function uniqueSlug(name: string) {
 }
 
 export async function sessionFromMembership(
-  user: { id: string; email: string; name: string; platformRole?: PlatformRole },
+  user: { id: string; email: string; name: string; platformRole?: PlatformRole; sessionEpoch?: number },
   membership: { tenantId: string; role: Role; tenant: { name: string; slug: string } },
 ): Promise<SessionPayload> {
   return {
@@ -42,6 +44,7 @@ export async function sessionFromMembership(
     tname: membership.tenant.name,
     tslug: membership.tenant.slug,
     platform: user.platformRole === "SUPERADMIN",
+    sv: user.sessionEpoch ?? 0,
   };
 }
 
@@ -49,6 +52,7 @@ export function platformSession(user: {
   id: string;
   email: string;
   name: string;
+  sessionEpoch?: number;
 }): SessionPayload {
   return {
     sub: user.id,
@@ -59,6 +63,7 @@ export function platformSession(user: {
     tname: "Platform",
     tslug: "admin",
     platform: true,
+    sv: user.sessionEpoch ?? 0,
   };
 }
 
@@ -124,7 +129,12 @@ export async function registerUser(input: {
   return { token: await signSession(payload), payload };
 }
 
-export async function loginUser(emailRaw: string, password: string, inviteToken?: string | null) {
+export async function loginUser(
+  emailRaw: string,
+  password: string,
+  inviteToken?: string | null,
+  opts?: { ip?: string },
+) {
   const email = emailRaw.trim().toLowerCase();
   const user = await prisma.user.findUnique({
     where: { email },
@@ -139,6 +149,7 @@ export async function loginUser(emailRaw: string, password: string, inviteToken?
   if (!user) throw new Error("Invalid email or password");
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) throw new Error("Invalid email or password");
+  assertLoginIp(user, opts?.ip);
 
   if (user.totpEnabled) {
     return {
@@ -166,8 +177,31 @@ export async function loginWithTotp(challenge: string, code: string, inviteToken
     throw new Error("Authenticator is not enabled");
   }
   const secret = decryptSecret(user.totpSecretEnc);
-  if (!verifyTotp(secret, code)) throw new Error("Invalid authenticator code");
+  const totpOk = verifyTotp(secret, code);
+  if (!totpOk) {
+    const nextEnc = consumeRecoveryCode(user.totpRecoveryEnc, code);
+    if (nextEnc == null) throw new Error("Invalid authenticator code");
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { totpRecoveryEnc: nextEnc || null },
+    });
+  }
   return finishLogin(user, inviteToken);
+}
+
+function assertLoginIp(
+  user: {
+    platformRole: PlatformRole;
+    memberships: { tenant: { loginAllowIps: string | null } }[];
+  },
+  ip?: string,
+) {
+  if (user.platformRole === "SUPERADMIN") return;
+  const tenant = user.memberships[0]?.tenant;
+  const rules = parseAllowlist(tenant?.loginAllowIps);
+  if (!ipAllowed(ip ?? "", rules)) {
+    throw new Error("This workspace does not allow this IP");
+  }
 }
 
 async function finishLogin(
@@ -176,6 +210,7 @@ async function finishLogin(
     email: string;
     name: string;
     platformRole: PlatformRole;
+    sessionEpoch?: number;
     memberships: {
       tenantId: string;
       role: Role;
@@ -269,10 +304,12 @@ export async function confirmTotp(userId: string, code: string) {
   if (!user?.totpSecretEnc) throw new Error("Start authenticator setup first");
   const secret = decryptSecret(user.totpSecretEnc);
   if (!verifyTotp(secret, code)) throw new Error("Invalid authenticator code");
+  const codes = generateRecoveryCodes();
   await prisma.user.update({
     where: { id: userId },
-    data: { totpEnabled: true },
+    data: { totpEnabled: true, totpRecoveryEnc: encodeRecoveryCodes(codes) },
   });
+  return { codes };
 }
 
 export async function disableTotp(userId: string, password: string) {
@@ -283,6 +320,30 @@ export async function disableTotp(userId: string, password: string) {
   }
   await prisma.user.update({
     where: { id: userId },
-    data: { totpEnabled: false, totpSecretEnc: null },
+    data: { totpEnabled: false, totpSecretEnc: null, totpRecoveryEnc: null },
   });
+}
+
+export async function logoutAllSessions(userId: string) {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { sessionEpoch: { increment: 1 } },
+    select: { sessionEpoch: true },
+  });
+  return user.sessionEpoch;
+}
+
+export async function rotateRecoveryCodes(userId: string, password: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error("Account not found");
+  if (!(await verifyPassword(password, user.passwordHash))) {
+    throw new Error("Password is wrong");
+  }
+  if (!user.totpEnabled) throw new Error("Authenticator is not enabled");
+  const codes = generateRecoveryCodes();
+  await prisma.user.update({
+    where: { id: userId },
+    data: { totpRecoveryEnc: encodeRecoveryCodes(codes) },
+  });
+  return { codes };
 }

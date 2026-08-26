@@ -24,6 +24,7 @@ export function buildTimeline(
   tenantHolidays: boolean,
   now = new Date(),
   horizonHours = 24,
+  limit = 200,
 ) {
   const until = now.getTime() + horizonHours * 3_600_000;
   const events: TimelineEvent[] = [];
@@ -56,5 +57,5 @@ export function buildTimeline(
       /* invalid cron */
     }
   }
-  return events.sort((left, right) => left.at.getTime() - right.at.getTime()).slice(0, 24);
+  return events.sort((left, right) => left.at.getTime() - right.at.getTime()).slice(0, limit);
 }

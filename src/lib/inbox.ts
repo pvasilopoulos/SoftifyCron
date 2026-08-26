@@ -7,6 +7,7 @@ export type InboxJob = {
   lastRunAt: Date | string | null;
   ackedAt: Date | string | null;
   consecutiveFailures: number;
+  assigneeEmail?: string;
 };
 
 export function isOpenIncident(job: InboxJob, now = new Date()) {

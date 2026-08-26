@@ -3,6 +3,7 @@ import { loginSchema, totpCodeSchema } from "@/lib/validators";
 import { loginUser, loginWithTotp } from "@/lib/auth";
 import { homePath, setSessionCookie } from "@/lib/session";
 import { jsonError, zodError } from "@/lib/http";
+import { clientIp } from "@/lib/allowlist";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
       parsed.data.email,
       parsed.data.password,
       typeof body?.invite === "string" ? body.invite : null,
+      { ip: clientIp(request.headers) },
     );
     if ("needsTotp" in result) {
       return NextResponse.json({ ok: true, needsTotp: true, challenge: result.challenge });

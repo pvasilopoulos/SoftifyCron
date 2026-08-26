@@ -7,8 +7,9 @@ export async function postJson(url: string, init?: RequestInit) {
   return data;
 }
 
-export async function runJobRequest(jobId: string) {
-  return postJson(`/api/jobs/${jobId}/run`, { method: "POST" });
+export async function runJobRequest(jobId: string, opts?: { silent?: boolean }) {
+  const q = opts?.silent ? "?silent=1" : "";
+  return postJson(`/api/jobs/${jobId}/run${q}`, { method: "POST" });
 }
 
 export async function toggleJobRequest(jobId: string, enabled: boolean) {

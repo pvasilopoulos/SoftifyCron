@@ -14,6 +14,7 @@ export type SessionPayload = {
   platform: boolean;
   grants?: string;
   rolePerms?: string;
+  sv?: number;
 };
 
 /** Where a signed-in user should land; guests go to /login. */
@@ -86,6 +87,7 @@ export async function verifySessionToken(
       platform: payload.platform === true,
       grants: typeof payload.grants === "string" ? payload.grants : "",
       rolePerms: typeof payload.rolePerms === "string" ? payload.rolePerms : "",
+      sv: typeof payload.sv === "number" ? payload.sv : 0,
     };
   } catch {
     return null;

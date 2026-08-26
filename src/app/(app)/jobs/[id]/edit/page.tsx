@@ -79,6 +79,14 @@ export default async function EditJobPage({
           activeHoursEnd: job.activeHoursEnd,
           notes: job.notes ?? "",
           sloFailPerDay: job.sloFailPerDay,
+          assigneeEmail: job.assigneeEmail,
+          configLocked: job.configLocked,
+          authUrl: job.authUrl,
+          authBody: job.authBody,
+          extraHosts: job.extraHosts,
+          assertFinalUrl: job.assertFinalUrl,
+          assertJsonSchema: job.assertJsonSchema,
+          hookHmac: job.hookHmac,
         }}
       />
     </div>

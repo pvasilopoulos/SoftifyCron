@@ -60,6 +60,14 @@ type JobFormValues = {
   activeHoursEnd: string;
   notes: string;
   sloFailPerDay: number;
+  assigneeEmail: string;
+  configLocked: boolean;
+  authUrl: string;
+  authBody: string;
+  extraHosts: string;
+  assertFinalUrl: string;
+  assertJsonSchema: string;
+  hookHmac: string;
 };
 
 type JobOption = { id: string; name: string };
@@ -103,6 +111,14 @@ const DEFAULTS: JobFormValues = {
   activeHoursEnd: "",
   notes: "",
   sloFailPerDay: 0,
+  assigneeEmail: "",
+  configLocked: false,
+  authUrl: "",
+  authBody: "",
+  extraHosts: "",
+  assertFinalUrl: "",
+  assertJsonSchema: "",
+  hookHmac: "",
 };
 
 export function JobForm({
@@ -425,6 +441,48 @@ export function JobForm({
           <input className="field mono" name="assertContains" defaultValue={values.assertContains} />
           <p className="mt-2 text-xs text-ink-dim">Fails the run if this substring is missing from the body.</p>
         </label>
+        <label className="block">
+          <span className="field-label">Assert final URL contains</span>
+          <input className="field mono" name="assertFinalUrl" defaultValue={values.assertFinalUrl} placeholder="https://example.com/app" />
+        </label>
+        <label className="block">
+          <span className="field-label">JSON schema (lite)</span>
+          <textarea
+            className="field min-h-24 mono"
+            name="assertJsonSchema"
+            defaultValue={values.assertJsonSchema}
+            placeholder='{"type":"object","required":["ok"],"properties":{"ok":{"type":"boolean"}}}'
+          />
+        </label>
+        <label className="block">
+          <span className="field-label">Login URL (cookie hop)</span>
+          <input className="field mono" name="authUrl" defaultValue={values.authUrl} placeholder="https://example.com/login" />
+        </label>
+        <label className="block">
+          <span className="field-label">Login body</span>
+          <textarea className="field min-h-20 mono" name="authBody" defaultValue={values.authBody} placeholder='{"user":"…","pass":"{{SECRET:LOGIN}}"}' />
+        </label>
+        <label className="block">
+          <span className="field-label">Extra TLS hosts</span>
+          <textarea className="field min-h-20 mono" name="extraHosts" defaultValue={values.extraHosts} placeholder="www.example.com&#10;api.example.com" />
+          <p className="mt-2 text-xs text-ink-dim">TLS jobs also check these hosts. One per line or comma-separated.</p>
+        </label>
+        <label className="block">
+          <span className="field-label">Inbox assignee</span>
+          <input className="field" name="assigneeEmail" defaultValue={values.assigneeEmail} placeholder="ops@example.com" />
+        </label>
+        <label className="block">
+          <span className="field-label">Inbound HMAC</span>
+          <select className="field" name="hookHmac" defaultValue={values.hookHmac}>
+            <option value="">Off (path token is enough)</option>
+            <option value="github">GitHub X-Hub-Signature-256</option>
+            <option value="gitlab">GitLab X-Gitlab-Token</option>
+          </select>
+        </label>
+        <label className="flex min-h-12 items-center gap-3">
+          <input type="checkbox" name="configLocked" defaultChecked={values.configLocked} />
+          <span>Lock target and schedule — only owners can change URL, cron, type, headers, or body</span>
+        </label>
         <label className="flex min-h-12 items-center gap-3">
           <input type="checkbox" name="skipHolidays" defaultChecked={values.skipHolidays} />
           <span>Skip Greek public holidays (including Orthodox Easter)</span>
@@ -492,6 +550,7 @@ export function JobForm({
           <li><b className="text-ink">TCP</b> — open host:port.</li>
           <li><b className="text-ink">DNS</b> — resolve a hostname, optional IP pin in Equals.</li>
           <li><b className="text-ink">TLS</b> — certificate expiry in days (Assert HTTP status).</li>
+          <li><b className="text-ink">DOMAIN</b> — RDAP expiry via rdap.org (Assert HTTP status = minimum days, 14 if 0).</li>
         </ul>
         <p className="mt-5 text-sm text-ink-dim">
           Put secrets in headers as <span className="mono text-gold-2">{"{{SECRET:API_TOKEN}}"}</span>.

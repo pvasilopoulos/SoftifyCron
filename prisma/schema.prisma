@@ -33,6 +33,7 @@ enum JobType {
   TCP
   DNS
   TLS
+  DOMAIN
 }
 
 enum RunStatus {
@@ -103,6 +104,13 @@ model Tenant {
   digestLastDate           String           @default("") @db.VarChar(10)
   oncallEnabled            Boolean          @default(false)
   oncallRoster             String           @default("") @db.VarChar(2000)
+  capJobs                  Int              @default(0)
+  capRunsMonth             Int              @default(0)
+  statusLogoUrl            String?          @db.VarChar(2048)
+  statusCustomHost         String?          @unique @db.VarChar(255)
+  loginAllowIps            String?          @db.Text
+  portalTokenHash          String?          @unique
+  portalTokenPrefix        String?          @db.VarChar(16)
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
   memberships              Membership[]
@@ -117,6 +125,8 @@ model Tenant {
   deliveries               NotifyDelivery[]
   statusSubscribers        StatusSubscriber[]
   pushSubs                 PushSubscription[]
+  incidents                Incident[]
+  library                  JobLibrary[]
 }
 
 model User {
@@ -127,6 +137,8 @@ model User {
   platformRole   PlatformRole    @default(USER)
   totpEnabled    Boolean         @default(false)
   totpSecretEnc  String?         @db.Text
+  totpRecoveryEnc String?        @db.Text
+  sessionEpoch   Int             @default(0)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   memberships    Membership[]
@@ -220,6 +232,16 @@ model CronJob {
   notifySmsOn          String     @default("") @db.VarChar(120)
   hookTokenHash        String?    @unique
   hookTokenPrefix      String?    @db.VarChar(16)
+  hookHmac             String     @default("") @db.VarChar(16)
+  assigneeEmail        String     @default("") @db.VarChar(190)
+  configLocked         Boolean    @default(false)
+  authUrl              String     @default("") @db.VarChar(2048)
+  authBody             String     @default("") @db.Text
+  extraHosts           String     @default("") @db.Text
+  assertFinalUrl       String     @default("") @db.VarChar(2048)
+  assertJsonSchema     String     @default("") @db.Text
+  goldenBody           String     @default("") @db.LongText
+  flapScore            Int        @default(0)
   keepResponse         Boolean    @default(false)
   responseBoard        Boolean    @default(false)
   pauseAfter           Int        @default(0)
@@ -257,6 +279,7 @@ model CronJob {
   runs                 JobRun[]
   revisions            JobRevision[]
   deliveries           NotifyDelivery[]
+  incidents            Incident[]
 
   @@index([tenantId, enabled, nextRunAt])
   @@index([tenantId, groupId])
@@ -279,12 +302,46 @@ model JobRun {
   responseCharset String?    @db.VarChar(40)
   error        String?    @db.Text
   comment      String?    @db.VarChar(500)
+  dnsMs        Int?
+  connectMs    Int?
+  ttfbMs       Int?
+  finalUrl     String?    @db.VarChar(2048)
+  silent       Boolean    @default(false)
   job          CronJob    @relation(fields: [jobId], references: [id], onDelete: Cascade)
   tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, startedAt])
   @@index([jobId, startedAt])
   @@index([tenantId, status])
+}
+
+model Incident {
+  id            String    @id @default(cuid())
+  tenantId      String
+  jobId         String
+  openedAt      DateTime  @default(now())
+  closedAt      DateTime?
+  openedByRunId String    @default("")
+  closedByRunId String    @default("")
+  assigneeEmail String    @default("") @db.VarChar(190)
+  note          String    @default("") @db.Text
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  job           CronJob   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, closedAt])
+  @@index([jobId, closedAt])
+}
+
+model JobLibrary {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String   @default("")
+  snapshot    Json
+  createdAt   DateTime @default(now())
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 model Secret {

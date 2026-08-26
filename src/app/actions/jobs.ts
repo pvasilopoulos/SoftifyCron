@@ -78,6 +78,14 @@ export async function saveJobAction(
     activeHoursEnd: String(formData.get("activeHoursEnd") ?? ""),
     notes: String(formData.get("notes") ?? ""),
     sloFailPerDay: Number(formData.get("sloFailPerDay") ?? 0),
+    assigneeEmail: String(formData.get("assigneeEmail") ?? ""),
+    configLocked: formData.get("configLocked") === "on",
+    authUrl: String(formData.get("authUrl") ?? ""),
+    authBody: String(formData.get("authBody") ?? ""),
+    extraHosts: String(formData.get("extraHosts") ?? ""),
+    assertFinalUrl: String(formData.get("assertFinalUrl") ?? ""),
+    assertJsonSchema: String(formData.get("assertJsonSchema") ?? ""),
+    hookHmac: String(formData.get("hookHmac") ?? "") || "",
   });
   if (!parsed.success) {
     return {
@@ -89,7 +97,9 @@ export async function saveJobAction(
   let job;
   try {
     job = jobId
-      ? await updateJob(session.tid, jobId, parsed.data, `${session.name} <${session.email}>`)
+      ? await updateJob(session.tid, jobId, parsed.data, `${session.name} <${session.email}>`, {
+          overrideLock: session.role === "OWNER" || session.platform,
+        })
       : await createJob(session.tid, parsed.data);
     await writeAudit({
       tenantId: session.tid,
