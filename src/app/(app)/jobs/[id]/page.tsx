@@ -123,13 +123,13 @@ export default async function JobDetailPage({
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-6">
-        <div className="min-w-0 flex-1">
+      <header className="job-hero">
+        <div className="job-hero-id">
           <Link href="/jobs" className="text-xs uppercase tracking-[0.16em] text-ink-dim">
             ← Jobs
           </Link>
-          <h1 className="mt-2 font-display text-4xl">{job.name}</h1>
-          <p className="mt-2 max-w-2xl text-ink-dim">
+          <h1 className="job-hero-title font-display">{job.name}</h1>
+          <p className="mt-2 max-w-2xl text-sm text-ink-dim sm:text-base">
             {job.description || describeCron(job.cronExpr)}
           </p>
           {job.notes ? (
@@ -141,7 +141,7 @@ export default async function JobDetailPage({
               {job.ackNote ? ` · ${job.ackNote}` : ""}
             </p>
           ) : null}
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="job-hero-meta">
             <span
               className="job-chip"
               style={{
@@ -176,25 +176,17 @@ export default async function JobDetailPage({
             ) : null}
           </div>
         </div>
-        <div className="flex w-full min-w-0 flex-col items-stretch gap-3 lg:w-auto lg:items-end">
-          {access.edit ? (
-            <Link href={`/jobs/${job.id}/edit`} className="btn btn-ghost self-start lg:self-end">
-              Edit
-            </Link>
-          ) : null}
-          <JobActions
-            jobId={job.id}
-            name={job.name}
-            enabled={job.enabled}
-            access={access}
-            keepResponse={job.keepResponse}
-            responseBoard={job.responseBoard}
-            curl={buildCurl(job)}
-            lastStatus={job.lastStatus}
-            onceAt={job.onceAt?.toISOString() ?? null}
-          />
-        </div>
-      </div>
+        <JobActions
+          jobId={job.id}
+          name={job.name}
+          enabled={job.enabled}
+          access={access}
+          curl={buildCurl(job)}
+          lastStatus={job.lastStatus}
+          onceAt={job.onceAt?.toISOString() ?? null}
+          editHref={access.edit ? `/jobs/${job.id}/edit` : null}
+        />
+      </header>
 
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="card p-5 sm:p-6 lg:col-span-2">
