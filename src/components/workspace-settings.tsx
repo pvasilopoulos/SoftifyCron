@@ -29,6 +29,7 @@ function tabFromHash(): Tab {
   if (typeof window === "undefined") return "people";
   const hash = window.location.hash.replace("#", "");
   if (hash === "docs" || hash.startsWith("docs-")) return "docs";
+  if (hash === "notifications" || hash.startsWith("notify-")) return "notifications";
   return TABS.some((tab) => tab.id === hash) ? (hash as Tab) : "people";
 }
 
