@@ -14,7 +14,7 @@ export default async function PortalLoginPage({
       ? "That email link expired. Request a new one."
       : error === "invalid"
         ? "That portal link is invalid or was rotated. Ask your operator for a new one, or use email."
-        : "Use the magic link you were given, or ask for a one-time email link so the secret does not stay in the address bar.";
+        : "Use the magic link your operator sent. If they saved your email, you can request a 24-hour login so the secret does not stay in the address bar.";
   return (
     <AuthCard kicker="Client portal" title="Open your portal" copy={copy}>
       <PortalLoginForm />

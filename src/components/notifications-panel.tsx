@@ -73,12 +73,14 @@ export function NotificationsPanel({
   endpoint = "/api/tenant/notify",
   telegramEndpoint = "/api/tenant/notify/telegram",
   telegramTemplates = [],
+  hideLegacyPortal = false,
 }: {
   initial: NotifySettings;
   canEdit: boolean;
   endpoint?: string;
   telegramEndpoint?: string;
   telegramTemplates?: TelegramTemplateRow[];
+  hideLegacyPortal?: boolean;
 }) {
   const [status, setStatus] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -719,7 +721,7 @@ export function NotificationsPanel({
       </section>
 
       <section className="card p-5 sm:p-6">
-        <h2 className="font-display text-2xl">Caps, portal, login IPs</h2>
+        <h2 className="font-display text-2xl">{hideLegacyPortal ? "Caps and login IPs" : "Caps, portal, login IPs"}</h2>
         <p className="mt-1 text-sm text-ink-dim">0 means unlimited. Caps skip scheduled fires at 100% and warn on Usage at 80%.</p>
         <div className="mt-4 grid max-w-xl gap-4 sm:grid-cols-2">
           <label className="block">
@@ -741,17 +743,26 @@ export function NotificationsPanel({
             placeholder="10.0.0.0/8, 203.0.113.10"
           />
         </label>
-        <p className="mt-3 text-sm text-ink-dim">
-          Per-customer portals live under Settings → Security. This workspace-wide token is the legacy all-jobs link.
-          Prefix {initial.portalTokenPrefix || "none"}. Tick rotate to mint a new /portal/… token (shown once).
-        </p>
-        {portalToken ? <p className="mono mt-3 break-all rounded-2xl bg-bg p-3 text-sm">{portalToken}</p> : null}
-        {canEdit ? (
-          <label className="mt-3 flex items-center gap-3">
-            <input type="checkbox" name="rotatePortalToken" />
-            <span className="text-sm">Rotate client portal token</span>
-          </label>
-        ) : null}
+        {hideLegacyPortal ? (
+          <p className="mt-3 text-sm text-ink-dim">
+            Per-customer portals live under Settings → Security. The old workspace-wide /portal/… token still works if
+            you already shared it; do not mint a new one for customers.
+          </p>
+        ) : (
+          <>
+            <p className="mt-3 text-sm text-ink-dim">
+              Per-customer portals live under Settings → Security. This workspace-wide token is the legacy all-jobs link.
+              Prefix {initial.portalTokenPrefix || "none"}. Tick rotate to mint a new /portal/… token (shown once).
+            </p>
+            {portalToken ? <p className="mono mt-3 break-all rounded-2xl bg-bg p-3 text-sm">{portalToken}</p> : null}
+            {canEdit ? (
+              <label className="mt-3 flex items-center gap-3">
+                <input type="checkbox" name="rotatePortalToken" />
+                <span className="text-sm">Rotate client portal token</span>
+              </label>
+            ) : null}
+          </>
+        )}
       </section>
       </div>
 

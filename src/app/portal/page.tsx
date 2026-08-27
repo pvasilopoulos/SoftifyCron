@@ -20,21 +20,27 @@ export default async function PortalHomePage() {
     <PortalShell title={title} kicker="Client portal" logoUrl={logoUrl}>
       <p className="text-sm text-ink-dim">
         {data.jobs.length} jobs · {data.healthy} healthy · {data.failing} failing
-        {data.stats.uptime != null ? ` · 30d uptime ${data.stats.uptime}%` : " · 30d uptime —"}
+        {data.never ? ` · ${data.never} never run` : ""}
+        {data.stats.uptime != null ? ` · 30d success ${data.stats.uptime}%` : " · 30d success —"}
       </p>
 
       <section className="mt-8 grid gap-3 sm:grid-cols-3">
         <div className="card p-4">
           <p className="text-xs uppercase tracking-[0.16em] text-ink-dim">Health</p>
-          <p className="mt-2 font-display text-3xl">{data.healthy} / {data.failing}</p>
-          <p className="mt-1 text-xs text-ink-dim">healthy / failing</p>
+          <p className="mt-2 font-display text-3xl">
+            {data.healthy} / {data.failing}
+            {data.never ? ` / ${data.never}` : ""}
+          </p>
+          <p className="mt-1 text-xs text-ink-dim">
+            healthy / failing{data.never ? " / never" : ""}
+          </p>
         </div>
         <div className="card p-4">
           <p className="text-xs uppercase tracking-[0.16em] text-ink-dim">Open incidents</p>
           <p className="mt-2 font-display text-3xl">{data.open.length}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs uppercase tracking-[0.16em] text-ink-dim">30-day uptime</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-ink-dim">30-day success</p>
           <p className="mt-2 font-display text-3xl">{data.stats.uptime != null ? `${data.stats.uptime}%` : "—"}</p>
         </div>
       </section>

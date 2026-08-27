@@ -19,7 +19,7 @@ export function PortalLoginForm() {
     setPending(false);
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
-      setStatus(data.error ?? "Could not send link");
+      setStatus(data.error ?? (response.status === 429 ? "Try again later" : "Could not send link"));
       return;
     }
     setStatus("If that mailbox belongs to a client portal, we sent a 24-hour link.");

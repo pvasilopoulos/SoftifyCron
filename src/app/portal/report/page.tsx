@@ -36,7 +36,9 @@ export default async function PortalReportPage({
 
   return (
     <PortalShell title="Monthly report" kicker={title} logoUrl={logoUrl}>
-      <p className="text-sm text-ink-dim">{key} · {rows.length} jobs</p>
+      <p className="text-sm text-ink-dim">
+        {key} · {rows.length} jobs. CSV keeps original names. PDF is Latin-only (non-Latin becomes ?).
+      </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <a className="btn btn-gold" href={`/api/portal/report?month=${key}&format=csv`}>
           Download CSV
