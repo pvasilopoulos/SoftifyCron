@@ -51,6 +51,12 @@ type Prefs = {
   striped?: boolean;
 };
 
+function lockCol(width: number): CSSProperties {
+  return { width, minWidth: width, maxWidth: width };
+}
+
+const CHECK_COL_W = 42;
+const INDEX_COL_W = 64;
 const PAGE_SIZES = [25, 50, 100, 250, 500, 0];
 
 const prefsListeners = new Map<string, Set<() => void>>();
@@ -1243,7 +1249,7 @@ export function ResponseGridView({
             >
               <thead>
                 <tr>
-                  <th className="grid-check-col">
+                  <th className="grid-check-col" style={lockCol(CHECK_COL_W)}>
                     <input
                       type="checkbox"
                       checked={pageRows.length > 0 && pageRows.every((_, index) => selected.has(pageOffset + index))}
@@ -1261,13 +1267,21 @@ export function ResponseGridView({
                       aria-label="Select page"
                     />
                   </th>
-                  <th className="grid-index-col">#</th>
+                  <th className="grid-index-col" style={lockCol(INDEX_COL_W)}>#</th>
                   {view.columns.map((column) => (
                     <th
                       key={column}
                       className={`grid-th ${numericCols.has(column) ? "is-num" : ""} ${focusCol === column ? "is-focus" : ""}`}
                       style={colStyle(column)}
                       onContextMenu={(event) => openHeaderMenu(column, event)}
+                      onDoubleClick={(event) => {
+                        const target = event.target as HTMLElement;
+                        if (target.closest(".grid-sort, .grid-th-more")) return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setFocusCol(column);
+                        fitColumn(column);
+                      }}
                       onDragOver={(event) => {
                         if (!dragCol.current) return;
                         event.preventDefault();
@@ -1308,7 +1322,11 @@ export function ResponseGridView({
                           type="button"
                           className="grid-th-more"
                           aria-label={`Column menu ${column}`}
-                          onClick={(event) => openHeaderMenu(column, event)}
+                          onMouseDown={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            if (event.detail > 1) return;
+                            openHeaderMenu(column, event);
+                          }}
                         >
                           ⋮
                         </button>
@@ -1347,7 +1365,7 @@ export function ResponseGridView({
                   const abs = pageOffset + index;
                   return (
                     <tr key={abs} className={selected.has(abs) ? "is-selected" : ""}>
-                      <td className="grid-check-col">
+                      <td className="grid-check-col" style={lockCol(CHECK_COL_W)}>
                         <input
                           type="checkbox"
                           checked={selected.has(abs)}
@@ -1355,7 +1373,7 @@ export function ResponseGridView({
                           aria-label={`Select row ${sourceIndex(abs) + 1}`}
                         />
                       </td>
-                      <td className="grid-index-col">{sourceIndex(abs) + 1}</td>
+                      <td className="grid-index-col" style={lockCol(INDEX_COL_W)}>{sourceIndex(abs) + 1}</td>
                       {row.map((value, col) => {
                         const cell = cellDiff(abs, col);
                         const changed = Boolean(cell?.changed);

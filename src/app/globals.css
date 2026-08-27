@@ -750,8 +750,8 @@ details > summary::-webkit-details-marker { display: none; }
   min-width: 720px;
 }
 .data-grid {
-  --grid-check-w: 2.6rem;
-  --grid-index-w: 3.4rem;
+  --grid-check-w: 42px;
+  --grid-index-w: 64px;
   min-width: 640px;
   border-collapse: separate;
   border-spacing: 0;
@@ -872,7 +872,7 @@ details > summary::-webkit-details-marker { display: none; }
   min-width: 0;
   width: 100%;
   position: relative;
-  padding-right: 0.7rem;
+  padding-right: 12px;
 }
 .grid-th-inner .grid-sort {
   min-width: 0;
@@ -914,15 +914,39 @@ details > summary::-webkit-details-marker { display: none; }
 }
 .grid-col-resizer {
   position: absolute;
-  top: -0.2rem;
-  right: -0.7rem;
+  top: 0;
+  right: -4px;
   z-index: 4;
-  width: 12px;
-  height: calc(100% + 0.4rem);
+  width: 10px;
+  height: 100%;
   cursor: col-resize;
   touch-action: none;
   user-select: none;
-  border-radius: 0.25rem;
+  pointer-events: none;
+}
+.grid-col-edge {
+  position: absolute;
+  top: 0;
+  right: -5px;
+  z-index: 8;
+  width: 12px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+}
+.grid-col-edge::after {
+  content: "";
+  position: absolute;
+  top: 22%;
+  left: 4px;
+  width: 3px;
+  height: 56%;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--gold) 55%, var(--muted));
+}
+.grid-col-edge:hover::after,
+body.is-col-resizing .grid-col-edge::after {
+  background: var(--gold);
 }
 .grid-col-resizer::before,
 .grid-col-resizer::after {
@@ -953,16 +977,6 @@ body.is-col-resizing .grid-col-resizer {
 body.is-col-resizing {
   cursor: col-resize;
   user-select: none;
-}
-.grid-col-edge {
-  position: absolute;
-  top: 0;
-  right: -6px;
-  z-index: 6;
-  width: 14px;
-  height: 100%;
-  cursor: col-resize;
-  touch-action: none;
 }
 .grid-hit {
   background: color-mix(in srgb, var(--gold) 35%, transparent);
