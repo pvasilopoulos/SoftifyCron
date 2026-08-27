@@ -8,6 +8,7 @@ import {
   distinctValues,
   FILTER_OP_LABELS,
   FILTER_OPS,
+  filterChipLabel,
   gridToCsv,
   gridToTsv,
   moveColumn,
@@ -50,6 +51,12 @@ type Prefs = {
   striped?: boolean;
 };
 
+function lockCol(width: number): CSSProperties {
+  return { width, minWidth: width, maxWidth: width };
+}
+
+const CHECK_COL_W = 42;
+const INDEX_COL_W = 64;
 const PAGE_SIZES = [25, 50, 100, 250, 500, 0];
 
 const prefsListeners = new Map<string, Set<() => void>>();
@@ -147,7 +154,14 @@ export function ResponseGridView({
   const [fullscreen, setFullscreen] = useState(false);
   const [headerMenu, setHeaderMenu] = useState<{ column: string; x: number; y: number } | null>(null);
   const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null);
-  const resizeRef = useRef<{ column: string; startX: number; startW: number } | null>(null);
+  const [focusCol, setFocusCol] = useState<string | null>(null);
+  const [colQuery, setColQuery] = useState("");
+  const resizeRef = useRef<{
+    column: string;
+    startX: number;
+    startW: number;
+    active: boolean;
+  } | null>(null);
   const dragCol = useRef<string | null>(null);
   const lastChecked = useRef<number | null>(null);
   const jsonDiff = useMemo(
@@ -254,19 +268,28 @@ export function ResponseGridView({
     function move(event: MouseEvent) {
       const current = resizeRef.current;
       if (!current) return;
+      const dx = event.clientX - current.startX;
+      if (!current.active) {
+        if (Math.abs(dx) < 4) return;
+        current.active = true;
+        document.body.classList.add("is-col-resizing");
+      }
       event.preventDefault();
-      const next = clampColWidth(current.startW + (event.clientX - current.startX));
+      const next = clampColWidth(current.startW + dx);
       setLiveWidths((prev) => ({ ...(prev ?? {}), [current.column]: next }));
     }
     function up() {
-      if (!resizeRef.current) return;
+      const current = resizeRef.current;
+      if (!current) return;
+      const wasActive = current.active;
       resizeRef.current = null;
       document.body.classList.remove("is-col-resizing");
+      if (!wasActive) return;
       setLiveWidths((prev) => {
         if (prev && Object.keys(prev).length) {
           const raw = prefsSnapshot(storageKey);
-          const current = parsePrefs(raw);
-          localStorage.setItem(`sc-grid:${storageKey}`, JSON.stringify({ ...current, widths: prev }));
+          const stored = parsePrefs(raw);
+          localStorage.setItem(`sc-grid:${storageKey}`, JSON.stringify({ ...stored, widths: prev }));
           emitPrefs(storageKey);
         }
         return null;
@@ -311,12 +334,11 @@ export function ResponseGridView({
   function startResize(column: string, event: ReactMouseEvent<HTMLSpanElement>) {
     event.preventDefault();
     event.stopPropagation();
-    const th = (event.currentTarget.parentElement as HTMLElement | null);
+    const th = event.currentTarget.closest("th");
     const startW = widths[column] ?? th?.getBoundingClientRect().width ?? 160;
-    resizeRef.current = { column, startX: event.clientX, startW };
-    document.body.classList.add("is-col-resizing");
-    setLiveWidths({ ...widths, [column]: clampColWidth(startW) });
+    resizeRef.current = { column, startX: event.clientX, startW, active: false };
     setHeaderMenu(null);
+    setFocusCol(column);
   }
 
   function fitColumn(column: string) {
@@ -333,6 +355,21 @@ export function ResponseGridView({
         view.rows.slice(0, 80),
       ),
     });
+  }
+
+  function resetWidths() {
+    patchPrefs({ widths: undefined });
+  }
+
+  function fitFocusedColumn() {
+    const column =
+      (focusCol && view.columns.includes(focusCol) ? focusCol : null) ?? view.columns[0];
+    if (column) fitColumn(column);
+  }
+
+  function togglePanel(next: Exclude<Panel, null>) {
+    setPanel((current) => (current === next ? null : next));
+    setHeaderMenu(null);
   }
 
   function toggleRow(abs: number, shift: boolean) {
@@ -356,6 +393,7 @@ export function ResponseGridView({
     event.preventDefault();
     event.stopPropagation();
     setHeaderMenu({ column, x: event.clientX, y: event.clientY });
+    setFocusCol(column);
     setPanel(null);
   }
 
@@ -502,7 +540,7 @@ export function ResponseGridView({
           return;
         }
         if (mode !== "grid" || view.columns.length === 0 || view.rows.length === 0) return;
-        if (target instanceof HTMLElement && target.closest("button, a, .grid-toolbar, .grid-pager, .grid-panel, .menu-pop")) {
+        if (target instanceof HTMLElement && target.closest("button, a, .grid-toolbar, .grid-tools, .grid-chips, .grid-pager, .grid-panel, .menu-pop")) {
           return;
         }
         const key = event.key;
@@ -550,6 +588,7 @@ export function ResponseGridView({
                 setPage(1);
               }}
               placeholder="Search all cells…"
+              aria-keyshortcuts="/"
             />
           </label>
           {datasets.length > 1 ? (
@@ -571,68 +610,56 @@ export function ResponseGridView({
             </select>
           ) : null}
         </div>
-        <div className="grid-toolbar-actions">
-          <button
-            className={`btn btn-sm ${panel === "columns" ? "btn-gold" : "btn-ghost"}`}
-            type="button"
-            onClick={() => setPanel((current) => (current === "columns" ? null : "columns"))}
-          >
-            Columns
-          </button>
-          <button
-            className={`btn btn-sm ${panel === "filters" || filters.length ? "btn-gold" : "btn-ghost"}`}
-            type="button"
-            onClick={() => setPanel((current) => (current === "filters" ? null : "filters"))}
-          >
-            Filters{filters.length ? ` ${filters.length}` : ""}
-          </button>
-          <button
-            className={`btn btn-sm ${panel === "view" ? "btn-gold" : "btn-ghost"}`}
-            type="button"
-            onClick={() => setPanel((current) => (current === "view" ? null : "view"))}
-          >
-            View
-          </button>
-          <button
-            className={`btn btn-sm ${mode === "grid" ? "btn-gold" : "btn-ghost"}`}
-            type="button"
-            onClick={() => setMode("grid")}
-          >
-            Grid
-          </button>
-          {raw ? (
-            <>
-              <button
-                className={`btn btn-sm ${mode === "json" ? "btn-gold" : "btn-ghost"}`}
-                type="button"
-                onClick={() => setMode("json")}
-              >
-                JSON
-              </button>
-              <button
-                className={`btn btn-sm ${mode === "raw" ? "btn-gold" : "btn-ghost"}`}
-                type="button"
-                onClick={() => setMode("raw")}
-              >
-                Raw
-              </button>
-            </>
-          ) : null}
+        <div className="grid-toolbar-aside">
+          <div className="grid-seg" role="tablist" aria-label="Response view">
+            <button
+              className={mode === "grid" ? "is-on" : ""}
+              type="button"
+              role="tab"
+              aria-selected={mode === "grid"}
+              onClick={() => setMode("grid")}
+            >
+              Grid
+            </button>
+            {raw ? (
+              <>
+                <button
+                  className={mode === "json" ? "is-on" : ""}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "json"}
+                  onClick={() => setMode("json")}
+                >
+                  JSON
+                </button>
+                <button
+                  className={mode === "raw" ? "is-on" : ""}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "raw"}
+                  onClick={() => setMode("raw")}
+                >
+                  Raw
+                </button>
+              </>
+            ) : null}
+          </div>
           {previousRaw ? (
             <button
-              className={`btn btn-sm ${diffOn ? "btn-gold" : "btn-ghost"}`}
+              className={`grid-tool ${diffOn ? "is-on" : ""}`}
               type="button"
+              aria-pressed={diffOn}
               onClick={() => {
                 setDiffOn((value) => !value);
                 setPage(1);
                 setHover(null);
               }}
             >
-              Diff{diff ? ` · ${diff.changedCount}` : ""}
+              Diff{diff ? ` ${diff.changedCount}` : ""}
             </button>
           ) : null}
           <button
-            className={`btn btn-sm ${fullscreen ? "btn-gold" : "btn-ghost"}`}
+            className={`grid-tool ${fullscreen ? "is-on" : ""}`}
             type="button"
             aria-pressed={fullscreen}
             onClick={() => setFullscreen((value) => !value)}
@@ -642,41 +669,197 @@ export function ResponseGridView({
         </div>
       </div>
 
+      {mode === "grid" ? (
+        <div className="grid-tools">
+          <div className="grid-tools-group" role="group" aria-label="Options and filters">
+            <span className="grid-tools-label">Options</span>
+            <button
+              className={`grid-tool ${panel === "columns" ? "is-on" : ""}`}
+              type="button"
+              aria-expanded={panel === "columns"}
+              onClick={() => togglePanel("columns")}
+            >
+              Columns
+              {source.columns.length !== visible.length
+                ? ` ${visible.length}/${source.columns.length}`
+                : ""}
+            </button>
+            <button
+              className={`grid-tool ${panel === "filters" || filters.length ? "is-on" : ""}`}
+              type="button"
+              aria-expanded={panel === "filters"}
+              onClick={() => togglePanel("filters")}
+            >
+              Filters{filters.length ? ` ${filters.length}` : ""}
+            </button>
+            <button
+              className={`grid-tool ${panel === "view" ? "is-on" : ""}`}
+              type="button"
+              aria-expanded={panel === "view"}
+              onClick={() => togglePanel("view")}
+            >
+              Views
+            </button>
+          </div>
+          <div className="grid-tools-group" role="group" aria-label="Column size">
+            <span className="grid-tools-label">Size</span>
+            <button
+              className="grid-tool"
+              type="button"
+              title="Autosize the focused column"
+              onClick={fitFocusedColumn}
+            >
+              {focusCol && view.columns.includes(focusCol) ? `Fit ${focusCol}` : "Fit column"}
+            </button>
+            <button
+              className="grid-tool is-accent"
+              type="button"
+              title="Autosize every visible column from its contents"
+              onClick={fitAllColumns}
+            >
+              Fit all
+            </button>
+            <button
+              className="grid-tool"
+              type="button"
+              disabled={!sized}
+              title="Clear saved column widths"
+              onClick={resetWidths}
+            >
+              Reset
+            </button>
+          </div>
+          <div className="grid-tools-group" role="group" aria-label="Display">
+            <span className="grid-tools-label">Display</span>
+            <button
+              className={`grid-tool ${prefs.freeze ? "is-on" : ""}`}
+              type="button"
+              aria-pressed={Boolean(prefs.freeze)}
+              onClick={() => patchPrefs({ freeze: !prefs.freeze })}
+            >
+              Pin first
+            </button>
+            <button
+              className={`grid-tool ${prefs.compact ? "is-on" : ""}`}
+              type="button"
+              aria-pressed={Boolean(prefs.compact)}
+              onClick={() => patchPrefs({ compact: !prefs.compact })}
+            >
+              Compact
+            </button>
+            <button
+              className={`grid-tool ${prefs.wrap !== false ? "is-on" : ""}`}
+              type="button"
+              aria-pressed={prefs.wrap !== false}
+              onClick={() => patchPrefs({ wrap: prefs.wrap === false })}
+            >
+              Wrap
+            </button>
+            <button
+              className={`grid-tool ${striped ? "is-on" : ""}`}
+              type="button"
+              aria-pressed={striped}
+              onClick={() => patchPrefs({ striped: !striped })}
+            >
+              Stripes
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {filters.length ? (
+        <div className="grid-chips" aria-label="Active filters">
+          {filters.map((filter) => (
+            <div key={filter.id} className="grid-chip">
+              <button
+                className="grid-chip-label"
+                type="button"
+                title="Edit filter"
+                onClick={() => togglePanel("filters")}
+              >
+                <span className="truncate">{filterChipLabel(filter)}</span>
+              </button>
+              <button
+                className="grid-chip-x"
+                type="button"
+                aria-label={`Remove ${filterChipLabel(filter)}`}
+                onClick={() => {
+                  setFilters((current) => current.filter((item) => item.id !== filter.id));
+                  setPage(1);
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <button
+            className="grid-chip-clear"
+            type="button"
+            onClick={() => {
+              setFilters([]);
+              setPage(1);
+            }}
+          >
+            Clear filters
+          </button>
+        </div>
+      ) : null}
+
       <p className="grid-meta">
         {source.title ? `${source.title} · ` : ""}
         {view.rows.length.toLocaleString()} of {source.rows.length.toLocaleString()} rows ·{" "}
-        {view.columns.length} cols · {source.source.replace("-", " ")}
+        {view.columns.length} columns · {source.source.replace("-", " ")}
         {selected.size ? ` · ${selected.size} selected` : ""}
         {diff ? ` · ${diff.changedCount} cells changed vs previous run` : ""}
         {diffActive ? " · showing changes only" : ""}
-        {sized ? " · column widths saved" : " · drag a column edge to resize · double-click to autosize"}
+        {sized ? " · custom column widths" : ""}
       </p>
 
       {panel === "columns" ? (
         <div className="grid-panel">
+          <div className="grid-panel-head">
+            <div>
+              <p className="grid-panel-title">Columns</p>
+              <p className="grid-panel-sub">
+                {visible.length} visible · {source.columns.length - visible.length} hidden · drag a header to reorder
+              </p>
+            </div>
+            <button className="grid-tool" type="button" onClick={() => setPanel(null)} aria-label="Close columns">
+              Close
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
-            <button className="btn btn-ghost btn-sm" type="button" onClick={() => patchPrefs({ visible: source.columns })}>
+            <input
+              className="field grid-col-search"
+              value={colQuery}
+              onChange={(event) => setColQuery(event.target.value)}
+              placeholder="Find a column…"
+              aria-label="Find a column"
+            />
+            <button className="grid-tool" type="button" onClick={() => patchPrefs({ visible: source.columns })}>
               Show all
             </button>
             <button
-              className="btn btn-ghost btn-sm"
+              className="grid-tool"
               type="button"
               onClick={() => patchPrefs({ visible: source.columns.slice(0, 1) })}
             >
               First only
             </button>
-            <button className="btn btn-ghost btn-sm" type="button" onClick={() => patchPrefs({ visible: undefined })}>
-              Reset
+            <button className="grid-tool" type="button" onClick={() => patchPrefs({ visible: undefined })}>
+              Reset order
             </button>
-            <button className="btn btn-ghost btn-sm" type="button" onClick={fitAllColumns}>
-              Autosize
+            <button className="grid-tool is-accent" type="button" onClick={fitAllColumns}>
+              Fit all
             </button>
-            <button className="btn btn-ghost btn-sm" type="button" onClick={() => patchPrefs({ widths: undefined })}>
+            <button className="grid-tool" type="button" disabled={!sized} onClick={resetWidths}>
               Reset widths
             </button>
           </div>
           <ul className="grid-col-list">
-            {source.columns.map((column) => (
+            {source.columns
+              .filter((column) => !colQuery.trim() || column.toLowerCase().includes(colQuery.trim().toLowerCase()))
+              .map((column) => (
               <li key={column}>
                 <label className="grid-check">
                   <input
@@ -687,6 +870,9 @@ export function ResponseGridView({
                   <span className="truncate">{column}</span>
                 </label>
                 <span className="grid-col-move">
+                  <button type="button" onClick={() => { fitColumn(column); setFocusCol(column); }} title={`Fit ${column}`}>
+                    Fit
+                  </button>
                   <button type="button" onClick={() => patchPrefs({ visible: moveColumn(visible, column, -1) })}>
                     ↑
                   </button>
@@ -702,6 +888,15 @@ export function ResponseGridView({
 
       {panel === "filters" ? (
         <div className="grid-panel space-y-3">
+          <div className="grid-panel-head">
+            <div>
+              <p className="grid-panel-title">Filters</p>
+              <p className="grid-panel-sub">Narrow the table by column. Active filters stay as chips above the grid.</p>
+            </div>
+            <button className="grid-tool" type="button" onClick={() => setPanel(null)} aria-label="Close filters">
+              Close
+            </button>
+          </div>
           {filters.length === 0 ? <p className="text-sm text-ink-dim">No column filters yet.</p> : null}
           {filters.map((filter) => {
             const values = distinctValues(source, filter.column, 40);
@@ -785,6 +980,15 @@ export function ResponseGridView({
 
       {panel === "view" ? (
         <div className="grid-panel grid-view-opts">
+          <div className="grid-panel-head">
+            <div>
+              <p className="grid-panel-title">Views and export</p>
+              <p className="grid-panel-sub">Pin, density, and wrap are also on the toolbar. Save a layout or export the current table.</p>
+            </div>
+            <button className="grid-tool" type="button" onClick={() => setPanel(null)} aria-label="Close views">
+              Close
+            </button>
+          </div>
           <label className="grid-check">
             <input
               type="checkbox"
@@ -818,14 +1022,10 @@ export function ResponseGridView({
             Striped rows
           </label>
           <div className="flex flex-wrap gap-2">
-            <button className="btn btn-ghost btn-sm" type="button" onClick={fitAllColumns}>
-              Autosize columns
+            <button className="grid-tool is-accent" type="button" onClick={fitAllColumns}>
+              Fit all
             </button>
-            <button
-              className="btn btn-ghost btn-sm"
-              type="button"
-              onClick={() => patchPrefs({ widths: undefined })}
-            >
+            <button className="grid-tool" type="button" disabled={!sized} onClick={resetWidths}>
               Reset widths
             </button>
           </div>
@@ -1049,7 +1249,7 @@ export function ResponseGridView({
             >
               <thead>
                 <tr>
-                  <th className="grid-check-col">
+                  <th className="grid-check-col" style={lockCol(CHECK_COL_W)}>
                     <input
                       type="checkbox"
                       checked={pageRows.length > 0 && pageRows.every((_, index) => selected.has(pageOffset + index))}
@@ -1067,13 +1267,21 @@ export function ResponseGridView({
                       aria-label="Select page"
                     />
                   </th>
-                  <th className="grid-index-col">#</th>
+                  <th className="grid-index-col" style={lockCol(INDEX_COL_W)}>#</th>
                   {view.columns.map((column) => (
                     <th
                       key={column}
-                      className="grid-th"
+                      className={`grid-th ${numericCols.has(column) ? "is-num" : ""} ${focusCol === column ? "is-focus" : ""}`}
                       style={colStyle(column)}
                       onContextMenu={(event) => openHeaderMenu(column, event)}
+                      onDoubleClick={(event) => {
+                        const target = event.target as HTMLElement;
+                        if (target.closest(".grid-sort, .grid-th-more")) return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setFocusCol(column);
+                        fitColumn(column);
+                      }}
                       onDragOver={(event) => {
                         if (!dragCol.current) return;
                         event.preventDefault();
@@ -1090,6 +1298,7 @@ export function ResponseGridView({
                         <button
                           type="button"
                           className="grid-sort"
+                          title={column}
                           draggable
                           onDragStart={() => {
                             dragCol.current = column;
@@ -1097,18 +1306,29 @@ export function ResponseGridView({
                           onDragEnd={() => {
                             dragCol.current = null;
                           }}
-                          onClick={() => toggleSort(column)}
+                          onClick={() => {
+                            setFocusCol(column);
+                            toggleSort(column);
+                          }}
                         >
-                          {column}
-                          {sort?.column === column ? (sort.dir === "asc" ? " ↑" : " ↓") : ""}
+                          <span className="grid-th-name">{column}</span>
+                          {sort?.column === column ? (
+                            <span className="grid-th-dir" aria-hidden>
+                              {sort.dir === "asc" ? "↑" : "↓"}
+                            </span>
+                          ) : null}
                         </button>
                         <button
                           type="button"
                           className="grid-th-more"
                           aria-label={`Column menu ${column}`}
-                          onClick={(event) => openHeaderMenu(column, event)}
+                          onMouseDown={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            if (event.detail > 1) return;
+                            openHeaderMenu(column, event);
+                          }}
                         >
-                          ···
+                          ⋮
                         </button>
                         <span
                           className="grid-col-resizer"
@@ -1119,6 +1339,7 @@ export function ResponseGridView({
                           onDoubleClick={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
+                            setFocusCol(column);
                             fitColumn(column);
                           }}
                           title="Drag to resize · double-click to autosize"
@@ -1130,6 +1351,7 @@ export function ResponseGridView({
                         onDoubleClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
+                          setFocusCol(column);
                           fitColumn(column);
                         }}
                         title="Drag to resize · double-click to autosize"
@@ -1143,7 +1365,7 @@ export function ResponseGridView({
                   const abs = pageOffset + index;
                   return (
                     <tr key={abs} className={selected.has(abs) ? "is-selected" : ""}>
-                      <td className="grid-check-col">
+                      <td className="grid-check-col" style={lockCol(CHECK_COL_W)}>
                         <input
                           type="checkbox"
                           checked={selected.has(abs)}
@@ -1151,7 +1373,7 @@ export function ResponseGridView({
                           aria-label={`Select row ${sourceIndex(abs) + 1}`}
                         />
                       </td>
-                      <td className="grid-index-col">{sourceIndex(abs) + 1}</td>
+                      <td className="grid-index-col" style={lockCol(INDEX_COL_W)}>{sourceIndex(abs) + 1}</td>
                       {row.map((value, col) => {
                         const cell = cellDiff(abs, col);
                         const changed = Boolean(cell?.changed);
@@ -1176,7 +1398,10 @@ export function ResponseGridView({
                             changed && cell ? (event) => showTip(event, cell.previous, cell.value) : undefined
                           }
                           onMouseLeave={() => setHover(null)}
-                          onClick={() => setActiveCell({ row: abs, col })}
+                          onClick={() => {
+                            setActiveCell({ row: abs, col });
+                            setFocusCol(column);
+                          }}
                           onDoubleClick={() => copyText(value, column || "Cell")}
                         >
                           <CellText value={value} query={query} />
@@ -1310,10 +1535,21 @@ export function ResponseGridView({
                 type="button"
                 onClick={() => {
                   fitColumn(headerMenu.column);
+                  setFocusCol(headerMenu.column);
                   setHeaderMenu(null);
                 }}
               >
-                Autosize
+                Fit this column
+              </button>
+              <button
+                className="menu-item"
+                type="button"
+                onClick={() => {
+                  fitAllColumns();
+                  setHeaderMenu(null);
+                }}
+              >
+                Fit all columns
               </button>
               <button
                 className="menu-item"

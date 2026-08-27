@@ -233,58 +233,60 @@ export function ResponsesBoard({
           {selectedName ?? "This job"} has a Responses tab, but no body is stored yet. Run it once.
         </div>
       ) : (
-        <div className="card p-4 sm:p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
+        <div className="card p-4 sm:p-6 resp-job-card">
+          <div className="resp-job-head">
+            <div className="min-w-0">
               <p className="text-xs uppercase tracking-[0.16em] text-gold">Job tab</p>
               <h2 className="mt-1 font-display text-2xl">{selectedName}</h2>
+              <p className="mt-1 text-xs text-ink-dim">
+                <RelativeTime value={selectedRun?.startedAt} timeZone={timezone} />
+                {selectedRun?.responseCharset ? ` · decoded as ${selectedRun.responseCharset}` : ""}
+              </p>
             </div>
-            <label className="block sm:min-w-64">
-              <span className="field-label">Captured run</span>
-              <select
-                className="field"
-                value={selectedRun?.id ?? ""}
-                onChange={(event) => {
-                  const next = event.target.value;
-                  setRunId(next);
-                  const index = runs.findIndex((run) => run.id === next);
-                  setCompareId(index >= 0 ? (runs[index + 1]?.id ?? "") : "");
-                }}
-              >
-                {runs.map((run) => (
-                  <option key={run.id} value={run.id}>
-                    {new Date(run.startedAt).toISOString().replace("T", " ").slice(0, 19)} ·{" "}
-                    {run.status.toLowerCase()}
-                    {run.httpStatus != null ? ` · ${run.httpStatus}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block sm:min-w-64">
-              <span className="field-label">Compare with</span>
-              <select
-                className="field"
-                value={compareRun?.id ?? ""}
-                onChange={(event) => setCompareId(event.target.value)}
-              >
-                <option value="">Previous capture</option>
-                {runs
-                  .filter((run) => run.id !== selectedRun?.id)
-                  .map((run) => (
+            <div className="resp-run-bar">
+              <label className="block min-w-0">
+                <span className="field-label">Captured run</span>
+                <select
+                  className="field"
+                  value={selectedRun?.id ?? ""}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setRunId(next);
+                    const index = runs.findIndex((run) => run.id === next);
+                    setCompareId(index >= 0 ? (runs[index + 1]?.id ?? "") : "");
+                  }}
+                >
+                  {runs.map((run) => (
                     <option key={run.id} value={run.id}>
                       {new Date(run.startedAt).toISOString().replace("T", " ").slice(0, 19)} ·{" "}
                       {run.status.toLowerCase()}
                       {run.httpStatus != null ? ` · ${run.httpStatus}` : ""}
                     </option>
                   ))}
-              </select>
-            </label>
+                </select>
+              </label>
+              <label className="block min-w-0">
+                <span className="field-label">Compare with</span>
+                <select
+                  className="field"
+                  value={compareRun?.id ?? ""}
+                  onChange={(event) => setCompareId(event.target.value)}
+                >
+                  <option value="">Previous capture</option>
+                  {runs
+                    .filter((run) => run.id !== selectedRun?.id)
+                    .map((run) => (
+                      <option key={run.id} value={run.id}>
+                        {new Date(run.startedAt).toISOString().replace("T", " ").slice(0, 19)} ·{" "}
+                        {run.status.toLowerCase()}
+                        {run.httpStatus != null ? ` · ${run.httpStatus}` : ""}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            </div>
           </div>
           {selectedRun?.error ? <p className="mt-4 text-sm text-rose">{selectedRun.error}</p> : null}
-          <p className="mt-3 text-xs text-ink-dim">
-            <RelativeTime value={selectedRun?.startedAt} timeZone={timezone} />
-            {selectedRun?.responseCharset ? ` · decoded as ${selectedRun.responseCharset}` : ""}
-          </p>
           <div className="mt-5 space-y-4">
             <ResponseGridView
               key={`${selectedId}-${selectedRun.id}`}

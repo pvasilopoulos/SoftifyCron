@@ -22,6 +22,9 @@ describe("grid layout", () => {
     expect(width).toBeGreaterThan(72);
     expect(width).toBeLessThanOrEqual(720);
     expect(autosizeColumns(["id", "name"], [["1", "Ada"], ["2", "Grace"]]).id).toBeGreaterThan(0);
+    expect(autosizeColumn("DiscountedPrice", ["12.5"])).toBeGreaterThan(
+      autosizeColumn("sku", ["12.5"]),
+    );
   });
 
   it("detects numeric columns and highlights search hits", () => {

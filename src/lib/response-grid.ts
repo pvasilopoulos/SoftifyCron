@@ -40,6 +40,15 @@ export const FILTER_OP_LABELS: Record<FilterOp, string> = {
   lt: "less than",
 };
 
+export function filterChipLabel(filter: Pick<ColumnFilter, "column" | "op" | "value">) {
+  const op = FILTER_OP_LABELS[filter.op];
+  if (filter.op === "empty" || filter.op === "notEmpty") {
+    return `${filter.column} ${op}`;
+  }
+  const value = filter.value.trim();
+  return value ? `${filter.column} ${op} ${value}` : `${filter.column} ${op}`;
+}
+
 export function cellValue(value: unknown): string {
   if (value == null) return "";
   if (typeof value === "string") return value;
