@@ -106,7 +106,7 @@ export function PortalClientsPanel({
           <div className="grid gap-3 sm:grid-cols-2">
             <input className="field" name="name" placeholder="Acme Ops" required minLength={2} />
             <input className="field" name="email" placeholder="ops@client.com, cto@client.com" />
-            <input className="field sm:col-span-2" name="logoUrl" type="url" placeholder="https://client.com/logo.svg" />
+            <input className="field sm:col-span-2" name="logoUrl" placeholder="https://client.com/logo.svg (optional)" />
           </div>
           <fieldset className="grid gap-2 sm:grid-cols-2">
             <legend className="mb-1 text-xs uppercase tracking-[0.16em] text-ink-dim">Job groups</legend>
@@ -126,7 +126,7 @@ export function PortalClientsPanel({
       {revealed ? (
         <div className="mt-4 rounded-2xl bg-bg p-3">
           <p className="text-xs uppercase tracking-[0.16em] text-gold">Shown once</p>
-          <p className="mono mt-2 break-all text-sm">{revealed.url}</p>
+          <input className="field mono mt-2 text-sm" readOnly value={revealed.url} onFocus={(event) => event.currentTarget.select()} />
           <button
             className="btn btn-ghost btn-sm mt-3"
             type="button"

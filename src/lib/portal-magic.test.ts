@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { signPortalMagic, verifyPortalMagic } from "./portal-magic";
+import { originFromRequest } from "./app-url";
 import { monthlyOpsCsv, monthlyOpsPdf, pdfSafe, reportMonthRange } from "./report";
 
 describe("portal magic links", () => {
@@ -35,5 +36,24 @@ describe("monthly ops files", () => {
   it("parses month keys", () => {
     expect(reportMonthRange("2026-01", new Date("2026-08-27T00:00:00Z")).key).toBe("2026-01");
     expect(reportMonthRange(null, new Date("2026-08-27T12:00:00Z")).key).toBe("2026-08");
+  });
+});
+
+describe("request origin", () => {
+  it("prefers the Host header over a 0.0.0.0 bind address", () => {
+    const headers = new Headers({ host: "localhost:3000" });
+    expect(originFromRequest({ url: "http://0.0.0.0:3000/portal/pt_abc", headers })).toBe(
+      "http://localhost:3000",
+    );
+    expect(
+      originFromRequest({
+        url: "http://0.0.0.0:3000/portal/pt_abc",
+        headers: new Headers({
+          host: "cron.softify.gr",
+          "x-forwarded-proto": "https",
+          "x-forwarded-host": "cron.softify.gr",
+        }),
+      }),
+    ).toBe("https://cron.softify.gr");
   });
 });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { findLegacyPortalTenant, findPortalClientByToken } from "@/lib/portal";
 import { redirectWithPortalSession } from "@/lib/portal-cookie";
+import { originFromRequest } from "@/lib/app-url";
 
 type Ctx = { params: Promise<{ token: string }> };
 
@@ -27,5 +28,5 @@ export async function GET(request: Request, { params }: Ctx) {
       sv: 0,
     });
   }
-  return NextResponse.redirect(new URL("/portal/login?error=invalid", request.url));
+  return NextResponse.redirect(new URL("/portal/login?error=invalid", `${originFromRequest(request)}/`));
 }
