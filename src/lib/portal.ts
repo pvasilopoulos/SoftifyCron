@@ -2,9 +2,13 @@ import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/crypto";
 import { newPortalToken, portalUrl } from "@/lib/inbound";
 import { parseEmails, parseEmailsStrict } from "@/lib/notify-policy";
+import { uniquePortalClientByEmail } from "@/lib/portal-email";
 import { assertSafeUrl } from "@/lib/ssrf";
 import { isOpenIncident } from "@/lib/inbox";
 import { statusStats } from "@/lib/status-stats";
+import { signPortalMagic } from "@/lib/portal-magic";
+import { envSmtp, mailConfigured, sendMail } from "@/lib/mail";
+import { smtpFromTenant } from "@/lib/tenant-notify";
 import type { PortalPayload } from "@/lib/portal-session";
 
 const JOB_SELECT = {
@@ -171,9 +175,47 @@ export async function findPortalClientByEmail(email: string) {
       tenant: { select: { id: true, name: true, timezone: true, statusLogoUrl: true } },
       groups: { select: { groupId: true } },
     },
-    take: 20,
+    take: 50,
   });
-  return clients.find((client) => parseEmails(client.email).includes(needle)) ?? null;
+  return uniquePortalClientByEmail(clients, needle);
+}
+
+export async function emailPortalClientMagic(tenantId: string, id: string, origin: string) {
+  const client = await prisma.portalClient.findFirst({
+    where: { id, tenantId },
+    include: { tenant: true },
+  });
+  if (!client) return { ok: false as const, error: "Client not found", status: 404 };
+  const emails = parseEmails(client.email);
+  if (emails.length === 0) {
+    return { ok: false as const, error: "Add an email on this client first", status: 400 };
+  }
+  const smtp = smtpFromTenant(client.tenant) ?? envSmtp();
+  if (!mailConfigured(smtp)) {
+    return { ok: false as const, error: "Set workspace SMTP in Notifications first", status: 400 };
+  }
+  const base = origin.replace(/\/$/, "");
+  for (const email of emails) {
+    const token = signPortalMagic(client.id, email);
+    const link = `${base}/portal/go/${encodeURIComponent(token)}`;
+    const result = await sendMail(
+      {
+        to: email,
+        subject: `${client.tenant.name} client portal`,
+        text: [
+          `Your ${client.tenant.name} portal link for ${client.name}:`,
+          link,
+          "",
+          "This link expires in 24 hours. It does not include the long-lived magic URL.",
+        ].join("\n"),
+      },
+      smtp,
+    );
+    if (!result.sent) {
+      return { ok: false as const, error: "Mail is not configured", status: 400 };
+    }
+  }
+  return { ok: true as const, sent: emails.length };
 }
 
 export async function hydratePortalAccess(payload: PortalPayload) {
@@ -255,11 +297,12 @@ export async function portalHomeData(tenantId: string, groupIds: string[] | null
     (job) => job.lastStatus === "FAILED" || job.lastStatus === "TIMEOUT" || job.lastStatus === "BLOCKED",
   );
   const healthy = jobs.filter((job) => job.lastStatus === "SUCCESS").length;
+  const never = jobs.filter((job) => !job.lastStatus).length;
   const open = jobs.filter((job) => isOpenIncident(job));
   const upcoming = jobs
     .filter((job) => job.enabled && job.nextRunAt)
     .sort((left, right) => (left.nextRunAt?.getTime() ?? 0) - (right.nextRunAt?.getTime() ?? 0))
     .slice(0, 8);
   const stats = await statusStats(tenantId, 30, jobIds);
-  return { jobs, jobIds, failing: failing.length, healthy, open, upcoming, stats };
+  return { jobs, jobIds, failing: failing.length, healthy, never, open, upcoming, stats };
 }

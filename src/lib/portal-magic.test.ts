@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { signPortalMagic, verifyPortalMagic } from "./portal-magic";
 import { originFromRequest } from "./app-url";
+import { uniquePortalClientByEmail } from "./portal-email";
+import { rateLimit, resetRateLimitForTests } from "./rate-limit";
 import { monthlyOpsCsv, monthlyOpsPdf, pdfSafe, reportMonthRange } from "./report";
 
 describe("portal magic links", () => {
@@ -55,5 +57,35 @@ describe("request origin", () => {
         }),
       }),
     ).toBe("https://cron.softify.gr");
+  });
+});
+
+describe("portal email match", () => {
+  it("requires an exact unique mailbox", () => {
+    const rows = [
+      { id: "a", email: "ops@acme.com, cto@acme.com" },
+      { id: "b", email: "ops@other.com" },
+    ];
+    expect(uniquePortalClientByEmail(rows, "ops@acme.com")?.id).toBe("a");
+    expect(uniquePortalClientByEmail(rows, "acme.com")).toBeNull();
+    expect(
+      uniquePortalClientByEmail(
+        [
+          { id: "a", email: "ops@acme.com" },
+          { id: "b", email: "ops@acme.com" },
+        ],
+        "ops@acme.com",
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("rate limit", () => {
+  it("caps hits inside the window", () => {
+    resetRateLimitForTests();
+    expect(rateLimit("k", 2, 1_000, 1_000)).toBe(true);
+    expect(rateLimit("k", 2, 1_000, 1_100)).toBe(true);
+    expect(rateLimit("k", 2, 1_000, 1_200)).toBe(false);
+    expect(rateLimit("k", 2, 1_000, 2_200)).toBe(true);
   });
 });

@@ -60,6 +60,8 @@ export function WorkspaceSettings({
   totpEnabled = false,
   tokens = [],
   portalClients = [],
+  ungroupedJobs = 0,
+  mailReady = false,
   notify,
   telegramTemplates = [],
   origin = "",
@@ -80,6 +82,8 @@ export function WorkspaceSettings({
   totpEnabled?: boolean;
   tokens?: Parameters<typeof ApiTokensPanel>[0]["tokens"];
   portalClients?: Parameters<typeof PortalClientsPanel>[0]["clients"];
+  ungroupedJobs?: number;
+  mailReady?: boolean;
   notify: NotifySettings;
   telegramTemplates?: TelegramTemplateRow[];
   origin?: string;
@@ -160,6 +164,7 @@ export function WorkspaceSettings({
           initial={notify}
           canEdit={canEditSettings}
           telegramTemplates={telegramTemplates}
+          hideLegacyPortal={portalClients.length > 0}
         />
       ) : null}
 
@@ -171,6 +176,8 @@ export function WorkspaceSettings({
             clients={portalClients}
             groups={groups.map((group) => ({ id: group.id, name: group.name, color: group.color }))}
             canEdit={canEditSettings}
+            mailReady={mailReady}
+            ungroupedJobs={ungroupedJobs}
           />
         </div>
       ) : null}

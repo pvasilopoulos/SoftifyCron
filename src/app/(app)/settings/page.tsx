@@ -9,10 +9,11 @@ import { canManageRoleCatalog, listTenantRoles } from "@/lib/roles";
 import { listApiTokens } from "@/lib/api-tokens";
 import { hasPermission } from "@/lib/acl";
 import { notFound } from "next/navigation";
-import { publicNotify } from "@/lib/tenant-notify";
+import { publicNotify, smtpFromTenant } from "@/lib/tenant-notify";
 import { listNotifyTemplates } from "@/lib/notify-templates";
 import { appUrl } from "@/lib/app-url";
 import { listPortalClients, publicPortalClient } from "@/lib/portal";
+import { envSmtp, mailConfigured } from "@/lib/mail";
 
 export const metadata = { title: "Workspace" };
 
@@ -25,7 +26,7 @@ export default async function SettingsPage() {
   const tenant = await prisma.tenant.findUnique({ where: { id: session.tid } });
   if (!tenant) notFound();
 
-  const [groups, secrets, invites, members, roles, tokens, user, telegramTemplates, portalClients] =
+  const [groups, secrets, invites, members, roles, tokens, user, telegramTemplates, portalClients, ungroupedJobs] =
     await Promise.all([
       listGroups(session.tid),
       canManageSecrets ? listSecrets(session.tid) : Promise.resolve([]),
@@ -38,7 +39,8 @@ export default async function SettingsPage() {
         select: { totpEnabled: true },
       }),
       listNotifyTemplates(session.tid),
-      canEditSettings ? listPortalClients(session.tid) : Promise.resolve([]),
+      listPortalClients(session.tid),
+      prisma.cronJob.count({ where: { tenantId: session.tid, groupId: null } }),
     ]);
 
   return (
@@ -56,6 +58,8 @@ export default async function SettingsPage() {
       secrets={secrets}
       tokens={tokens}
       portalClients={portalClients.map((client) => publicPortalClient(client))}
+      ungroupedJobs={ungroupedJobs}
+      mailReady={mailConfigured(smtpFromTenant(tenant) ?? envSmtp())}
       totpEnabled={Boolean(user?.totpEnabled)}
       canManagePeople={canManagePeople}
       canManageRoles={canManageRoleCatalog(session)}

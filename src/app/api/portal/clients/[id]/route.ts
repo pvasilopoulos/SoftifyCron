@@ -5,6 +5,7 @@ import { jsonError, zodError } from "@/lib/http";
 import { portalClientSchema } from "@/lib/validators";
 import {
   deletePortalClient,
+  emailPortalClientMagic,
   publicPortalClient,
   rotatePortalClient,
   updatePortalClient,
@@ -43,6 +44,17 @@ export async function POST(request: Request, { params }: Ctx) {
   if (!hasPermission(session, "settings.edit")) return jsonError("Forbidden", 403);
   const { id } = await params;
   const body = (await request.json().catch(() => ({}))) as { action?: string };
+  if (body.action === "email") {
+    const result = await emailPortalClientMagic(session.tid, id, appUrl());
+    if (!result.ok) return jsonError(result.error, result.status);
+    await writeAudit({
+      tenantId: session.tid,
+      actorId: session.sub,
+      action: "portal.client.email",
+      target: id,
+    });
+    return NextResponse.json({ ok: true, sent: result.sent });
+  }
   if (body.action !== "rotate") return jsonError("Unknown action", 400);
   const rotated = await rotatePortalClient(session.tid, id);
   if (!rotated) return jsonError("Client not found", 404);

@@ -12,6 +12,7 @@ import { TenantDetailsForm } from "@/components/tenant-details-form";
 import { formatDateTime } from "@/lib/format";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { publicNotify } from "@/lib/tenant-notify";
+import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Tenant" };
 
@@ -24,10 +25,11 @@ export default async function TenantDetailPage({
   const { id } = await params;
   const tenant = await getCustomer(id);
   if (!tenant) notFound();
-  const [members, invites, roles] = await Promise.all([
+  const [members, invites, roles, portalClientCount] = await Promise.all([
     membersForClient(id, { ...session, role: "OWNER", platform: true }),
     listInvites(id),
     listTenantRoles(id),
+    prisma.portalClient.count({ where: { tenantId: id } }),
   ]);
 
   return (
@@ -77,6 +79,7 @@ export default async function TenantDetailPage({
           endpoint={`/api/admin/tenants/${tenant.id}/notify`}
           telegramEndpoint={`/api/admin/tenants/${tenant.id}/notify/telegram`}
           initial={publicNotify(tenant)}
+          hideLegacyPortal={portalClientCount > 0}
         />
       </section>
 
