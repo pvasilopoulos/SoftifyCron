@@ -129,6 +129,7 @@ model Tenant {
   incidents                Incident[]
   library                  JobLibrary[]
   notifyTemplates          NotifyTemplate[]
+  portalClients            PortalClient[]
 }
 
 model User {
@@ -202,6 +203,7 @@ model JobGroup {
   updatedAt DateTime  @updatedAt
   tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   jobs      CronJob[]
+  portalClients PortalClientGroup[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -420,6 +422,34 @@ model ApiToken {
   tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+model PortalClient {
+  id           String              @id @default(cuid())
+  tenantId     String
+  name         String
+  email        String              @default("") @db.VarChar(500)
+  logoUrl      String?             @db.VarChar(2048)
+  tokenHash    String              @unique
+  tokenPrefix  String              @db.VarChar(16)
+  sessionEpoch Int                 @default(0)
+  lastSeenAt   DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  groups       PortalClientGroup[]
+
+  @@index([tenantId])
+}
+
+model PortalClientGroup {
+  clientId String
+  groupId  String
+  client   PortalClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  group    JobGroup     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([clientId, groupId])
+  @@index([groupId])
 }
 
 model AuditEvent {

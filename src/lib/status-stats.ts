@@ -2,15 +2,19 @@ import { prisma } from "@/lib/prisma";
 
 const FAILING = ["FAILED", "TIMEOUT", "BLOCKED"] as const;
 
-export async function statusStats(tenantId: string, days = 90) {
+export async function statusStats(tenantId: string, days = 90, jobIds?: string[]) {
+  if (jobIds && jobIds.length === 0) {
+    return { days, total: 0, success: 0, uptime: null, lastOutage: null };
+  }
   const since = new Date(Date.now() - days * 86_400_000);
+  const jobFilter = jobIds?.length ? { jobId: { in: jobIds } } : {};
   const [total, success, lastOutage] = await Promise.all([
-    prisma.jobRun.count({ where: { tenantId, startedAt: { gte: since } } }),
+    prisma.jobRun.count({ where: { tenantId, startedAt: { gte: since }, ...jobFilter } }),
     prisma.jobRun.count({
-      where: { tenantId, startedAt: { gte: since }, status: "SUCCESS" },
+      where: { tenantId, startedAt: { gte: since }, status: "SUCCESS", ...jobFilter },
     }),
     prisma.jobRun.findFirst({
-      where: { tenantId, status: { in: [...FAILING] }, startedAt: { gte: since } },
+      where: { tenantId, status: { in: [...FAILING] }, startedAt: { gte: since }, ...jobFilter },
       orderBy: { startedAt: "desc" },
       select: {
         startedAt: true,

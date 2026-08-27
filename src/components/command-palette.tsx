@@ -29,6 +29,7 @@ const STATIC: Hit[] = [
   { href: "/settings", label: "Workspace settings" },
   { href: "/settings#docs", label: "Workspace docs and API" },
   { href: "/settings#security", label: "API tokens" },
+  { href: "/settings#security", label: "Client portals" },
   { href: "/settings#people", label: "People and roles" },
   { href: "/settings#roles", label: "Roles" },
   { href: "/admin", label: "Tenants" },
@@ -54,6 +55,7 @@ function cycleDensity() {
 export function CommandPalette() {
   const router = useRouter();
   const pathname = usePathname();
+  const portal = pathname === "/portal" || pathname.startsWith("/portal/");
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [jobs, setJobs] = useState<Hit[]>([]);
@@ -62,12 +64,14 @@ export function CommandPalette() {
 
   useEffect(() => {
     function open() {
+      if (portal) return;
       setQ("");
       setIndex(0);
       setOpenedOn(pathname);
       setOpen(true);
     }
     function onKey(event: KeyboardEvent) {
+      if (portal) return;
       const meta = event.metaKey || event.ctrlKey;
       if (meta && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -91,7 +95,7 @@ export function CommandPalette() {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("sc-open-palette", open);
     };
-  }, [openedOn, pathname]);
+  }, [openedOn, pathname, portal]);
 
   useEffect(() => {
     if (!open) return;
@@ -116,7 +120,7 @@ export function CommandPalette() {
     return () => window.clearTimeout(handle);
   }, [open, q]);
 
-  const visible = open && openedOn === pathname;
+  const visible = !portal && open && openedOn === pathname;
 
   const hits = useMemo(() => {
     const needle = q.trim().toLowerCase();

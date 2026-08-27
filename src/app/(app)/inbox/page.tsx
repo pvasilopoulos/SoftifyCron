@@ -70,9 +70,15 @@ export default async function InboxPage() {
           <ul className="mt-4 space-y-2">
             {acked.map((job) => (
               <li key={job.id} className="flex items-center justify-between gap-3 text-sm">
-                <Link href={`/jobs/${job.id}`} className="hover:text-gold">
-                  {job.name}
-                </Link>
+                <div className="min-w-0">
+                  <Link href={`/jobs/${job.id}`} className="hover:text-gold">
+                    {job.name}
+                  </Link>
+                  <p className="text-xs text-ink-dim">
+                    {job.ackedBy ?? "someone"}
+                    {job.ackNote ? ` · ${job.ackNote}` : ""}
+                  </p>
+                </div>
                 {job.lastStatus ? <StatusPill status={job.lastStatus} /> : null}
               </li>
             ))}

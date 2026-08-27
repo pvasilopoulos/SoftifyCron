@@ -56,7 +56,7 @@ describe("app docs", () => {
   it("documents the product surfaces and the API", () => {
     const ids = APP_DOC_SECTIONS.map((section) => section.id);
     expect(ids).toEqual(
-      expect.arrayContaining(["overview", "jobs", "types", "runs", "notify", "people", "api", "hooks"]),
+      expect.arrayContaining(["overview", "jobs", "types", "runs", "notify", "people", "portal", "api", "hooks"]),
     );
     expect(searchDocSections("heartbeat").some((section) => section.id === "types")).toBe(true);
     expect(searchDocSections("zzzz-missing")).toEqual([]);

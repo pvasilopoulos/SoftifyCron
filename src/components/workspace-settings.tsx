@@ -8,6 +8,7 @@ import { SettingsForm } from "@/components/settings-form";
 import { WorkspacePanels } from "@/components/workspace-panels";
 import { SecurityPanel } from "@/components/security-panel";
 import { ApiTokensPanel } from "@/components/api-tokens-panel";
+import { PortalClientsPanel } from "@/components/portal-clients-panel";
 import { JobIoPanel } from "@/components/job-io-panel";
 import { NotificationsPanel, type NotifySettings } from "@/components/notifications-panel";
 import { type TelegramTemplateRow } from "@/components/telegram-templates-panel";
@@ -58,6 +59,7 @@ export function WorkspaceSettings({
   platform = false,
   totpEnabled = false,
   tokens = [],
+  portalClients = [],
   notify,
   telegramTemplates = [],
   origin = "",
@@ -77,6 +79,7 @@ export function WorkspaceSettings({
   platform?: boolean;
   totpEnabled?: boolean;
   tokens?: Parameters<typeof ApiTokensPanel>[0]["tokens"];
+  portalClients?: Parameters<typeof PortalClientsPanel>[0]["clients"];
   notify: NotifySettings;
   telegramTemplates?: TelegramTemplateRow[];
   origin?: string;
@@ -164,6 +167,11 @@ export function WorkspaceSettings({
         <div className="space-y-4">
           <SecurityPanel totpEnabled={totpEnabled} platform={platform} />
           <ApiTokensPanel tokens={tokens} canEdit={canEditSettings} />
+          <PortalClientsPanel
+            clients={portalClients}
+            groups={groups.map((group) => ({ id: group.id, name: group.name, color: group.color }))}
+            canEdit={canEditSettings}
+          />
         </div>
       ) : null}
 
