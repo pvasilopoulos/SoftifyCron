@@ -162,8 +162,35 @@ export const APP_DOC_SECTIONS: DocSection[] = [
           "Secrets: named {{SECRET:key}} values, encrypted at rest. Export never includes plaintext values.",
           "Security: password change, TOTP, session epoch (password change signs everyone out), optional login IP allow-list.",
           "API tokens: sc_… secrets, optional expiry, scopes. Legacy tokens with empty scopes keep full access.",
-          "Client portal: a rotating token for /portal/… without a full login. Status page is a public slug (and optional custom host) with email subscribe.",
+          "Client portal: Settings → Security. One magic link per customer, bound to job groups. Opening /portal/pt_… stores a cookie and continues on /portal. Rotate or revoke there. Optional 24-hour email link so the secret is not in the address bar forever.",
         ],
+      },
+    ],
+  },
+  {
+    id: "portal",
+    title: "Client portal",
+    kicker: "Customers",
+    blocks: [
+      {
+        type: "p",
+        text: "Give each customer a read-only portal of their job groups. This is not the workspace-wide token under Notifications. Create clients in Settings → Security.",
+      },
+      {
+        type: "ul",
+        items: [
+          "Magic link /portal/pt_… is bound to one or more job groups. Opening it sets an httpOnly cookie and redirects to /portal so the secret does not stay in the address bar.",
+          "Rotate or revoke from Settings → Security. Rotate bumps the session epoch and signs existing cookies out.",
+          "Optional emails receive a 24-hour login link from /portal/login. The form never says whether the mailbox exists.",
+          "Home: health (healthy / failing), open incidents, upcoming fires, 30-day uptime, and the status-page logo. No URLs, headers, bodies, or secrets.",
+          "Job card: name, type, armed/paused, last/next run, last N runs with status and duration only. No Run now, no edit.",
+          "Clients can ack with “I saw it” plus a note. That writes the same ack Inbox and the job page already show.",
+          "Monthly report downloads CSV or PDF from the same numbers as /api/reports/month, scoped to the client’s jobs.",
+        ],
+      },
+      {
+        type: "note",
+        text: "The legacy workspace portal token still works for all jobs. Prefer per-client links for customers.",
       },
     ],
   },

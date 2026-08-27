@@ -742,7 +742,8 @@ export function NotificationsPanel({
           />
         </label>
         <p className="mt-3 text-sm text-ink-dim">
-          Client portal prefix {initial.portalTokenPrefix || "none"}. Tick rotate to mint a new /portal/… token (shown once).
+          Per-customer portals live under Settings → Security. This workspace-wide token is the legacy all-jobs link.
+          Prefix {initial.portalTokenPrefix || "none"}. Tick rotate to mint a new /portal/… token (shown once).
         </p>
         {portalToken ? <p className="mono mt-3 break-all rounded-2xl bg-bg p-3 text-sm">{portalToken}</p> : null}
         {canEdit ? (

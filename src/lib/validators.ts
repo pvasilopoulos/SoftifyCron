@@ -114,6 +114,21 @@ export const apiTokenNameSchema = z.object({
   expiresInDays: z.union([z.number(), z.string(), z.null()]).optional(),
 });
 
+export const portalClientSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  email: z.string().max(500).optional().or(z.literal("")),
+  logoUrl: z.union([z.url().max(2048), z.literal(""), z.null()]).optional(),
+  groupIds: z.array(z.string().min(1)).min(1, "Pick at least one job group").max(50),
+});
+
+export const portalMagicSchema = z.object({
+  email: z.email().max(160),
+});
+
+export const portalAckSchema = z.object({
+  note: z.string().max(500).optional(),
+});
+
 const notifyListSchema = z
   .union([z.array(z.string()), z.string()])
   .optional()

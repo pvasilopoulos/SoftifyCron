@@ -12,6 +12,7 @@ import { notFound } from "next/navigation";
 import { publicNotify } from "@/lib/tenant-notify";
 import { listNotifyTemplates } from "@/lib/notify-templates";
 import { appUrl } from "@/lib/app-url";
+import { listPortalClients, publicPortalClient } from "@/lib/portal";
 
 export const metadata = { title: "Workspace" };
 
@@ -24,19 +25,21 @@ export default async function SettingsPage() {
   const tenant = await prisma.tenant.findUnique({ where: { id: session.tid } });
   if (!tenant) notFound();
 
-  const [groups, secrets, invites, members, roles, tokens, user, telegramTemplates] = await Promise.all([
-    listGroups(session.tid),
-    canManageSecrets ? listSecrets(session.tid) : Promise.resolve([]),
-    canManagePeople ? listInvites(session.tid) : Promise.resolve([]),
-    membersForClient(session.tid, session),
-    listTenantRoles(session.tid),
-    canEditSettings ? listApiTokens(session.tid) : Promise.resolve([]),
-    prisma.user.findUnique({
-      where: { id: session.sub },
-      select: { totpEnabled: true },
-    }),
-    listNotifyTemplates(session.tid),
-  ]);
+  const [groups, secrets, invites, members, roles, tokens, user, telegramTemplates, portalClients] =
+    await Promise.all([
+      listGroups(session.tid),
+      canManageSecrets ? listSecrets(session.tid) : Promise.resolve([]),
+      canManagePeople ? listInvites(session.tid) : Promise.resolve([]),
+      membersForClient(session.tid, session),
+      listTenantRoles(session.tid),
+      canEditSettings ? listApiTokens(session.tid) : Promise.resolve([]),
+      prisma.user.findUnique({
+        where: { id: session.sub },
+        select: { totpEnabled: true },
+      }),
+      listNotifyTemplates(session.tid),
+      canEditSettings ? listPortalClients(session.tid) : Promise.resolve([]),
+    ]);
 
   return (
     <WorkspaceSettings
@@ -52,6 +55,7 @@ export default async function SettingsPage() {
       groups={groups}
       secrets={secrets}
       tokens={tokens}
+      portalClients={portalClients.map((client) => publicPortalClient(client))}
       totpEnabled={Boolean(user?.totpEnabled)}
       canManagePeople={canManagePeople}
       canManageRoles={canManageRoleCatalog(session)}
