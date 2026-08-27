@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { greekHolidaySet, isGreekHoliday, orthodoxEaster } from "./holidays-gr";
 import { checkAssertions, readJsonPath } from "./assert-response";
-import { changedSourceRows, diffGrids } from "./grid-diff";
+import { changedSourceRows, diffGrids, listChangedViewCells, stepChangedCell } from "./grid-diff";
 import { isOverdueSlot, nextAllowedFire } from "./schedule-policy";
 
 describe("greek holidays", () => {
@@ -61,6 +61,42 @@ describe("grid diff", () => {
     const filtered = changedSourceRows(current, diffGrids(current, previous));
     expect(filtered.grid.rows).toEqual([["B", "3"]]);
     expect(filtered.origin).toEqual([1]);
+  });
+
+  it("walks changed cells in view order", () => {
+    const current = {
+      columns: ["name", "qty"],
+      rows: [
+        ["A", "1"],
+        ["B", "3"],
+        ["C", "4"],
+      ],
+      source: "json-table" as const,
+    };
+    const previous = {
+      columns: ["name", "qty"],
+      rows: [
+        ["A", "1"],
+        ["B", "2"],
+        ["C", "9"],
+      ],
+      source: "json-table" as const,
+    };
+    const diff = diffGrids(current, previous);
+    const cells = listChangedViewCells(
+      { columns: ["name", "qty"], origin: [0, 1, 2] },
+      current.columns,
+      [0, 1, 2],
+      diff,
+    );
+    expect(cells).toEqual([
+      { row: 1, col: 1 },
+      { row: 2, col: 1 },
+    ]);
+    expect(stepChangedCell(cells, null, 1)).toEqual({ row: 1, col: 1 });
+    expect(stepChangedCell(cells, { row: 1, col: 1 }, 1)).toEqual({ row: 2, col: 1 });
+    expect(stepChangedCell(cells, { row: 2, col: 1 }, 1)).toEqual({ row: 1, col: 1 });
+    expect(stepChangedCell(cells, { row: 0, col: 0 }, 1)).toEqual({ row: 1, col: 1 });
   });
 });
 
