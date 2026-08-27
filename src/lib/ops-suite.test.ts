@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildCron, parseCronDraft } from "./cron-builder";
 import { certExpiresTooSoon, dnsMatchesExpected, isProbeType, parseProbeTarget } from "./probes";
-import { extractColumnSeries } from "./grid-series";
 import { isOpenIncident, sortInbox } from "./inbox";
 import { formatBytes, summarizeJobCounts, toFiniteCount } from "./usage";
 import { hookUrl, newHookToken } from "./inbound";
@@ -29,19 +28,6 @@ describe("probes", () => {
     const soon = new Date(Date.now() + 2 * 86_400_000);
     expect(certExpiresTooSoon(soon, 14)).toBe(true);
     expect(certExpiresTooSoon(new Date(Date.now() + 40 * 86_400_000), 14)).toBe(false);
-  });
-});
-
-describe("grid series", () => {
-  it("picks the first numeric cell in a named column", () => {
-    const points = extractColumnSeries(
-      [
-        { startedAt: "2026-08-01T10:00:00.000Z", responseBody: '[{"sku":"A","qty":12}]' },
-        { startedAt: "2026-08-02T10:00:00.000Z", responseBody: '[{"sku":"A","qty":8}]' },
-      ],
-      "qty",
-    );
-    expect(points.map((item) => item.value)).toEqual([12, 8]);
   });
 });
 

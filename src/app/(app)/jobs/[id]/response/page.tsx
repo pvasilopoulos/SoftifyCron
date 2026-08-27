@@ -7,7 +7,6 @@ import { StatusPill } from "@/components/status-pill";
 import { ResponseGridView } from "@/components/response-grid";
 import { parseResponseGrid } from "@/lib/response-grid";
 import { prisma } from "@/lib/prisma";
-import { GridSeriesChart } from "@/components/grid-series-chart";
 
 export const metadata = { title: "Last response" };
 
@@ -72,27 +71,20 @@ export default async function JobResponsePage({
           </p>
           {run.error ? <p className="mt-3 text-sm text-rose">{run.error}</p> : null}
           <div className="mt-5 space-y-4">
-            <GridSeriesChart
-              runs={runs.map((row) => ({
-                startedAt: row.startedAt.toISOString(),
-                responseBody: row.responseBody,
-              }))}
-              columns={[...new Set(runs.flatMap((row) => parseResponseGrid(row.responseBody).columns))]}
-            />
             {run.responseBody ? (
               <>
                 <a className="text-sm text-gold" href={`/api/runs/${run.id}/body`}>
                   Download raw body
                 </a>
                 <ResponseGridView
-                grid={grid}
-                raw={run.responseBody}
-                previousRaw={previousRaw}
-                storageKey={`job-${job.id}`}
-                jobId={job.id}
-                savedViews={job.gridViews}
-                savedWatches={job.gridWatches}
-              />
+                  grid={grid}
+                  raw={run.responseBody}
+                  previousRaw={previousRaw}
+                  storageKey={`job-${job.id}`}
+                  jobId={job.id}
+                  savedViews={job.gridViews}
+                  savedWatches={job.gridWatches}
+                />
               </>
             ) : (
               <p className="text-sm text-ink-dim">
