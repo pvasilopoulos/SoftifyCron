@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyGridQuery,
+  filterChipLabel,
   filterGrid,
   parseResponseDatasets,
   parseResponseGrid,
@@ -103,5 +104,17 @@ describe("parseResponseGrid", () => {
     expect(datasets.map((item) => item.id)).toEqual(["orders", "users", "_fields"]);
     expect(datasets[0]?.grid.rows).toHaveLength(2);
     expect(datasets[2]?.grid.rows).toEqual([["ok", "true"]]);
+  });
+});
+
+describe("filterChipLabel", () => {
+  it("summarizes a filter for the chip strip", () => {
+    expect(filterChipLabel({ column: "SKU", op: "contains", value: "SS22" })).toBe(
+      "SKU contains SS22",
+    );
+    expect(filterChipLabel({ column: "STOCK", op: "empty", value: "ignored" })).toBe(
+      "STOCK is empty",
+    );
+    expect(filterChipLabel({ column: "VAT", op: "gt", value: "  " })).toBe("VAT greater than");
   });
 });
