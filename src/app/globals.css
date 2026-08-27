@@ -847,6 +847,8 @@ details > summary::-webkit-details-marker { display: none; }
   padding: 0.35rem 0.85rem 0.35rem 0.7rem;
   min-width: 6.5rem;
   overflow: visible;
+  letter-spacing: 0.04em;
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--gold) 22%, var(--line));
 }
 .data-grid th.grid-th.is-num .grid-sort {
   text-align: right;
@@ -901,8 +903,12 @@ details > summary::-webkit-details-marker { display: none; }
   font-size: 1rem;
   line-height: 1;
   cursor: pointer;
+  opacity: 0.35;
 }
-.grid-th-more:hover {
+.grid-th-more:hover,
+.grid-th:hover .grid-th-more,
+.grid-th.is-focus .grid-th-more {
+  opacity: 1;
   background: var(--bg);
   color: var(--ink);
 }
@@ -922,11 +928,11 @@ details > summary::-webkit-details-marker { display: none; }
 .grid-col-resizer::after {
   content: "";
   position: absolute;
-  top: 22%;
+  top: 18%;
   width: 2px;
-  height: 56%;
+  height: 64%;
   border-radius: 99px;
-  background: color-mix(in srgb, var(--muted) 55%, var(--gold) 25%);
+  background: color-mix(in srgb, var(--gold) 55%, var(--muted));
 }
 .grid-col-resizer::before {
   left: 3px;
@@ -1114,9 +1120,17 @@ html.is-grid-full body {
   gap: 0.35rem;
   align-items: center;
 }
+.grid-tools-label {
+  margin-right: 0.15rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
 .grid-tools-group + .grid-tools-group {
-  padding-left: 0.75rem;
-  border-left: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  padding-left: 0.85rem;
+  margin-left: 0.15rem;
+  border-left: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
 }
 @media (max-width: 720px) {
   .grid-tools-group + .grid-tools-group {

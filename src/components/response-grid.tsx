@@ -150,7 +150,12 @@ export function ResponseGridView({
   const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null);
   const [focusCol, setFocusCol] = useState<string | null>(null);
   const [colQuery, setColQuery] = useState("");
-  const resizeRef = useRef<{ column: string; startX: number; startW: number } | null>(null);
+  const resizeRef = useRef<{
+    column: string;
+    startX: number;
+    startW: number;
+    active: boolean;
+  } | null>(null);
   const dragCol = useRef<string | null>(null);
   const lastChecked = useRef<number | null>(null);
   const jsonDiff = useMemo(
@@ -257,19 +262,28 @@ export function ResponseGridView({
     function move(event: MouseEvent) {
       const current = resizeRef.current;
       if (!current) return;
+      const dx = event.clientX - current.startX;
+      if (!current.active) {
+        if (Math.abs(dx) < 4) return;
+        current.active = true;
+        document.body.classList.add("is-col-resizing");
+      }
       event.preventDefault();
-      const next = clampColWidth(current.startW + (event.clientX - current.startX));
+      const next = clampColWidth(current.startW + dx);
       setLiveWidths((prev) => ({ ...(prev ?? {}), [current.column]: next }));
     }
     function up() {
-      if (!resizeRef.current) return;
+      const current = resizeRef.current;
+      if (!current) return;
+      const wasActive = current.active;
       resizeRef.current = null;
       document.body.classList.remove("is-col-resizing");
+      if (!wasActive) return;
       setLiveWidths((prev) => {
         if (prev && Object.keys(prev).length) {
           const raw = prefsSnapshot(storageKey);
-          const current = parsePrefs(raw);
-          localStorage.setItem(`sc-grid:${storageKey}`, JSON.stringify({ ...current, widths: prev }));
+          const stored = parsePrefs(raw);
+          localStorage.setItem(`sc-grid:${storageKey}`, JSON.stringify({ ...stored, widths: prev }));
           emitPrefs(storageKey);
         }
         return null;
@@ -316,9 +330,7 @@ export function ResponseGridView({
     event.stopPropagation();
     const th = event.currentTarget.closest("th");
     const startW = widths[column] ?? th?.getBoundingClientRect().width ?? 160;
-    resizeRef.current = { column, startX: event.clientX, startW };
-    document.body.classList.add("is-col-resizing");
-    setLiveWidths({ ...widths, [column]: clampColWidth(startW) });
+    resizeRef.current = { column, startX: event.clientX, startW, active: false };
     setHeaderMenu(null);
     setFocusCol(column);
   }
@@ -654,6 +666,7 @@ export function ResponseGridView({
       {mode === "grid" ? (
         <div className="grid-tools">
           <div className="grid-tools-group" role="group" aria-label="Options and filters">
+            <span className="grid-tools-label">Options</span>
             <button
               className={`grid-tool ${panel === "columns" ? "is-on" : ""}`}
               type="button"
@@ -683,6 +696,7 @@ export function ResponseGridView({
             </button>
           </div>
           <div className="grid-tools-group" role="group" aria-label="Column size">
+            <span className="grid-tools-label">Size</span>
             <button
               className="grid-tool"
               type="button"
@@ -706,10 +720,11 @@ export function ResponseGridView({
               title="Clear saved column widths"
               onClick={resetWidths}
             >
-              Reset widths
+              Reset
             </button>
           </div>
           <div className="grid-tools-group" role="group" aria-label="Display">
+            <span className="grid-tools-label">Display</span>
             <button
               className={`grid-tool ${prefs.freeze ? "is-on" : ""}`}
               type="button"

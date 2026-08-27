@@ -27,8 +27,13 @@ export function measureTextWidth(text: string) {
   return clampColWidth(28 + Math.min(sample.length, 80) * 7.2);
 }
 
+export function measureHeaderWidth(text: string) {
+  const sample = String(text ?? "").slice(0, 48);
+  return clampColWidth(56 + Math.min(sample.length, 48) * 9.6);
+}
+
 export function autosizeColumn(name: string, cells: string[]) {
-  let width = measureTextWidth(name) + 36;
+  let width = measureHeaderWidth(name);
   for (const cell of cells.slice(0, 80)) {
     width = Math.max(width, measureTextWidth(cell));
   }
