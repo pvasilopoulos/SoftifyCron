@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   applyGridQuery,
+  columnValueCounts,
   filterChipLabel,
   filterGrid,
+  inFilterForSelection,
   parseResponseDatasets,
   parseResponseGrid,
 } from "./response-grid";
@@ -116,5 +118,43 @@ describe("filterChipLabel", () => {
       "STOCK is empty",
     );
     expect(filterChipLabel({ column: "VAT", op: "gt", value: "  " })).toBe("VAT greater than");
+    expect(filterChipLabel({ column: "SKU", op: "in", value: "", values: ["A", "B", ""] })).toBe(
+      "SKU · 3 values",
+    );
+    expect(filterChipLabel({ column: "SKU", op: "in", value: "", values: ["SS22"] })).toBe(
+      "SKU is SS22",
+    );
+  });
+});
+
+describe("in filters and value counts", () => {
+  it("filters a column to selected values including blanks", () => {
+    const grid = parseResponseGrid(
+      JSON.stringify([
+        { sku: "A", qty: 1 },
+        { sku: "B", qty: 2 },
+        { sku: "", qty: 3 },
+      ]),
+    );
+    const filtered = applyGridQuery(grid, {
+      filters: [{ id: "1", column: "sku", op: "in", value: "", values: ["A", ""] }],
+    });
+    expect(filtered.rows.map((row) => row[0])).toEqual(["A", ""]);
+  });
+
+  it("counts unique values and drops the in-filter when everything is selected", () => {
+    const grid = parseResponseGrid(
+      JSON.stringify([
+        { color: "red" },
+        { color: "red" },
+        { color: "blue" },
+        { color: "" },
+      ]),
+    );
+    const counts = columnValueCounts(grid, "color");
+    expect(counts.unique).toBe(3);
+    expect(counts.items[0]).toEqual({ value: "red", count: 2 });
+    expect(inFilterForSelection("color", ["red", "blue", ""], ["red", "blue", ""])).toBeNull();
+    expect(inFilterForSelection("color", ["red"], ["red", "blue", ""])?.values).toEqual(["red"]);
   });
 });

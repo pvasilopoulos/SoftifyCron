@@ -49,3 +49,50 @@ export function changedSourceRows(grid: ResponseGrid, diff: { rows: DiffRow[] } 
   });
   return { grid: { ...grid, rows }, origin };
 }
+
+export type GridCellPos = { row: number; col: number };
+
+export function listChangedViewCells(
+  view: { columns: string[]; origin: number[] },
+  sourceColumns: string[],
+  workingOrigin: number[],
+  diff: { rows: DiffRow[] } | null,
+): GridCellPos[] {
+  if (!diff) return [];
+  const cells: GridCellPos[] = [];
+  const sourceIndexOf = (viewRow: number) => {
+    const workingIndex = view.origin[viewRow] ?? viewRow;
+    return workingOrigin[workingIndex] ?? workingIndex;
+  };
+  for (let row = 0; row < view.origin.length; row += 1) {
+    const sourceRow = sourceIndexOf(row);
+    const diffRow = diff.rows[sourceRow];
+    if (!diffRow) continue;
+    for (let col = 0; col < view.columns.length; col += 1) {
+      const sourceCol = sourceColumns.indexOf(view.columns[col] ?? "");
+      if (sourceCol < 0) continue;
+      if (diffRow.cells[sourceCol]?.changed) cells.push({ row, col });
+    }
+  }
+  return cells;
+}
+
+export function stepChangedCell(cells: GridCellPos[], current: GridCellPos | null, dir: 1 | -1) {
+  if (!cells.length) return null;
+  if (!current) return dir > 0 ? cells[0]! : cells[cells.length - 1]!;
+  const at = cells.findIndex((cell) => cell.row === current.row && cell.col === current.col);
+  if (at >= 0) {
+    return cells[(at + dir + cells.length) % cells.length]!;
+  }
+  if (dir > 0) {
+    return (
+      cells.find((cell) => cell.row > current.row || (cell.row === current.row && cell.col > current.col)) ??
+      cells[0]!
+    );
+  }
+  for (let index = cells.length - 1; index >= 0; index -= 1) {
+    const cell = cells[index]!;
+    if (cell.row < current.row || (cell.row === current.row && cell.col < current.col)) return cell;
+  }
+  return cells[cells.length - 1]!;
+}

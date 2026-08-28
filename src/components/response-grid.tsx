@@ -5,12 +5,14 @@ import { createPortal } from "react-dom";
 import { toast } from "@/components/toaster";
 import {
   applyGridQuery,
+  COMPARE_OPS,
+  columnValueCounts,
   distinctValues,
   FILTER_OP_LABELS,
-  FILTER_OPS,
   filterChipLabel,
   gridToCsv,
   gridToTsv,
+  inFilterForSelection,
   moveColumn,
   parseResponseDatasets,
   reconcileVisible,
@@ -20,7 +22,7 @@ import {
   type ResponseGrid,
   type SortState,
 } from "@/lib/response-grid";
-import { changedSourceRows, diffGrids, diffHoverText } from "@/lib/grid-diff";
+import { changedSourceRows, diffGrids, diffHoverText, listChangedViewCells, stepChangedCell } from "@/lib/grid-diff";
 import { jsonLineDiff, prettyJsonText } from "@/lib/json-diff";
 import { parseGridViews, type GridView } from "@/lib/grid-views";
 import { parseGridWatches, type GridWatch } from "@/lib/grid-watch";
@@ -29,6 +31,9 @@ import {
   autosizeColumns,
   clampColWidth,
   columnLooksNumeric,
+  columnStats,
+  emptyOrZeroColumns,
+  formatStat,
   highlightParts,
   moveColumnTo,
   stepGridCell,
@@ -49,6 +54,7 @@ type Prefs = {
   pageSize?: number;
   widths?: Record<string, number>;
   striped?: boolean;
+  hideEmpty?: boolean;
 };
 
 function lockCol(width: number): CSSProperties {
@@ -153,6 +159,8 @@ export function ResponseGridView({
   const [liveWidths, setLiveWidths] = useState<Record<string, number> | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [headerMenu, setHeaderMenu] = useState<{ column: string; x: number; y: number } | null>(null);
+  const [valueMenu, setValueMenu] = useState<{ column: string; x: number; y: number } | null>(null);
+  const [valueQuery, setValueQuery] = useState("");
   const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null);
   const [focusCol, setFocusCol] = useState<string | null>(null);
   const [colQuery, setColQuery] = useState("");
@@ -162,6 +170,7 @@ export function ResponseGridView({
     startW: number;
     active: boolean;
   } | null>(null);
+  const jumpDir = useRef<1 | -1 | null>(null);
   const dragCol = useRef<string | null>(null);
   const lastChecked = useRef<number | null>(null);
   const jsonDiff = useMemo(
@@ -190,14 +199,19 @@ export function ResponseGridView({
   useEffect(() => {
     function onPointer(event: MouseEvent) {
       const target = event.target as HTMLElement | null;
-      if (target?.closest(".grid-col-menu")) return;
+      if (target?.closest(".grid-col-menu, .grid-value-menu, .grid-th-filter")) return;
+      setHeaderMenu(null);
+      setValueMenu(null);
       if (!root.current?.contains(target)) {
         setPanel(null);
-        setHeaderMenu(null);
       }
     }
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        if (valueMenu) {
+          setValueMenu(null);
+          return;
+        }
         if (headerMenu) {
           setHeaderMenu(null);
           return;
@@ -219,7 +233,7 @@ export function ResponseGridView({
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("keydown", onKey);
     };
-  }, [headerMenu, panel]);
+  }, [headerMenu, panel, valueMenu]);
 
   useEffect(() => {
     if (!fullscreen) return;
@@ -233,13 +247,23 @@ export function ResponseGridView({
     };
   }, [fullscreen]);
 
+  const hideEmpty = Boolean(prefs.hideEmpty);
   const visible = useMemo(
     () => reconcileVisible(prefs.visible, source.columns),
     [prefs.visible, source.columns],
   );
+  const emptyCols = useMemo(
+    () => (hideEmpty ? emptyOrZeroColumns(working.grid.columns, working.grid.rows) : []),
+    [hideEmpty, working.grid],
+  );
+  const shown = useMemo(() => {
+    if (!hideEmpty) return visible;
+    const kept = visible.filter((column) => !emptyCols.includes(column));
+    return kept.length ? kept : visible;
+  }, [hideEmpty, visible, emptyCols]);
   const view = useMemo(
-    () => applyGridQuery(working.grid, { query, filters, sort, visible }),
-    [working.grid, query, filters, sort, visible],
+    () => applyGridQuery(working.grid, { query, filters, sort, visible: shown }),
+    [working.grid, query, filters, sort, shown],
   );
   const pageSize = prefs.pageSize ?? 50;
   const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(view.rows.length / pageSize)) : 1;
@@ -263,6 +287,43 @@ export function ResponseGridView({
     }
     return set;
   }, [view.columns, view.rows]);
+  const changedCells = useMemo(
+    () => listChangedViewCells(view, source.columns, working.origin, diff),
+    [view, source.columns, working.origin, diff],
+  );
+  const footerStats = useMemo(() => {
+    const stats: Record<string, ReturnType<typeof columnStats>> = {};
+    for (let index = 0; index < view.columns.length; index += 1) {
+      const name = view.columns[index]!;
+      if (!numericCols.has(name)) continue;
+      stats[name] = columnStats(view.rows, index);
+    }
+    return stats;
+  }, [view.columns, view.rows, numericCols]);
+  const valueCounts = useMemo(() => {
+    if (!valueMenu) return null;
+    return {
+      all: columnValueCounts(working.grid, valueMenu.column, { limit: 100_000 }),
+      listed: columnValueCounts(working.grid, valueMenu.column, { query: valueQuery, limit: 400 }),
+    };
+  }, [valueMenu, valueQuery, working.grid]);
+
+  useEffect(() => {
+    if (jumpDir.current == null || !diffOn || !changedCells.length) return;
+    const dir = jumpDir.current;
+    jumpDir.current = null;
+    const next = stepChangedCell(changedCells, null, dir);
+    if (next) {
+      setActiveCell(next);
+      setFocusCol(view.columns[next.col] ?? null);
+    }
+  }, [diffOn, changedCells, view.columns]);
+
+  useEffect(() => {
+    if (!activeCell) return;
+    const el = root.current?.querySelector(`[data-cell="${activeCell.row}:${activeCell.col}"]`);
+    if (el instanceof HTMLElement) el.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [activeCell, safePage]);
 
   useEffect(() => {
     function move(event: MouseEvent) {
@@ -395,6 +456,48 @@ export function ResponseGridView({
     setHeaderMenu({ column, x: event.clientX, y: event.clientY });
     setFocusCol(column);
     setPanel(null);
+    setValueMenu(null);
+  }
+
+  function openValueMenu(column: string, x: number, y: number) {
+    setValueMenu({ column, x, y });
+    setValueQuery("");
+    setFocusCol(column);
+    setHeaderMenu(null);
+    setPanel(null);
+  }
+
+  function setColumnInFilter(column: string, selected: string[], allValues: string[]) {
+    const next = inFilterForSelection(column, selected, allValues);
+    setFilters((current) => {
+      const without = current.filter((item) => !(item.column === column && item.op === "in"));
+      if (!next) return without;
+      const prev = current.find((item) => item.column === column && item.op === "in");
+      return [...without, { ...next, id: prev?.id ?? next.id }];
+    });
+    setPage(1);
+  }
+
+  function focusChange(next: { row: number; col: number }) {
+    setActiveCell(next);
+    setFocusCol(view.columns[next.col] ?? null);
+    if (pageSize > 0) {
+      const targetPage = Math.floor(next.row / pageSize) + 1;
+      if (targetPage !== safePage) setPage(targetPage);
+    }
+  }
+
+  function gotoChange(dir: 1 | -1) {
+    if (!diff?.changedCount) return;
+    if (!diffOn) {
+      jumpDir.current = dir;
+      setDiffOn(true);
+      setPage(1);
+      setHover(null);
+      return;
+    }
+    const next = stepChangedCell(changedCells, activeCell, dir);
+    if (next) focusChange(next);
   }
 
   function toggleSort(column: string) {
@@ -540,7 +643,7 @@ export function ResponseGridView({
           return;
         }
         if (mode !== "grid" || view.columns.length === 0 || view.rows.length === 0) return;
-        if (target instanceof HTMLElement && target.closest("button, a, .grid-toolbar, .grid-tools, .grid-chips, .grid-pager, .grid-panel, .menu-pop")) {
+        if (target instanceof HTMLElement && target.closest("button, a, .grid-toolbar, .grid-tools, .grid-chips, .grid-pager, .grid-panel, .menu-pop, .grid-value-menu")) {
           return;
         }
         const key = event.key;
@@ -645,18 +748,50 @@ export function ResponseGridView({
             ) : null}
           </div>
           {previousRaw ? (
-            <button
-              className={`grid-tool ${diffOn ? "is-on" : ""}`}
-              type="button"
-              aria-pressed={diffOn}
-              onClick={() => {
-                setDiffOn((value) => !value);
-                setPage(1);
-                setHover(null);
-              }}
-            >
-              Diff{diff ? ` ${diff.changedCount}` : ""}
-            </button>
+            <div className="grid-diff-nav">
+              <button
+                className={`grid-tool ${diffOn ? "is-on" : ""}`}
+                type="button"
+                aria-pressed={diffOn}
+                onClick={() => {
+                  setDiffOn((value) => !value);
+                  setPage(1);
+                  setHover(null);
+                }}
+              >
+                Diff{diff ? ` ${diff.changedCount}` : ""}
+              </button>
+              {diff && diff.changedCount > 0 ? (
+                <>
+                  <button
+                    className="grid-tool"
+                    type="button"
+                    title="Previous changed cell"
+                    onClick={() => gotoChange(-1)}
+                  >
+                    Prev
+                  </button>
+                  <span className="grid-diff-pos">
+                    {(() => {
+                      const at = activeCell
+                        ? changedCells.findIndex(
+                            (cell) => cell.row === activeCell.row && cell.col === activeCell.col,
+                          )
+                        : -1;
+                      return `${at >= 0 ? at + 1 : "—"}/${changedCells.length || diff.changedCount}`;
+                    })()}
+                  </span>
+                  <button
+                    className="grid-tool"
+                    type="button"
+                    title="Next changed cell"
+                    onClick={() => gotoChange(1)}
+                  >
+                    Next
+                  </button>
+                </>
+              ) : null}
+            </div>
           ) : null}
           <button
             className={`grid-tool ${fullscreen ? "is-on" : ""}`}
@@ -680,8 +815,8 @@ export function ResponseGridView({
               onClick={() => togglePanel("columns")}
             >
               Columns
-              {source.columns.length !== visible.length
-                ? ` ${visible.length}/${source.columns.length}`
+              {shown.length !== source.columns.length
+                ? ` ${shown.length}/${source.columns.length}`
                 : ""}
             </button>
             <button
@@ -763,6 +898,15 @@ export function ResponseGridView({
             >
               Stripes
             </button>
+            <button
+              className={`grid-tool ${hideEmpty ? "is-on" : ""}`}
+              type="button"
+              aria-pressed={hideEmpty}
+              title="Hide columns that are empty or all zeros"
+              onClick={() => patchPrefs({ hideEmpty: !hideEmpty })}
+            >
+              Hide empty
+            </button>
           </div>
         </div>
       ) : null}
@@ -775,7 +919,14 @@ export function ResponseGridView({
                 className="grid-chip-label"
                 type="button"
                 title="Edit filter"
-                onClick={() => togglePanel("filters")}
+                onClick={(event) => {
+                  if (filter.op === "in") {
+                    const box = event.currentTarget.getBoundingClientRect();
+                    openValueMenu(filter.column, box.left, box.bottom);
+                    return;
+                  }
+                  togglePanel("filters");
+                }}
               >
                 <span className="truncate">{filterChipLabel(filter)}</span>
               </button>
@@ -812,6 +963,7 @@ export function ResponseGridView({
         {selected.size ? ` · ${selected.size} selected` : ""}
         {diff ? ` · ${diff.changedCount} cells changed vs previous run` : ""}
         {diffActive ? " · showing changes only" : ""}
+        {hideEmpty && emptyCols.length ? ` · ${emptyCols.length} empty columns hidden` : ""}
         {sized ? " · custom column widths" : ""}
       </p>
 
@@ -821,7 +973,8 @@ export function ResponseGridView({
             <div>
               <p className="grid-panel-title">Columns</p>
               <p className="grid-panel-sub">
-                {visible.length} visible · {source.columns.length - visible.length} hidden · drag a header to reorder
+                {shown.length} visible · {source.columns.length - shown.length} hidden
+                {hideEmpty && emptyCols.length ? ` · ${emptyCols.length} empty/zero` : ""} · drag a header to reorder
               </p>
             </div>
             <button className="grid-tool" type="button" onClick={() => setPanel(null)} aria-label="Close columns">
@@ -899,6 +1052,31 @@ export function ResponseGridView({
           </div>
           {filters.length === 0 ? <p className="text-sm text-ink-dim">No column filters yet.</p> : null}
           {filters.map((filter) => {
+            if (filter.op === "in") {
+              return (
+                <div key={filter.id} className="grid-filter-row">
+                  <span className="text-sm truncate">{filter.column}</span>
+                  <span className="text-sm text-ink-dim">{filterChipLabel(filter)}</span>
+                  <button
+                    className="grid-tool"
+                    type="button"
+                    onClick={(event) => {
+                      const box = event.currentTarget.getBoundingClientRect();
+                      openValueMenu(filter.column, box.left, box.bottom);
+                    }}
+                  >
+                    Edit values
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    type="button"
+                    onClick={() => setFilters((current) => current.filter((item) => item.id !== filter.id))}
+                  >
+                    Remove
+                  </button>
+                </div>
+              );
+            }
             const values = distinctValues(source, filter.column, 40);
             const showList = values.length > 0 && values.length <= 40;
             return (
@@ -931,7 +1109,7 @@ export function ResponseGridView({
                     )
                   }
                 >
-                  {FILTER_OPS.map((op) => (
+                  {COMPARE_OPS.map((op) => (
                     <option key={op} value={op}>
                       {FILTER_OP_LABELS[op]}
                     </option>
@@ -1016,10 +1194,10 @@ export function ResponseGridView({
           <label className="grid-check">
             <input
               type="checkbox"
-              checked={striped}
-              onChange={(event) => patchPrefs({ striped: event.target.checked })}
+              checked={hideEmpty}
+              onChange={(event) => patchPrefs({ hideEmpty: event.target.checked })}
             />
-            Striped rows
+            Hide empty/zero columns
           </label>
           <div className="flex flex-wrap gap-2">
             <button className="grid-tool is-accent" type="button" onClick={fitAllColumns}>
@@ -1083,7 +1261,7 @@ export function ResponseGridView({
                       setWatchDraft((current) => ({ ...current, op: event.target.value as FilterOp }))
                     }
                   >
-                    {FILTER_OPS.map((op) => (
+                    {COMPARE_OPS.map((op) => (
                       <option key={op} value={op}>
                         {FILTER_OP_LABELS[op]}
                       </option>
@@ -1271,7 +1449,7 @@ export function ResponseGridView({
                   {view.columns.map((column) => (
                     <th
                       key={column}
-                      className={`grid-th ${numericCols.has(column) ? "is-num" : ""} ${focusCol === column ? "is-focus" : ""}`}
+                      className={`grid-th ${numericCols.has(column) ? "is-num" : ""} ${focusCol === column ? "is-focus" : ""} ${filters.some((item) => item.column === column) ? "is-filtered" : ""}`}
                       style={colStyle(column)}
                       onContextMenu={(event) => openHeaderMenu(column, event)}
                       onDoubleClick={(event) => {
@@ -1317,6 +1495,19 @@ export function ResponseGridView({
                               {sort.dir === "asc" ? "↑" : "↓"}
                             </span>
                           ) : null}
+                        </button>
+                        <button
+                          type="button"
+                          className={`grid-th-filter ${filters.some((item) => item.column === column) ? "is-on" : ""}`}
+                          aria-label={`Filter ${column}`}
+                          title="Filter values"
+                          onMouseDown={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            const box = event.currentTarget.getBoundingClientRect();
+                            openValueMenu(column, box.left, box.bottom);
+                          }}
+                        >
+                          ▾
                         </button>
                         <button
                           type="button"
@@ -1391,6 +1582,7 @@ export function ResponseGridView({
                           ]
                             .filter(Boolean)
                             .join(" ")}
+                          data-cell={`${abs}:${col}`}
                           onMouseOver={
                             changed && cell ? (event) => showTip(event, cell.previous, cell.value) : undefined
                           }
@@ -1420,6 +1612,39 @@ export function ResponseGridView({
                   );
                 })}
               </tbody>
+              {Object.keys(footerStats).length ? (
+                <tfoot>
+                  <tr>
+                    <td className="grid-check-col" style={lockCol(CHECK_COL_W)} />
+                    <td className="grid-index-col" style={lockCol(INDEX_COL_W)}>
+                      Σ
+                    </td>
+                    {view.columns.map((column) => {
+                      const stats = footerStats[column];
+                      return (
+                        <td
+                          key={column}
+                          className={numericCols.has(column) ? "is-num" : ""}
+                          style={colStyle(column)}
+                          title={
+                            stats
+                              ? `Sum ${formatStat(stats.sum)} · Avg ${stats.avg == null ? "—" : formatStat(stats.avg)} · ${stats.count.toLocaleString()} numbers`
+                              : undefined
+                          }
+                        >
+                          {stats ? (
+                            <span className="grid-foot-stats">
+                              <span>Σ {formatStat(stats.sum)}</span>
+                              <span>μ {stats.avg == null ? "—" : formatStat(stats.avg)}</span>
+                              <span>n {stats.count.toLocaleString()}</span>
+                            </span>
+                          ) : null}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tfoot>
+              ) : null}
             </table>
           </div>
         </>
@@ -1595,6 +1820,16 @@ export function ResponseGridView({
               <button
                 className="menu-item"
                 type="button"
+                onClick={(event) => {
+                  const box = event.currentTarget.getBoundingClientRect();
+                  openValueMenu(headerMenu.column, box.left, box.bottom);
+                }}
+              >
+                Filter values…
+              </button>
+              <button
+                className="menu-item"
+                type="button"
                 onClick={() => {
                   setFilters((current) => [
                     ...current,
@@ -1609,7 +1844,7 @@ export function ResponseGridView({
                   setHeaderMenu(null);
                 }}
               >
-                Filter…
+                Condition…
               </button>
               <div className="menu-sep" />
               <button
@@ -1622,6 +1857,102 @@ export function ResponseGridView({
               >
                 Hide column
               </button>
+            </div>,
+            document.body,
+          )
+        : null}
+      {valueMenu && valueCounts
+        ? createPortal(
+            <div
+              className="menu-pop grid-value-menu"
+              style={{
+                position: "fixed",
+                left: Math.min(valueMenu.x, window.innerWidth - 280),
+                top: Math.min(valueMenu.y + 8, window.innerHeight - 420),
+                right: "auto",
+                marginTop: 0,
+              }}
+            >
+              {(() => {
+                const allValues = valueCounts.all.items.map((item) => item.value);
+                const inFilter = filters.find((item) => item.column === valueMenu.column && item.op === "in");
+                const selected = new Set(inFilter ? (inFilter.values ?? []) : allValues);
+                const listedValues = valueCounts.listed.items.map((item) => item.value);
+                const listedSelected = listedValues.filter((value) => selected.has(value)).length;
+                const toggle = (value: string) => {
+                  const next = new Set(selected);
+                  if (next.has(value)) next.delete(value);
+                  else next.add(value);
+                  setColumnInFilter(valueMenu.column, [...next], allValues);
+                };
+                return (
+                  <>
+                    <p className="grid-value-title">{valueMenu.column}</p>
+                    <input
+                      className="field"
+                      value={valueQuery}
+                      onChange={(event) => setValueQuery(event.target.value)}
+                      placeholder="Search values…"
+                      autoFocus
+                    />
+                    <div className="grid-value-actions">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = new Set(selected);
+                          listedValues.forEach((value) => next.add(value));
+                          setColumnInFilter(valueMenu.column, [...next], allValues);
+                        }}
+                      >
+                        Select listed
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setColumnInFilter(valueMenu.column, allValues, allValues)}
+                      >
+                        Select all
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (valueQuery.trim()) {
+                            const next = new Set(selected);
+                            listedValues.forEach((value) => next.delete(value));
+                            setColumnInFilter(valueMenu.column, [...next], allValues);
+                          } else {
+                            setColumnInFilter(valueMenu.column, [], allValues);
+                          }
+                        }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <p className="grid-value-meta">
+                      {listedSelected}/{valueCounts.listed.items.length} listed
+                      {valueCounts.listed.truncated ? " · truncated" : ""} ·{" "}
+                      {valueCounts.all.unique.toLocaleString()} unique
+                    </p>
+                    <ul className="grid-value-list">
+                      {valueCounts.listed.items.map((item) => (
+                        <li key={item.value || "(blank)"}>
+                          <label className="grid-check">
+                            <input
+                              type="checkbox"
+                              checked={selected.has(item.value)}
+                              onChange={() => toggle(item.value)}
+                            />
+                            <span className="truncate">{item.value || "(blank)"}</span>
+                          </label>
+                          <span className="grid-value-count">{item.count.toLocaleString()}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {valueCounts.listed.items.length === 0 ? (
+                      <p className="text-sm text-ink-dim">No values match.</p>
+                    ) : null}
+                  </>
+                );
+              })()}
             </div>,
             document.body,
           )

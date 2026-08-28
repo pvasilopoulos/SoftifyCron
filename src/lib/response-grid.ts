@@ -16,7 +16,10 @@ export const FILTER_OPS = [
   "notEmpty",
   "gt",
   "lt",
+  "in",
 ] as const;
+
+export const COMPARE_OPS = FILTER_OPS.filter((op) => op !== "in");
 
 export type FilterOp = (typeof FILTER_OPS)[number];
 
@@ -25,6 +28,7 @@ export type ColumnFilter = {
   column: string;
   op: FilterOp;
   value: string;
+  values?: string[];
 };
 
 export type SortState = { column: string; dir: "asc" | "desc" } | null;
@@ -38,9 +42,16 @@ export const FILTER_OP_LABELS: Record<FilterOp, string> = {
   notEmpty: "is not empty",
   gt: "greater than",
   lt: "less than",
+  in: "is any of",
 };
 
-export function filterChipLabel(filter: Pick<ColumnFilter, "column" | "op" | "value">) {
+export function filterChipLabel(filter: Pick<ColumnFilter, "column" | "op" | "value" | "values">) {
+  if (filter.op === "in") {
+    const values = filter.values ?? [];
+    if (values.length === 0) return `${filter.column} is any of (none)`;
+    if (values.length === 1) return `${filter.column} is ${values[0] || "(blank)"}`;
+    return `${filter.column} · ${values.length} values`;
+  }
   const op = FILTER_OP_LABELS[filter.op];
   if (filter.op === "empty" || filter.op === "notEmpty") {
     return `${filter.column} ${op}`;
@@ -392,7 +403,7 @@ export function compareCells(a: string, b: string) {
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 }
 
-export function matchFilter(cell: string, op: FilterOp, value: string) {
+export function matchFilter(cell: string, op: FilterOp, value: string, values?: string[]) {
   const hay = cell.toLowerCase();
   const needle = value.trim().toLowerCase();
   switch (op) {
@@ -408,6 +419,10 @@ export function matchFilter(cell: string, op: FilterOp, value: string) {
       return cell.trim() === "";
     case "notEmpty":
       return cell.trim() !== "";
+    case "in": {
+      const list = values ?? (value ? [value] : []);
+      return list.includes(cell);
+    }
     case "gt":
     case "lt": {
       const left = parseCellNumber(cell);
@@ -443,7 +458,9 @@ export function applyGridQuery(
   for (const filter of filters) {
     const index = columnIndex(grid.columns, filter.column);
     if (index < 0) continue;
-    indexed = indexed.filter((item) => matchFilter(item.row[index] ?? "", filter.op, filter.value));
+    indexed = indexed.filter((item) =>
+      matchFilter(item.row[index] ?? "", filter.op, filter.value, filter.values),
+    );
   }
 
   if (options.sort && columnIndex(grid.columns, options.sort.column) >= 0) {
@@ -488,18 +505,46 @@ export function moveColumn(columns: string[], name: string, delta: number) {
 }
 
 export function distinctValues(grid: ResponseGrid, column: string, limit = 24) {
+  return columnValueCounts(grid, column, { limit }).items.map((item) => item.value);
+}
+
+export function columnValueCounts(
+  grid: ResponseGrid,
+  column: string,
+  options: { query?: string; limit?: number } = {},
+) {
   const index = columnIndex(grid.columns, column);
-  if (index < 0) return [];
-  const seen = new Set<string>();
-  const values: string[] = [];
+  if (index < 0) return { items: [] as Array<{ value: string; count: number }>, unique: 0, truncated: false };
+  const map = new Map<string, number>();
   for (const row of grid.rows) {
     const value = row[index] ?? "";
-    if (seen.has(value)) continue;
-    seen.add(value);
-    values.push(value);
-    if (values.length > limit) return values;
+    map.set(value, (map.get(value) ?? 0) + 1);
   }
-  return values;
+  const query = options.query?.trim().toLowerCase() ?? "";
+  let items = [...map.entries()].map(([value, count]) => ({ value, count }));
+  if (query) {
+    items = items.filter((item) => (item.value || "(blank)").toLowerCase().includes(query));
+  }
+  items.sort((a, b) => {
+    if (!a.value && b.value) return 1;
+    if (a.value && !b.value) return -1;
+    return b.count - a.count || a.value.localeCompare(b.value, undefined, { numeric: true });
+  });
+  const limit = options.limit ?? 400;
+  return {
+    items: items.slice(0, limit),
+    unique: map.size,
+    truncated: items.length > limit,
+  };
+}
+
+export function inFilterForSelection(column: string, selected: string[], allValues: string[]): ColumnFilter | null {
+  const all = new Set(allValues);
+  if (selected.length === 0) {
+    return { id: `in-${column}`, column, op: "in", value: "", values: [] };
+  }
+  if (selected.length === all.size && selected.every((value) => all.has(value))) return null;
+  return { id: `in-${column}`, column, op: "in", value: "", values: selected };
 }
 
 export function gridToCsv(grid: ResponseGrid) {

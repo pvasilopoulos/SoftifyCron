@@ -3,7 +3,11 @@ import {
   autosizeColumn,
   autosizeColumns,
   clampColWidth,
+  columnIsEmptyOrZero,
   columnLooksNumeric,
+  columnStats,
+  emptyOrZeroColumns,
+  formatStat,
   highlightParts,
   moveColumnTo,
   parseColWidths,
@@ -49,5 +53,28 @@ describe("grid layout", () => {
     expect(stepGridCell(3, 2, "right", 3, 4)).toEqual({ row: 3, col: 2 });
     expect(stepGridCell(2, 1, "home", 3, 4)).toEqual({ row: 2, col: 0 });
     expect(stepGridCell(2, 1, "last", 3, 4)).toEqual({ row: 3, col: 2 });
+  });
+});
+
+describe("column stats and empty columns", () => {
+  it("sums numeric cells and ignores blanks", () => {
+    const stats = columnStats(
+      [
+        ["10", "a"],
+        ["", "b"],
+        ["2.5", "c"],
+        ["0", "d"],
+      ],
+      0,
+    );
+    expect(stats).toEqual({ sum: 12.5, avg: 12.5 / 3, count: 3, empty: 1, numeric: true });
+    expect(formatStat(3)).toBe("3");
+    expect(formatStat(1.25)).toBe("1.25");
+  });
+
+  it("treats blank and zero columns as empty", () => {
+    expect(columnIsEmptyOrZero(["", "0", "0.0"])).toBe(true);
+    expect(columnIsEmptyOrZero(["", "2"])).toBe(false);
+    expect(emptyOrZeroColumns(["sku", "gift"], [["A", "0"], ["B", ""]])).toEqual(["gift"]);
   });
 });

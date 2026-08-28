@@ -63,6 +63,59 @@ export function columnLooksNumeric(cells: string[]) {
   return seen >= 3 && nums / seen >= 0.8;
 }
 
+export function columnIsEmptyOrZero(cells: string[]) {
+  if (!cells.length) return true;
+  return cells.every((cell) => {
+    const text = cell.trim();
+    if (!text) return true;
+    return parseCellNumber(text) === 0;
+  });
+}
+
+export function emptyOrZeroColumns(columns: string[], rows: string[][]) {
+  return columns.filter((name, index) =>
+    columnIsEmptyOrZero(rows.map((row) => row[index] ?? "")),
+  );
+}
+
+export type ColumnStats = {
+  sum: number;
+  avg: number | null;
+  count: number;
+  empty: number;
+  numeric: boolean;
+};
+
+export function columnStats(rows: string[][], colIndex: number): ColumnStats {
+  let sum = 0;
+  let count = 0;
+  let empty = 0;
+  for (const row of rows) {
+    const cell = row[colIndex] ?? "";
+    if (!cell.trim()) {
+      empty += 1;
+      continue;
+    }
+    const n = parseCellNumber(cell);
+    if (n == null) continue;
+    sum += n;
+    count += 1;
+  }
+  return {
+    sum,
+    avg: count ? sum / count : null,
+    count,
+    empty,
+    numeric: count > 0,
+  };
+}
+
+export function formatStat(n: number) {
+  const abs = Math.abs(n);
+  const digits = Number.isInteger(n) || abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
+  return n.toLocaleString(undefined, { maximumFractionDigits: digits });
+}
+
 export function highlightParts(text: string, query: string) {
   const value = text ?? "";
   const needle = query.trim();
